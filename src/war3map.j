@@ -401,19 +401,6 @@ globals
     location                udg_Point                  = null
     real                    udg_DemoVelocity           = 0
     timer                   udg_DmgEvTimer             = null
-    integer                 udg_ARIndex                = 0
-    integer                 udg_ARLastRecycled         = 0
-    integer array           udg_ARRecycledList
-    integer                 udg_ARMax                  = 0
-    boolean array           udg_ARHas
-    unit array              udg_ARCaster
-    location array          udg_ARTargetPoint
-    real array              udg_ARDelay
-    integer array           udg_ARArrows
-    integer                 udg_ARCount                = 0
-    real array              udg_ARDamage
-    group array             udg_ARArrowsGroup
-    group array             udg_ARArrowsGroup2
     hashtable               udg_SpellHash              = null
     unit                    udg_FoK_Caster             = null
     location                udg_FoK_Position           = null
@@ -676,7 +663,6 @@ globals
     integer                 udg_AInteger               = 0
     real array              udg_AAngle
     unit array              udg_Unit
-    integer                 udg_ARInteger              = 0
     integer                 udg_BL_MUI1                = 0
     integer                 udg_BL_MUI2                = 0
     unit array              udg_BL_Caster
@@ -1151,7 +1137,6 @@ globals
     trigger                 gg_trg_Power_Stance        = null
     trigger                 gg_trg_Power_Stance_fl     = null
     trigger                 gg_trg_Arrow_Shower        = null
-    trigger                 gg_trg_Arrow_Shower_Down   = null
     trigger                 gg_trg_Fury                = null
     trigger                 gg_trg_Fury1               = null
     trigger                 gg_trg_Hell_Step_2         = null
@@ -1439,6 +1424,9 @@ globals
     group array             Msl_Hit
     integer array           Msl_Data
     real array              Msl_DataR
+    real array              Msl_DataX
+    real array              Msl_DataY
+    real array              Msl_RecycleDelay
     // --- Missile event context (read these inside onHit/onEnd callbacks)
     integer                 EV_MISSILE                 = 0
     unit                    EV_UNIT                    = null
@@ -1453,6 +1441,7 @@ globals
     trigger                 Prc_OnTick                 = null
     trigger                 Sos_OnTick                 = null
     trigger                 Eaw_OnHit                  = null
+    trigger                 Ash_OnTick                 = null
     // --- Freezing Blast shard channel
     integer                 Fbz_N                      = 0
     integer array           Fbz_List
@@ -1596,7 +1585,7 @@ endfunction
 // Target validation shared by all engine collision checks.
 //===========================================================================
 function Eng_IsDummyType takes integer t returns boolean
-    return t == 'h005' or t == 'h00Q' or t == 'h00R' or t == 'e002' or t == 'h00Y' or t == 'hrif' or t == 'hgry' or t == 'hgyr' or t == 'h016' or t == 'hkni' or t == 'h014' or t == 'h00C' or t == 'h00L'
+    return t == 'h005' or t == 'h00Q' or t == 'h00R' or t == 'e002' or t == 'h00Y' or t == 'hrif' or t == 'hgry' or t == 'hgyr' or t == 'h016' or t == 'hkni' or t == 'h014' or t == 'h00C' or t == 'h00L' or t == 'h00U' or t == 'h00V'
 endfunction
 
 function Eng_ValidTarget takes unit u, player castOwner returns boolean
@@ -1719,15 +1708,22 @@ function Missile_LaunchXY takes unit owner, real x, real y, real tx, real ty, re
     set Msl_OnEnd[i] = onEnd
     set Msl_Data[i] = 0
     set Msl_DataR[i] = 0.00
+    set Msl_DataX[i] = 0.00
+    set Msl_DataY[i] = 0.00
+    set Msl_RecycleDelay[i] = 0.00
     set Msl_Dummy[i] = Dummy_Get(GetOwningPlayer(owner), dummyType, x, y, a * bj_RADTODEG)
     if model != "" then
         set Msl_Fx[i] = AddSpecialEffectTarget(model, Msl_Dummy[i], "origin")
     else
         set Msl_Fx[i] = null
     endif
-    if Msl_Hit[i] == null then
-        set Msl_Hit[i] = CreateGroup()
-    else
+    if radius > 0.00 and onHit != null then
+        if Msl_Hit[i] == null then
+            set Msl_Hit[i] = CreateGroup()
+        else
+            call GroupClear(Msl_Hit[i])
+        endif
+    elseif Msl_Hit[i] != null then
         call GroupClear(Msl_Hit[i])
     endif
     set Msl_N = Msl_N + 1
@@ -1748,14 +1744,25 @@ function Msl_Destroy takes integer i returns nothing
         call DestroyEffect(Msl_Fx[i])
         set Msl_Fx[i] = null
     endif
-    call Dummy_Recycle(Msl_Dummy[i])
+    if Msl_RecycleDelay[i] > 0.00 then
+        call Dummy_RecycleTimed(Msl_Dummy[i], Msl_RecycleDelay[i], 0)
+    else
+        call Dummy_Recycle(Msl_Dummy[i])
+    endif
     set Msl_Dummy[i] = null
     set Msl_Owner[i] = null
     set Msl_Target[i] = null
     set Msl_OnHit[i] = null
     set Msl_OnTick[i] = null
     set Msl_OnEnd[i] = null
-    call GroupClear(Msl_Hit[i])
+    set Msl_Data[i] = 0
+    set Msl_DataR[i] = 0.00
+    set Msl_DataX[i] = 0.00
+    set Msl_DataY[i] = 0.00
+    set Msl_RecycleDelay[i] = 0.00
+    if Msl_Hit[i] != null then
+        call GroupClear(Msl_Hit[i])
+    endif
     set Msl_FreeN = Msl_FreeN + 1
     set Msl_FreeList[Msl_FreeN] = i
 endfunction
@@ -1981,6 +1988,100 @@ endfunction
 function EA_Launch takes unit caster, real tx, real ty returns nothing
     local integer i = Missile_LaunchXY(caster, GetUnitX(caster), GetUnitY(caster), tx, ty, 1000.00, 3000.00, 125.00, 'e000', "", Eaw_OnHit, null)
     call SetUnitFlyHeight(Msl_Dummy[i], 70.00, 0.00)
+endfunction
+
+//===========================================================================
+// Arrow Shower (ability 'A00P') - 55 independent vertical MissileCore
+// instances. Arrows wait at the target center, spread one every 0.03 seconds
+// after the wind-up, descend at the legacy rate, then linger for one second.
+//===========================================================================
+function ArrowShower_Impact takes integer i returns nothing
+    local group victims = CreateGroup()
+    local player p = GetOwningPlayer(Msl_Owner[i])
+    local unit u
+    local unit d
+    call GroupEnumUnitsInRange(victims, Msl_X[i], Msl_Y[i], 100.00, null)
+    loop
+        set u = FirstOfGroup(victims)
+        exitwhen u == null
+        call GroupRemoveUnit(victims, u)
+        if GetWidgetLife(u) > 0.405 and not IsUnitType(u, UNIT_TYPE_STRUCTURE) and not IsUnitType(u, UNIT_TYPE_MAGIC_IMMUNE) and IsUnitEnemy(u, p) then
+            set udg_DamageEventType = 1
+            set d = Dummy_Get(p, 'h005', GetUnitX(u), GetUnitY(u), bj_UNIT_FACING)
+            call UnitDamageTarget(d, u, 35.00, true, false, ATTACK_TYPE_HERO, DAMAGE_TYPE_NORMAL, WEAPON_TYPE_WHOKNOWS)
+            call Dummy_RecycleTimed(d, 1.00, 0)
+        endif
+    endloop
+    call DestroyGroup(victims)
+    set victims = null
+    set p = null
+    set u = null
+    set d = null
+endfunction
+
+function ArrowShower_OnTick takes nothing returns boolean
+    local integer i = EV_MISSILE
+    local real h
+    set Msl_DataR[i] = Msl_DataR[i] - Eng_TickRate
+    if Msl_DataR[i] <= 0.00 then
+        if Msl_Data[i] == 0 then
+            set Msl_Data[i] = 1
+            set Msl_X[i] = Msl_DataX[i]
+            set Msl_Y[i] = Msl_DataY[i]
+            call SetUnitX(Msl_Dummy[i], Msl_X[i])
+            call SetUnitY(Msl_Dummy[i], Msl_Y[i])
+        endif
+        set h = GetUnitFlyHeight(Msl_Dummy[i]) - 1666.67 * Eng_TickRate
+        if h <= 0.00 then
+            call SetUnitFlyHeight(Msl_Dummy[i], 0.00, 0.00)
+            call ArrowShower_Impact(i)
+            set Msl_RecycleDelay[i] = 1.00
+            set Msl_Dist[i] = Msl_MaxDist[i]
+        else
+            call SetUnitFlyHeight(Msl_Dummy[i], h, 0.00)
+        endif
+    endif
+    return false
+endfunction
+
+function ArrowShower_Launch takes unit caster, real tx, real ty returns nothing
+    local player p = GetOwningPlayer(caster)
+    local unit rise = Dummy_Get(p, 'h00U', GetUnitX(caster), GetUnitY(caster), bj_UNIT_FACING)
+    local integer n = 0
+    local integer i
+    local real a
+    local real r
+    local real x
+    local real y
+    call SetUnitFlyHeight(rise, 0.00, 0.00)
+    call SetUnitFlyHeight(rise, 1500.00, 2500.00)
+    call Dummy_RecycleTimed(rise, 1.00, 0)
+    loop
+        exitwhen n >= 55
+        set r = GetRandomReal(0.00, 150.00)
+        set a = GetRandomReal(0.00, 6.28318)
+        set x = tx + r * Cos(a)
+        set y = ty + r * Sin(a)
+        if x < Eng_MinX then
+            set x = Eng_MinX
+        elseif x > Eng_MaxX then
+            set x = Eng_MaxX
+        endif
+        if y < Eng_MinY then
+            set y = Eng_MinY
+        elseif y > Eng_MaxY then
+            set y = Eng_MaxY
+        endif
+        set i = Missile_LaunchXY(caster, tx, ty, tx, ty, 0.00, 1.00, 0.00, 'h00V', "", null, null)
+        set Msl_DataR[i] = 1.05 + 0.03 * I2R(n)
+        set Msl_DataX[i] = x
+        set Msl_DataY[i] = y
+        call SetUnitFlyHeight(Msl_Dummy[i], 1500.00, 0.00)
+        call Missile_SetOnTick(i, Ash_OnTick)
+        set n = n + 1
+    endloop
+    set p = null
+    set rise = null
 endfunction
 
 //===========================================================================
@@ -2542,6 +2643,8 @@ function Engine_Init takes nothing returns nothing
     call TriggerAddCondition(Sos_OnTick, Condition(function SoulStrike_OnTick))
     set Eaw_OnHit = CreateTrigger()
     call TriggerAddCondition(Eaw_OnHit, Condition(function EA_OnHit))
+    set Ash_OnTick = CreateTrigger()
+    call TriggerAddCondition(Ash_OnTick, Condition(function ArrowShower_OnTick))
     call TimerStart(Eng_Timer, Eng_TickRate, true, function Eng_MasterTick)
 endfunction
 
@@ -3559,59 +3662,6 @@ function InitGlobals takes nothing returns nothing
     set udg_UnitMovingEvent = 0
     set udg_DemoVelocity = 0
     set udg_DmgEvTimer = CreateTimer()
-    set udg_ARIndex = 0
-    set udg_ARLastRecycled = 0
-    set i = 0
-    loop
-        exitwhen (i > 1)
-        set udg_ARRecycledList[i] = 0
-        set i = i + 1
-    endloop
-
-    set udg_ARMax = 0
-    set i = 0
-    loop
-        exitwhen (i > 1)
-        set udg_ARHas[i] = false
-        set i = i + 1
-    endloop
-
-    set i = 0
-    loop
-        exitwhen (i > 1)
-        set udg_ARDelay[i] = 0
-        set i = i + 1
-    endloop
-
-    set i = 0
-    loop
-        exitwhen (i > 1)
-        set udg_ARArrows[i] = 0
-        set i = i + 1
-    endloop
-
-    set udg_ARCount = 0
-    set i = 0
-    loop
-        exitwhen (i > 1)
-        set udg_ARDamage[i] = 0
-        set i = i + 1
-    endloop
-
-    set i = 0
-    loop
-        exitwhen (i > 1)
-        set udg_ARArrowsGroup[i] = CreateGroup()
-        set i = i + 1
-    endloop
-
-    set i = 0
-    loop
-        exitwhen (i > 1)
-        set udg_ARArrowsGroup2[i] = CreateGroup()
-        set i = i + 1
-    endloop
-
     set udg_FoK_Base_Chance = 0
     set udg_FoK_Level = 0
     set udg_WindStrike = 0
@@ -4066,7 +4116,6 @@ function InitGlobals takes nothing returns nothing
         set i = i + 1
     endloop
 
-    set udg_ARInteger = 0
     set udg_BL_MUI1 = 0
     set udg_BL_MUI2 = 0
     set i = 0
@@ -10451,230 +10500,21 @@ endfunction
 //===========================================================================
 // Trigger: Arrow Shower
 //===========================================================================
-function Trig_Arrow_Shower_Conditions takes nothing returns boolean
-    if ( not ( GetSpellAbilityId() == 'A00P' ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_Arrow_Shower_Func003C takes nothing returns boolean
-    if ( not ( udg_ARHas[udg_ARLastRecycled] == true ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_Arrow_Shower_Func019C takes nothing returns boolean
-    if ( not ( IsTriggerEnabled(gg_trg_Arrow_Shower_Down) == false ) ) then
-        return false
-    endif
-    return true
-endfunction
-
 function Trig_Arrow_Shower_Actions takes nothing returns nothing
-    if ( Trig_Arrow_Shower_Func003C() ) then
-        set udg_ARMax = ( udg_ARMax + 1 )
-        set udg_ARIndex = udg_ARMax
-    else
-        set udg_ARIndex = udg_ARLastRecycled
-        set udg_ARLastRecycled = udg_ARRecycledList[udg_ARLastRecycled]
-    endif
-    set udg_ARCaster[udg_ARIndex] = GetTriggerUnit()
-    set udg_ARTargetPoint[udg_ARIndex] = GetSpellTargetLoc()
-    set udg_ARDelay[udg_ARIndex] = 1.00
-    set udg_ARHas[udg_ARIndex] = true
-    set udg_ARArrows[udg_ARIndex] = 55
-    set udg_ARCount = ( udg_ARCount + 1 )
-    set udg_ARDamage[udg_ARIndex] = 35.00
-    set udg_TempLoc = GetUnitLoc(udg_ARCaster[udg_ARIndex])
-    call CreateNUnitsAtLoc( 1, 'h00U', GetTriggerPlayer(), udg_TempLoc, bj_UNIT_FACING )
-    call SetUnitFlyHeightBJ( GetLastCreatedUnit(), 1500.00, 2500.00 )
-    call UnitApplyTimedLifeBJ( 1.00, 'BTLF', GetLastCreatedUnit() )
-    call RemoveLocation (udg_TempLoc)
-    set udg_ARArrowsGroup[udg_ARIndex] = CreateGroup()
-    set udg_ARArrowsGroup2[udg_ARIndex] = CreateGroup()
-    set bj_forLoopAIndex = 1
-    set bj_forLoopAIndexEnd = udg_ARArrows[udg_ARIndex]
-    loop
-        exitwhen bj_forLoopAIndex > bj_forLoopAIndexEnd
-        call CreateNUnitsAtLoc( 1, 'h00V', GetTriggerPlayer(), udg_ARTargetPoint[udg_ARIndex], bj_UNIT_FACING )
-        call GroupAddUnitSimple( GetLastCreatedUnit(), udg_ARArrowsGroup[udg_ARIndex] )
-        call SetUnitFlyHeightBJ( GetLastCreatedUnit(), 1500.00, 0.00 )
-        set bj_forLoopAIndex = bj_forLoopAIndex + 1
-    endloop
-    if ( Trig_Arrow_Shower_Func019C() ) then
-        call EnableTrigger( gg_trg_Arrow_Shower_Down )
-    else
-    endif
-        call RemoveLocation(udg_ARTargetPoint[udg_ARIndex])
+    call ArrowShower_Launch(GetTriggerUnit(), GetSpellTargetX(), GetSpellTargetY())
 endfunction
 
 //===========================================================================
 function InitTrig_Arrow_Shower takes nothing returns nothing
     set gg_trg_Arrow_Shower = CreateTrigger(  )
-    call TriggerRegisterAnyUnitEventBJ( gg_trg_Arrow_Shower, EVENT_PLAYER_UNIT_SPELL_EFFECT )
-    call TriggerAddCondition( gg_trg_Arrow_Shower, Condition( function Trig_Arrow_Shower_Conditions ) )
     call TriggerAddAction( gg_trg_Arrow_Shower, function Trig_Arrow_Shower_Actions )
 endfunction
 
 //===========================================================================
 // Trigger: Arrow Shower Down
 //===========================================================================
-function Trig_Arrow_Shower_Down_Func001Func001Func001Func002Func001C takes nothing returns boolean
-    if ( not ( CountUnitsInGroup(udg_ARArrowsGroup[udg_ARInteger]) > 0 ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_Arrow_Shower_Down_Func001Func001Func001Func002Func002C takes nothing returns boolean
-    if ( ( CountUnitsInGroup(udg_ARArrowsGroup[udg_ARInteger]) > 0 ) ) then
-        return true
-    endif
-    if ( ( CountUnitsInGroup(udg_ARArrowsGroup2[udg_ARInteger]) > 0 ) ) then
-        return true
-    endif
-    return false
-endfunction
-
-function Trig_Arrow_Shower_Down_Func001Func001Func001Func002Func003Func003Func004001003001 takes nothing returns boolean
-    return ( IsUnitType(GetFilterUnit(), UNIT_TYPE_STRUCTURE) == false )
-endfunction
-
-function Trig_Arrow_Shower_Down_Func001Func001Func001Func002Func003Func003Func004001003002001 takes nothing returns boolean
-    return ( IsUnitType(GetFilterUnit(), UNIT_TYPE_MAGIC_IMMUNE) == false )
-endfunction
-
-function Trig_Arrow_Shower_Down_Func001Func001Func001Func002Func003Func003Func004001003002002001 takes nothing returns boolean
-    return ( IsUnitAliveBJ(GetFilterUnit()) == true )
-endfunction
-
-function Trig_Arrow_Shower_Down_Func001Func001Func001Func002Func003Func003Func004001003002002002 takes nothing returns boolean
-    return ( IsUnitEnemy(GetFilterUnit(), GetOwningPlayer(udg_ARCaster[udg_ARInteger])) == true )
-endfunction
-
-function Trig_Arrow_Shower_Down_Func001Func001Func001Func002Func003Func003Func004001003002002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Arrow_Shower_Down_Func001Func001Func001Func002Func003Func003Func004001003002002001(), Trig_Arrow_Shower_Down_Func001Func001Func001Func002Func003Func003Func004001003002002002() )
-endfunction
-
-function Trig_Arrow_Shower_Down_Func001Func001Func001Func002Func003Func003Func004001003002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Arrow_Shower_Down_Func001Func001Func001Func002Func003Func003Func004001003002001(), Trig_Arrow_Shower_Down_Func001Func001Func001Func002Func003Func003Func004001003002002() )
-endfunction
-
-function Trig_Arrow_Shower_Down_Func001Func001Func001Func002Func003Func003Func004001003 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Arrow_Shower_Down_Func001Func001Func001Func002Func003Func003Func004001003001(), Trig_Arrow_Shower_Down_Func001Func001Func001Func002Func003Func003Func004001003002() )
-endfunction
-
-function Trig_Arrow_Shower_Down_Func001Func001Func001Func002Func003Func003Func004A takes nothing returns nothing
-    local unit target = GetEnumUnit()
-    local unit d
-    set udg_DamageEventType = 1
-    set d = Dummy_Get(GetOwningPlayer(udg_ARCaster[udg_ARInteger]), 'h005', GetUnitX(target), GetUnitY(target), bj_UNIT_FACING)
-    call UnitDamageTarget(d, target, udg_ARDamage[udg_ARInteger], true, false, ATTACK_TYPE_HERO, DAMAGE_TYPE_NORMAL, WEAPON_TYPE_WHOKNOWS)
-    call Dummy_RecycleTimed(d, 1.00, 0)
-    set target = null
-    set d = null
-endfunction
-
-function Trig_Arrow_Shower_Down_Func001Func001Func001Func002Func003Func003C takes nothing returns boolean
-    if ( not ( udg_TempReal <= 0.00 ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_Arrow_Shower_Down_Func001Func001Func001Func002Func003A takes nothing returns nothing
-    set udg_TempReal = ( GetUnitFlyHeight(GetEnumUnit()) - 50.00 )
-    call SetUnitFlyHeightBJ( GetEnumUnit(), udg_TempReal, 0.00 )
-    if ( Trig_Arrow_Shower_Down_Func001Func001Func001Func002Func003Func003C() ) then
-        call UnitApplyTimedLifeBJ( 1.00, 'BTLF', GetEnumUnit() )
-        set udg_TempLoc = GetUnitLoc(GetEnumUnit())
-        set bj_wantDestroyGroup = true
-        call ForGroupBJ( GetUnitsInRangeOfLocMatching(100.00, udg_TempLoc, Condition(function Trig_Arrow_Shower_Down_Func001Func001Func001Func002Func003Func003Func004001003)), function Trig_Arrow_Shower_Down_Func001Func001Func001Func002Func003Func003Func004A )
-        call RemoveLocation (udg_TempLoc)
-        call GroupRemoveUnitSimple( GetEnumUnit(), udg_ARArrowsGroup2[udg_ARInteger] )
-    else
-    endif
-endfunction
-
-function Trig_Arrow_Shower_Down_Func001Func001Func001Func002Func011C takes nothing returns boolean
-    if ( not ( udg_ARCount == 0 ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_Arrow_Shower_Down_Func001Func001Func001Func002C takes nothing returns boolean
-    if ( not Trig_Arrow_Shower_Down_Func001Func001Func001Func002Func002C() ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_Arrow_Shower_Down_Func001Func001Func001C takes nothing returns boolean
-    if ( not ( udg_ARDelay[udg_ARInteger] > 0.00 ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_Arrow_Shower_Down_Func001Func001C takes nothing returns boolean
-    if ( not ( udg_ARHas[udg_ARInteger] == true ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_Arrow_Shower_Down_Actions takes nothing returns nothing
-    set udg_ARInteger = 0
-    loop
-        exitwhen udg_ARInteger > udg_ARMax
-        if ( Trig_Arrow_Shower_Down_Func001Func001C() ) then
-            if ( Trig_Arrow_Shower_Down_Func001Func001Func001C() ) then
-                set udg_ARDelay[udg_ARInteger] = ( udg_ARDelay[udg_ARInteger] - 0.03 )
-            else
-                if ( Trig_Arrow_Shower_Down_Func001Func001Func001Func002C() ) then
-                    if ( Trig_Arrow_Shower_Down_Func001Func001Func001Func002Func001C() ) then
-                        set udg_TempUnit = GroupPickRandomUnit(udg_ARArrowsGroup[udg_ARInteger])
-                        set udg_ARArrows[udg_ARInteger] = ( udg_ARArrows[udg_ARInteger] - 1 )
-                        call GroupAddUnitSimple( udg_TempUnit, udg_ARArrowsGroup2[udg_ARInteger] )
-                        call GroupRemoveUnitSimple( udg_TempUnit, udg_ARArrowsGroup[udg_ARInteger] )
-                        set udg_TempLoc = PolarProjectionBJ(udg_ARTargetPoint[udg_ARInteger], GetRandomReal(0, 150.00), GetRandomDirectionDeg())
-                        call SetUnitPositionLoc( udg_TempUnit, udg_TempLoc )
-                        call RemoveLocation (udg_TempLoc)
-                    else
-                    endif
-                    call ForGroupBJ( udg_ARArrowsGroup2[udg_ARInteger], function Trig_Arrow_Shower_Down_Func001Func001Func001Func002Func003A )
-                else
-                    set udg_ARCount = ( udg_ARCount - 1 )
-                    set udg_ARHas[udg_ARInteger] = false
-                    call RemoveLocation (udg_ARTargetPoint[udg_ARInteger])
-                    call DestroyGroup (udg_ARArrowsGroup[udg_ARInteger])
-                    call DestroyGroup (udg_ARArrowsGroup2[udg_ARInteger])
-                    set udg_ARRecycledList[udg_ARInteger] = udg_ARLastRecycled
-                    set udg_ARLastRecycled = udg_ARInteger
-                    if ( Trig_Arrow_Shower_Down_Func001Func001Func001Func002Func011C() ) then
-                        set udg_ARRecycledList[udg_ARInteger] = 0
-                        set udg_ARLastRecycled = 0
-                        set udg_ARMax = 0
-                        call DisableTrigger( GetTriggeringTrigger() )
-                    else
-                    endif
-                endif
-            endif
-        else
-        endif
-        set udg_ARInteger = udg_ARInteger + 1
-    endloop
-endfunction
-
-//===========================================================================
+// Retired: each falling arrow is now a MissileCore instance.
 function InitTrig_Arrow_Shower_Down takes nothing returns nothing
-    set gg_trg_Arrow_Shower_Down = CreateTrigger(  )
-    call DisableTrigger( gg_trg_Arrow_Shower_Down )
-    call TriggerRegisterTimerEventPeriodic( gg_trg_Arrow_Shower_Down, 0.03 )
-    call TriggerAddAction( gg_trg_Arrow_Shower_Down, function Trig_Arrow_Shower_Down_Actions )
 endfunction
 
 //===========================================================================
