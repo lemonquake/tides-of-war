@@ -86,5 +86,24 @@ print(f"Functions with potential Location leaks: {len(loc_leaks)}")
 print(f"Functions with Group leaks: {len(grp_leaks)}")
 print(f"Functions with Force leaks: {len(force_leaks)}")
 
-if len(unnulled_handles) == 0 and len(grp_leaks) == 0 and len(force_leaks) == 0:
+if unnulled_handles:
+    print("\nUn-nulled local handles:")
+    for fn_name, line, handle_type, handle_name in unnulled_handles:
+        print(f"  {fn_name}@{line}: local {handle_type} {handle_name}")
+if loc_leaks:
+    print("\nPotential Location leaks:")
+    for fn_name, line in loc_leaks:
+        print(f"  {fn_name}@{line}")
+if grp_leaks:
+    print("\nPotential Group leaks:")
+    for fn_name, line in grp_leaks:
+        print(f"  {fn_name}@{line}")
+if force_leaks:
+    print("\nPotential Force leaks:")
+    for fn_name, line in force_leaks:
+        print(f"  {fn_name}@{line}")
+
+if len(unnulled_handles) == 0 and len(loc_leaks) == 0 and len(grp_leaks) == 0 and len(force_leaks) == 0:
     print("\n>>> SCRIPT IS CLEAN AND LEAK-FREE! <<<")
+else:
+    print("\n>>> REVIEW REQUIRED: potential leaks remain. <<<")

@@ -1551,6 +1551,7 @@ function Dummy_Recycle takes unit u returns nothing
         set n = LoadInteger(Eng_HT, t, 0) + 1
         call SaveInteger(Eng_HT, t, 0, n)
         call SaveUnitHandle(Eng_HT, t, n, u)
+        call SetUnitScale(u, 1.00, 1.00, 1.00)
         call PauseUnit(u, true)
         call ShowUnit(u, false)
         call SetUnitX(u, Eng_PoolX)
@@ -1593,7 +1594,7 @@ endfunction
 // Target validation shared by all engine collision checks.
 //===========================================================================
 function Eng_IsDummyType takes integer t returns boolean
-    return t == 'h005' or t == 'h00Q' or t == 'h00R' or t == 'e002' or t == 'h00Y' or t == 'hrif' or t == 'hgry' or t == 'hgyr' or t == 'h016' or t == 'hkni'
+    return t == 'h005' or t == 'h00Q' or t == 'h00R' or t == 'e002' or t == 'h00Y' or t == 'hrif' or t == 'hgry' or t == 'hgyr' or t == 'h016' or t == 'hkni' or t == 'h014'
 endfunction
 
 function Eng_ValidTarget takes unit u, player castOwner returns boolean
@@ -9268,47 +9269,30 @@ function Trig_Tremor_D_Conditions takes nothing returns boolean
     return true
 endfunction
 
-function Trig_Tremor_D_Func004001003001 takes nothing returns boolean
-    return ( IsUnitType(GetFilterUnit(), UNIT_TYPE_STRUCTURE) == false )
-endfunction
-
-function Trig_Tremor_D_Func004001003002001 takes nothing returns boolean
-    return ( IsUnitAliveBJ(GetFilterUnit()) == true )
-endfunction
-
-function Trig_Tremor_D_Func004001003002002001 takes nothing returns boolean
-    return ( GetUnitAbilityLevelSwapped('A00A', GetFilterUnit()) < 1 )
-endfunction
-
-function Trig_Tremor_D_Func004001003002002002 takes nothing returns boolean
-    return ( IsUnitEnemy(GetFilterUnit(), GetOwningPlayer(GetDyingUnit())) == true )
-endfunction
-
-function Trig_Tremor_D_Func004001003002002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Tremor_D_Func004001003002002001(), Trig_Tremor_D_Func004001003002002002() )
-endfunction
-
-function Trig_Tremor_D_Func004001003002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Tremor_D_Func004001003002001(), Trig_Tremor_D_Func004001003002002() )
-endfunction
-
-function Trig_Tremor_D_Func004001003 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Tremor_D_Func004001003001(), Trig_Tremor_D_Func004001003002() )
-endfunction
-
-function Trig_Tremor_D_Func004A takes nothing returns nothing
-    call AddSpecialEffectLocBJ( GetUnitLoc(GetEnumUnit()), "Objects\\Spawnmodels\\Human\\HCancelDeath\\HCancelDeath.mdl" )
-    call DestroyEffectBJ( GetLastCreatedEffectBJ() )
-    call AddSpecialEffectLocBJ( GetUnitLoc(GetDyingUnit()), "Objects\\Spawnmodels\\Human\\HCancelDeath\\HCancelDeath.mdl" )
-    call DestroyEffectBJ( GetLastCreatedEffectBJ() )
-    call UnitDamageTargetBJ( GetDyingUnit(), GetEnumUnit(), 150.00, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_NORMAL )
-endfunction
-
 function Trig_Tremor_D_Actions takes nothing returns nothing
-    call AddSpecialEffectLocBJ( GetUnitLoc(GetTriggerUnit()), "Objects\\Spawnmodels\\Human\\HCancelDeath\\HCancelDeath.mdl" )
-    call DestroyEffectBJ( GetLastCreatedEffectBJ() )
-    set bj_wantDestroyGroup = true
-    call ForGroupBJ( GetUnitsInRangeOfLocMatching(275.00, GetUnitLoc(GetDyingUnit()), Condition(function Trig_Tremor_D_Func004001003)), function Trig_Tremor_D_Func004A )
+    local unit dying = GetDyingUnit()
+    local unit u
+    local player p = GetOwningPlayer(dying)
+    local group g = CreateGroup()
+    local real x = GetUnitX(dying)
+    local real y = GetUnitY(dying)
+    call SFX_Point("Objects\\Spawnmodels\\Human\\HCancelDeath\\HCancelDeath.mdl", x, y)
+    call GroupEnumUnitsInRange(g, x, y, 275.00, null)
+    loop
+        set u = FirstOfGroup(g)
+        exitwhen u == null
+        call GroupRemoveUnit(g, u)
+        if not IsUnitType(u, UNIT_TYPE_STRUCTURE) and GetWidgetLife(u) > 0.405 and GetUnitAbilityLevel(u, 'A00A') < 1 and IsUnitEnemy(u, p) then
+            call SFX_Point("Objects\\Spawnmodels\\Human\\HCancelDeath\\HCancelDeath.mdl", GetUnitX(u), GetUnitY(u))
+            call SFX_Point("Objects\\Spawnmodels\\Human\\HCancelDeath\\HCancelDeath.mdl", x, y)
+            call UnitDamageTarget(dying, u, 150.00, true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_NORMAL, WEAPON_TYPE_WHOKNOWS)
+        endif
+    endloop
+    call DestroyGroup(g)
+    set dying = null
+    set u = null
+    set p = null
+    set g = null
 endfunction
 
 //===========================================================================
@@ -9322,94 +9306,56 @@ endfunction
 //===========================================================================
 // Trigger: Inferno
 //===========================================================================
-function Trig_Inferno_Func005002003001 takes nothing returns boolean
-    return ( GetOwningPlayer(GetFilterUnit()) != GetOwningPlayer(udg_Inferno_U) )
-endfunction
-
-function Trig_Inferno_Func005002003002001 takes nothing returns boolean
-    return ( IsUnitType(GetFilterUnit(), UNIT_TYPE_ANCIENT) != true )
-endfunction
-
-function Trig_Inferno_Func005002003002002001 takes nothing returns boolean
-    return ( IsUnitAlly(GetFilterUnit(), GetOwningPlayer(udg_Inferno_U)) != true )
-endfunction
-
-function Trig_Inferno_Func005002003002002002001 takes nothing returns boolean
-    return ( IsUnitType(GetFilterUnit(), UNIT_TYPE_STRUCTURE) != true )
-endfunction
-
-function Trig_Inferno_Func005002003002002002002001 takes nothing returns boolean
-    return ( IsUnitType(GetFilterUnit(), UNIT_TYPE_MAGIC_IMMUNE) != true )
-endfunction
-
-function Trig_Inferno_Func005002003002002002002002001 takes nothing returns boolean
-    return ( IsUnitType(GetFilterUnit(), UNIT_TYPE_MECHANICAL) != true )
-endfunction
-
-function Trig_Inferno_Func005002003002002002002002002 takes nothing returns boolean
-    return ( IsUnitAliveBJ(GetFilterUnit()) == true )
-endfunction
-
-function Trig_Inferno_Func005002003002002002002002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Inferno_Func005002003002002002002002001(), Trig_Inferno_Func005002003002002002002002002() )
-endfunction
-
-function Trig_Inferno_Func005002003002002002002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Inferno_Func005002003002002002002001(), Trig_Inferno_Func005002003002002002002002() )
-endfunction
-
-function Trig_Inferno_Func005002003002002002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Inferno_Func005002003002002002001(), Trig_Inferno_Func005002003002002002002() )
-endfunction
-
-function Trig_Inferno_Func005002003002002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Inferno_Func005002003002002001(), Trig_Inferno_Func005002003002002002() )
-endfunction
-
-function Trig_Inferno_Func005002003002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Inferno_Func005002003002001(), Trig_Inferno_Func005002003002002() )
-endfunction
-
-function Trig_Inferno_Func005002003 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Inferno_Func005002003001(), Trig_Inferno_Func005002003002() )
-endfunction
-
-function Trig_Inferno_Func008A takes nothing returns nothing
-    set udg_InfernoD = ( 550.00 + ( DistanceBetweenPoints(GetUnitLoc(udg_Inferno_U), GetUnitLoc(GetEnumUnit())) / 5.00 ) )
-    call UnitDamageTargetBJ( udg_Inferno_U, GetEnumUnit(), ( 550.00 + ( DistanceBetweenPoints(GetUnitLoc(udg_Inferno_U), GetUnitLoc(GetEnumUnit())) / 4.00 ) ), ATTACK_TYPE_NORMAL, DAMAGE_TYPE_DEATH )
-    call AddSpecialEffectTargetUnitBJ( "chest", GetEnumUnit(), "Objects\\Spawnmodels\\Human\\SmallFlameSpawn\\SmallFlameSpawn.mdl" )
-    call DestroyEffectBJ( GetLastCreatedEffectBJ() )
-endfunction
-
 function Trig_Inferno_Actions takes nothing returns nothing
-    set udg_Inferno_U = GetSpellAbilityUnit()
-    set udg_Inferno_Point[0] = GetUnitLoc(udg_Inferno_U)
+    local unit caster = GetSpellAbilityUnit()
+    local unit u
+    local player p = GetOwningPlayer(caster)
+    local group g = CreateGroup()
+    local integer ring = 1
+    local integer spoke
+    local real x = GetUnitX(caster)
+    local real y = GetUnitY(caster)
+    local real radius
+    local real angle
+    local real dx
+    local real dy
+    local real distance
+    set udg_Inferno_U = caster
     set udg_Inferno_AOE = 700.00
     set udg_InfernoForm = 0.00
-    set udg_Inferno_Victims = GetUnitsInRangeOfLocMatching(udg_Inferno_AOE, udg_Inferno_Point[0], Condition(function Trig_Inferno_Func005002003))
-    set bj_forLoopAIndex = 1
-    set bj_forLoopAIndexEnd = 3
     loop
-        exitwhen bj_forLoopAIndex > bj_forLoopAIndexEnd
-        set udg_InfernoForm = ( udg_InfernoForm + ( udg_Inferno_AOE / 3.00 ) )
-        set bj_forLoopBIndex = 1
-        set bj_forLoopBIndexEnd = 12
+        exitwhen ring > 3
+        set radius = udg_Inferno_AOE * I2R(ring) / 3.00
+        set udg_InfernoForm = radius
+        set spoke = 1
         loop
-            exitwhen bj_forLoopBIndex > bj_forLoopBIndexEnd
-            set udg_Inferno_Point[1] = PolarProjectionBJ(udg_Inferno_Point[0], udg_InfernoForm, ( 30.00 * I2R(GetForLoopIndexB()) ))
-            call AddSpecialEffectLocBJ( udg_Inferno_Point[1], "Abilities\\Spells\\Orc\\AncestralSpirit\\AncestralSpiritCaster.mdl" )
-            call DestroyEffectBJ( GetLastCreatedEffectBJ() )
-            call AddSpecialEffectLocBJ( udg_Inferno_Point[1], "Abilities\\Spells\\Other\\Doom\\DoomDeath.mdl" )
-            call DestroyEffectBJ( GetLastCreatedEffectBJ() )
-            call RemoveLocation(udg_Inferno_Point[1])
-            set bj_forLoopBIndex = bj_forLoopBIndex + 1
+            exitwhen spoke > 12
+            set angle = 30.00 * I2R(spoke) * bj_DEGTORAD
+            call SFX_Point("Abilities\\Spells\\Orc\\AncestralSpirit\\AncestralSpiritCaster.mdl", x + radius * Cos(angle), y + radius * Sin(angle))
+            call SFX_Point("Abilities\\Spells\\Other\\Doom\\DoomDeath.mdl", x + radius * Cos(angle), y + radius * Sin(angle))
+            set spoke = spoke + 1
         endloop
-        set bj_forLoopAIndex = bj_forLoopAIndex + 1
+        set ring = ring + 1
     endloop
-    set bj_wantDestroyGroup = true
-    call ForGroupBJ( udg_Inferno_Victims, function Trig_Inferno_Func008A )
-    call RemoveLocation(udg_Inferno_Point[0])
-    call DestroyGroup(udg_Inferno_Victims)
+    call GroupEnumUnitsInRange(g, x, y, udg_Inferno_AOE, null)
+    loop
+        set u = FirstOfGroup(g)
+        exitwhen u == null
+        call GroupRemoveUnit(g, u)
+        if GetOwningPlayer(u) != p and not IsUnitType(u, UNIT_TYPE_ANCIENT) and not IsUnitAlly(u, p) and not IsUnitType(u, UNIT_TYPE_STRUCTURE) and not IsUnitType(u, UNIT_TYPE_MAGIC_IMMUNE) and not IsUnitType(u, UNIT_TYPE_MECHANICAL) and GetWidgetLife(u) > 0.405 then
+            set dx = GetUnitX(u) - x
+            set dy = GetUnitY(u) - y
+            set distance = SquareRoot(dx * dx + dy * dy)
+            set udg_InfernoD = 550.00 + distance / 5.00
+            call UnitDamageTarget(caster, u, 550.00 + distance / 4.00, true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_DEATH, WEAPON_TYPE_WHOKNOWS)
+            call SFX_Unit("Objects\\Spawnmodels\\Human\\SmallFlameSpawn\\SmallFlameSpawn.mdl", u, "chest")
+        endif
+    endloop
+    call DestroyGroup(g)
+    set caster = null
+    set u = null
+    set p = null
+    set g = null
 endfunction
 
 //===========================================================================
@@ -9929,11 +9875,16 @@ function Trig_Leap_Ef_Func001Func001Func001Func002Func003001003 takes nothing re
 endfunction
 
 function Trig_Leap_Ef_Func001Func001Func001Func002Func003A takes nothing returns nothing
-    call CreateNUnitsAtLoc( 1, 'hgry', GetOwningPlayer(udg_JD_Unit[udg_JD_Integers[3]]), GetUnitLoc(GetEnumUnit()), bj_UNIT_FACING )
-    call UnitAddAbilityBJ( 'A02T', GetLastCreatedUnit() )
-    call SetUnitAbilityLevelSwapped( 'A02T', GetLastCreatedUnit(), GetUnitAbilityLevelSwapped('A02Y', udg_JD_Unit[udg_JD_Integers[3]]) )
-    call IssueTargetOrderBJ( GetLastCreatedUnit(), "bloodlust", GetEnumUnit() )
-    call UnitApplyTimedLifeBJ( 0.50, 'BTLF', GetLastCreatedUnit() )
+    local unit caster = udg_JD_Unit[udg_JD_Integers[3]]
+    local unit target = GetEnumUnit()
+    local unit d = Dummy_Get(GetOwningPlayer(caster), 'hgry', GetUnitX(target), GetUnitY(target), bj_UNIT_FACING)
+    call UnitAddAbility(d, 'A02T')
+    call SetUnitAbilityLevel(d, 'A02T', GetUnitAbilityLevel(caster, 'A02Y'))
+    call IssueTargetOrderById(d, Eng_OrdBloodlust, target)
+    call Dummy_RecycleTimed(d, 0.50, 'A02T')
+    set caster = null
+    set target = null
+    set d = null
 endfunction
 
 function Trig_Leap_Ef_Func001Func001Func001Func002C takes nothing returns boolean
@@ -9976,6 +9927,7 @@ function Trig_Leap_Ef_Func001Func001C takes nothing returns boolean
 endfunction
 
 function Trig_Leap_Ef_Actions takes nothing returns nothing
+    local group landingGroup = null
     set udg_JD_Integers[3] = 1
     loop
         exitwhen udg_JD_Integers[3] > udg_JD_Integers[2]
@@ -9991,7 +9943,7 @@ function Trig_Leap_Ef_Actions takes nothing returns nothing
                 call SetUnitX(udg_JD_Unit[udg_JD_Integers[3]], GetLocationX(udg_JD_TempPoint[2]))
                 call SetUnitY(udg_JD_Unit[udg_JD_Integers[3]], GetLocationY(udg_JD_TempPoint[2]))
                 set udg_JD_ReachedDistance[udg_JD_Integers[3]] = ( udg_JD_ReachedDistance[udg_JD_Integers[3]] + udg_JD_SpeedUnits[udg_JD_Integers[3]] )
-                set udg_JD_RealTimer[udg_JD_Integers[3]] = ( udg_JD_RealTimer[udg_JD_Integers[3]] + ( 180.00 / ( udg_JD_Distances[udg_JD_Integers[3]] / udg_JD_SpeedUnits[udg_JD_Integers[3]] ) ) )
+                set udg_JD_RealTimer[udg_JD_Integers[3]] = udg_JD_RealTimer[udg_JD_Integers[3]] + 180.00 * udg_JD_SpeedUnits[udg_JD_Integers[3]] / RMaxBJ(udg_JD_Distances[udg_JD_Integers[3]], 0.01)
                 set udg_JD_JumpHigh[udg_JD_Integers[3]] = ( SinBJ(udg_JD_RealTimer[udg_JD_Integers[3]]) * udg_JD_HighSettings[udg_JD_Integers[3]] )
                 call SetUnitFlyHeightBJ( udg_JD_Unit[udg_JD_Integers[3]], udg_JD_JumpHigh[udg_JD_Integers[3]], 1000000000.00 )
                 call RemoveLocation (udg_JD_TempPoint[1])
@@ -9999,8 +9951,11 @@ function Trig_Leap_Ef_Actions takes nothing returns nothing
             else
                 call SetUnitPathing( udg_JD_Unit[udg_JD_Integers[3]], true )
                 if ( Trig_Leap_Ef_Func001Func001Func001Func002C() ) then
-                    set bj_wantDestroyGroup = true
-                    call ForGroupBJ( GetUnitsInRangeOfLocMatching(500.00, GetUnitLoc(udg_JD_Unit[udg_JD_Integers[3]]), Condition(function Trig_Leap_Ef_Func001Func001Func001Func002Func003001003)), function Trig_Leap_Ef_Func001Func001Func001Func002Func003A )
+                    set landingGroup = CreateGroup()
+                    call GroupEnumUnitsInRange(landingGroup, GetUnitX(udg_JD_Unit[udg_JD_Integers[3]]), GetUnitY(udg_JD_Unit[udg_JD_Integers[3]]), 500.00, Condition(function Trig_Leap_Ef_Func001Func001Func001Func002Func003001003))
+                    call ForGroup(landingGroup, function Trig_Leap_Ef_Func001Func001Func001Func002Func003A)
+                    call DestroyGroup(landingGroup)
+                    set landingGroup = null
                 else
                 endif
                 call GroupRemoveUnitSimple( udg_JD_Unit[udg_JD_Integers[3]], udg_JD_Group )
@@ -10019,6 +9974,7 @@ function Trig_Leap_Ef_Actions takes nothing returns nothing
         endif
         set udg_JD_Integers[3] = udg_JD_Integers[3] + 1
     endloop
+    set landingGroup = null
 endfunction
 
 //===========================================================================
@@ -10671,10 +10627,14 @@ function Trig_Arrow_Shower_Down_Func001Func001Func001Func002Func003Func003Func00
 endfunction
 
 function Trig_Arrow_Shower_Down_Func001Func001Func001Func002Func003Func003Func004A takes nothing returns nothing
+    local unit target = GetEnumUnit()
+    local unit d
     set udg_DamageEventType = 1
-    call CreateNUnitsAtLoc( 1, 'h005', GetOwningPlayer(udg_ARCaster[udg_ARInteger]), GetUnitLoc(GetEnumUnit()), bj_UNIT_FACING )
-    call UnitApplyTimedLifeBJ( 1.00, 'BTLF', GetLastCreatedUnit() )
-    call UnitDamageTargetBJ( GetLastCreatedUnit(), GetEnumUnit(), udg_ARDamage[udg_ARInteger], ATTACK_TYPE_HERO, DAMAGE_TYPE_NORMAL )
+    set d = Dummy_Get(GetOwningPlayer(udg_ARCaster[udg_ARInteger]), 'h005', GetUnitX(target), GetUnitY(target), bj_UNIT_FACING)
+    call UnitDamageTarget(d, target, udg_ARDamage[udg_ARInteger], true, false, ATTACK_TYPE_HERO, DAMAGE_TYPE_NORMAL, WEAPON_TYPE_WHOKNOWS)
+    call Dummy_RecycleTimed(d, 1.00, 0)
+    set target = null
+    set d = null
 endfunction
 
 function Trig_Arrow_Shower_Down_Func001Func001Func001Func002Func003Func003C takes nothing returns boolean
@@ -11979,7 +11939,7 @@ function Trig_Unstable_Motion_Conditions takes nothing returns boolean
 endfunction
 
 function Trig_Unstable_Motion_Actions takes nothing returns nothing
-    call PingMinimapLocForForce( bj_FORCE_ALL_PLAYERS, GetSpellTargetLoc(), 2.00 )
+    call PingMinimapForForce(bj_FORCE_ALL_PLAYERS, GetSpellTargetX(), GetSpellTargetY(), 2.00)
 endfunction
 
 //===========================================================================
@@ -12064,8 +12024,9 @@ function Trig_Lightning_Ward_Conditions takes nothing returns boolean
 endfunction
 
 function Trig_Lightning_Ward_Actions takes nothing returns nothing
-    call CreateNUnitsAtLoc( 1, 'h014', GetOwningPlayer(GetTriggerUnit()), GetSpellTargetLoc(), bj_UNIT_FACING )
-    call UnitApplyTimedLifeBJ( 12.00, 'BTLF', GetLastCreatedUnit() )
+    local unit d = Dummy_Get(GetOwningPlayer(GetTriggerUnit()), 'h014', GetSpellTargetX(), GetSpellTargetY(), bj_UNIT_FACING)
+    call Dummy_RecycleTimed(d, 12.00, 0)
+    set d = null
 endfunction
 
 //===========================================================================
@@ -12286,10 +12247,13 @@ endfunction
 // Trigger: CS CAST
 //===========================================================================
 function Trig_CS_CAST_Actions takes nothing returns nothing
-    call CreateNUnitsAtLoc( 1, 'h005', Player(0), GetUnitLoc(GetTriggerUnit()), bj_UNIT_FACING )
-    call UnitAddAbilityBJ( 'A05P', GetLastCreatedUnit() )
-    call UnitApplyTimedLifeBJ( 4.00, 'BTLF', GetLastCreatedUnit() )
-    call IssuePointOrderLocBJ( GetLastCreatedUnit(), "carrionswarm", GetSpellTargetLoc() )
+    local unit caster = GetTriggerUnit()
+    local unit d = Dummy_Get(Player(0), 'h005', GetUnitX(caster), GetUnitY(caster), bj_UNIT_FACING)
+    call UnitAddAbility(d, 'A05P')
+    call IssuePointOrder(d, "carrionswarm", GetSpellTargetX(), GetSpellTargetY())
+    call Dummy_RecycleTimed(d, 4.00, 'A05P')
+    set caster = null
+    set d = null
 endfunction
 
 //===========================================================================
@@ -14863,37 +14827,57 @@ endfunction
 
 function Trig_Explode_Func003A takes nothing returns nothing
     local force tempForce = null
-    call RemoveUnit( GetEnumUnit() )
+    local unit bomb = GetEnumUnit()
+    local unit caster = GetTriggerUnit()
+    local unit d
+    local unit u
+    local player p = GetOwningPlayer(caster)
+    local group g = CreateGroup()
+    local real x = GetUnitX(caster)
+    local real y = GetUnitY(caster)
+    local real bombX = GetUnitX(bomb)
+    local real bombY = GetUnitY(bomb)
+    local real itemX
+    local real itemY
+    call RemoveUnit(bomb)
     call DisplayTimedTextToForce( bj_FORCE_ALL_PLAYERS, 5.00, "TRIGSTR_3551" )
-    call CreateNUnitsAtLoc( 1, 'h005', GetOwningPlayer(GetTriggerUnit()), GetUnitLoc(GetTriggerUnit()), bj_UNIT_FACING )
-    call UnitApplyTimedLifeBJ( 7.00, 'BTLF', GetLastCreatedUnit() )
-    call SetUnitScalePercent( GetLastCreatedUnit(), 400.00, 400.00, 400.00 )
-    call AddSpecialEffectTargetUnitBJ( "origin", GetLastCreatedUnit(), "war3mapImported\\ExplosionBIG.mdx" )
-    call DestroyEffectBJ( GetLastCreatedEffectBJ() )
-    call CreateNUnitsAtLoc( 1, 'h005', GetOwningPlayer(GetTriggerUnit()), GetUnitLoc(GetTriggerUnit()), bj_UNIT_FACING )
-    call UnitApplyTimedLifeBJ( 7.00, 'BTLF', GetLastCreatedUnit() )
-    call SetUnitScalePercent( GetLastCreatedUnit(), 250.00, 250.00, 250.00 )
-    call AddSpecialEffectTargetUnitBJ( "origin", GetLastCreatedUnit(), "war3mapImported\\NuclearExplosion.mdx" )
-    call DestroyEffectBJ( GetLastCreatedEffectBJ() )
-    set bj_wantDestroyGroup = true
-    call ForGroupBJ( GetUnitsInRangeOfLocMatching(1500.00, GetUnitLoc(GetEnumUnit()), Condition(function Trig_Explode_Func003Func014001003)), function Trig_Explode_Func003Func014A )
+    set d = Dummy_Get(p, 'h005', x, y, bj_UNIT_FACING)
+    call SetUnitScale(d, 4.00, 4.00, 4.00)
+    call SFX_Unit("war3mapImported\\ExplosionBIG.mdx", d, "origin")
+    call Dummy_RecycleTimed(d, 7.00, 0)
+    set d = Dummy_Get(p, 'h005', x, y, bj_UNIT_FACING)
+    call SetUnitScale(d, 2.50, 2.50, 2.50)
+    call SFX_Unit("war3mapImported\\NuclearExplosion.mdx", d, "origin")
+    call Dummy_RecycleTimed(d, 7.00, 0)
+    call GroupEnumUnitsInRange(g, bombX, bombY, 1500.00, null)
+    loop
+        set u = FirstOfGroup(g)
+        exitwhen u == null
+        call GroupRemoveUnit(g, u)
+        if not IsUnitType(u, UNIT_TYPE_STRUCTURE) and IsUnitEnemy(u, p) and GetWidgetLife(u) > 0.405 and GetUnitAbilityLevel(u, 'A00A') < 1 then
+            call UnitDamageTarget(caster, u, 150000.00, true, false, ATTACK_TYPE_CHAOS, DAMAGE_TYPE_FIRE, WEAPON_TYPE_WHOKNOWS)
+            call SFX_Unit("war3mapImported\\ExplosionBIG.mdx", u, "origin")
+        endif
+    endloop
+    call DestroyGroup(g)
+    set g = null
     if ( Trig_Explode_Func003Func015C() ) then
-        call TerrainDeformationRippleBJ( 4.00, false, GetUnitLoc(GetTriggerUnit()), 2500.00, 2500.00, 50.00, 0.40, 1250.00 )
-        set udg_TempLoc = GetRandomLocInRect(gg_rct_Bomb)
-        call CreateItemLoc( 'I004', udg_TempLoc )
+        set bj_lastCreatedTerrainDeformation = TerrainDeformRipple(x, y, 2500.00, 50.00, 4000, 1, 4.00, 20.00, 1.00, false)
+        set itemX = GetRandomReal(GetRectMinX(gg_rct_Bomb), GetRectMaxX(gg_rct_Bomb))
+        set itemY = GetRandomReal(GetRectMinY(gg_rct_Bomb), GetRectMaxY(gg_rct_Bomb))
+        call CreateItem('I004', itemX, itemY)
+        call Game_PingForceAt(bj_FORCE_ALL_PLAYERS, itemX, itemY, 15.00, bj_MINIMAPPINGSTYLE_FLASHY, 100, 100, 100)
         set udg_Plant_The_Bomb_Point1 = ( udg_Plant_The_Bomb_Point1 + 1 )
         call DisplayTimedTextToForce( bj_FORCE_ALL_PLAYERS, 15.00, "TRIGSTR_3564" )
         call DisplayTimedTextToForce( bj_FORCE_ALL_PLAYERS, 15.00, ( "1 Point for Team 1! Total Points: " + I2S(udg_Plant_The_Bomb_Point1) ) )
         call DisplayTimedTextToForce( bj_FORCE_ALL_PLAYERS, 15.00, "TRIGSTR_3565" )
         call LeaderboardSetPlayerItemValueBJ( Player(0), udg_PLANT_THE_BOMB_LB, udg_Plant_The_Bomb_Point1 )
         if ( Trig_Explode_Func003Func015Func009C() ) then
-            call DisplayTimedTextToForce( bj_FORCE_ALL_PLAYERS, 15.00, ( udg_Players_Name[GetConvertedPlayerId(GetOwningPlayer(GetTriggerUnit()))] + " WON TEH GAME!!!111!!!!!1!" ) )
-            set bj_wantDestroyGroup = true
+            call DisplayTimedTextToForce( bj_FORCE_ALL_PLAYERS, 15.00, ( udg_Players_Name[GetConvertedPlayerId(p)] + " WON TEH GAME!!!111!!!!!1!" ) )
             set tempForce = GetPlayersMatching(Condition(function Trig_Explode_Func003Func015Func009Func003001001))
             call ForForce(tempForce, function Trig_Explode_Func003Func015Func009Func003A)
             call DestroyForce(tempForce)
             set tempForce = null
-            set bj_wantDestroyGroup = true
             set tempForce = GetPlayersMatching(Condition(function Trig_Explode_Func003Func015Func009Func005001001))
             call ForForce(tempForce, function Trig_Explode_Func003Func015Func009Func005A)
             call DestroyForce(tempForce)
@@ -14903,22 +14887,22 @@ function Trig_Explode_Func003A takes nothing returns nothing
     else
     endif
     if ( Trig_Explode_Func003Func016C() ) then
-        call TerrainDeformationRippleBJ( 4.00, false, GetUnitLoc(GetTriggerUnit()), 2500.00, 2500.00, 50.00, 0.40, 1250.00 )
-        set udg_TempLoc = GetRandomLocInRect(gg_rct_Bomb)
-        call CreateItemLoc( 'I004', udg_TempLoc )
+        set bj_lastCreatedTerrainDeformation = TerrainDeformRipple(x, y, 2500.00, 50.00, 4000, 1, 4.00, 20.00, 1.00, false)
+        set itemX = GetRandomReal(GetRectMinX(gg_rct_Bomb), GetRectMaxX(gg_rct_Bomb))
+        set itemY = GetRandomReal(GetRectMinY(gg_rct_Bomb), GetRectMaxY(gg_rct_Bomb))
+        call CreateItem('I004', itemX, itemY)
+        call Game_PingForceAt(bj_FORCE_ALL_PLAYERS, itemX, itemY, 15.00, bj_MINIMAPPINGSTYLE_FLASHY, 100, 100, 100)
         set udg_Plant_The_Bomb_Point2 = ( udg_Plant_The_Bomb_Point2 + 1 )
         call DisplayTimedTextToForce( bj_FORCE_ALL_PLAYERS, 15.00, "TRIGSTR_3562" )
         call DisplayTimedTextToForce( bj_FORCE_ALL_PLAYERS, 15.00, ( "1 Point for Team 2! Total Points: " + I2S(udg_Plant_The_Bomb_Point2) ) )
         call DisplayTimedTextToForce( bj_FORCE_ALL_PLAYERS, 15.00, "TRIGSTR_3563" )
         call LeaderboardSetPlayerItemValueBJ( Player(6), udg_PLANT_THE_BOMB_LB, udg_Plant_The_Bomb_Point2 )
         if ( Trig_Explode_Func003Func016Func009C() ) then
-            call DisplayTimedTextToForce( bj_FORCE_ALL_PLAYERS, 15.00, ( udg_Players_Name[GetConvertedPlayerId(GetOwningPlayer(GetTriggerUnit()))] + " WON TEH GAME!!!111!!!!!1!" ) )
-            set bj_wantDestroyGroup = true
+            call DisplayTimedTextToForce( bj_FORCE_ALL_PLAYERS, 15.00, ( udg_Players_Name[GetConvertedPlayerId(p)] + " WON TEH GAME!!!111!!!!!1!" ) )
             set tempForce = GetPlayersMatching(Condition(function Trig_Explode_Func003Func016Func009Func003001001))
             call ForForce(tempForce, function Trig_Explode_Func003Func016Func009Func003A)
             call DestroyForce(tempForce)
             set tempForce = null
-            set bj_wantDestroyGroup = true
             set tempForce = GetPlayersMatching(Condition(function Trig_Explode_Func003Func016Func009Func005001001))
             call ForForce(tempForce, function Trig_Explode_Func003Func016Func009Func005A)
             call DestroyForce(tempForce)
@@ -14927,13 +14911,23 @@ function Trig_Explode_Func003A takes nothing returns nothing
         endif
     else
     endif
+    set tempForce = null
+    set bomb = null
+    set caster = null
+    set d = null
+    set u = null
+    set p = null
+    set g = null
 endfunction
 
 function Trig_Explode_Actions takes nothing returns nothing
-    call PingMinimapLocForForceEx( bj_FORCE_ALL_PLAYERS, udg_TempLoc, 15.00, bj_MINIMAPPINGSTYLE_FLASHY, 100, 100, 100 )
-    set bj_wantDestroyGroup = true
-    call ForGroupBJ( GetUnitsInRangeOfLocMatching(200.00, GetUnitLoc(GetTriggerUnit()), Condition(function Trig_Explode_Func003001003)), function Trig_Explode_Func003A )
-    call RemoveLocation(udg_TempLoc)
+    local unit caster = GetTriggerUnit()
+    local group g = CreateGroup()
+    call GroupEnumUnitsInRange(g, GetUnitX(caster), GetUnitY(caster), 200.00, Condition(function Trig_Explode_Func003001003))
+    call ForGroup(g, function Trig_Explode_Func003A)
+    call DestroyGroup(g)
+    set caster = null
+    set g = null
 endfunction
 
 //===========================================================================
