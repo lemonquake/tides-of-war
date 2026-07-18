@@ -322,8 +322,6 @@ globals
     real                    udg_Text_Duration          = 0
     group                   udg_tempGroup              = null
     real                    udg_TextSize_spells        = 0
-    unit                    udg_Glacial_C              = null
-    location                udg_Glacial_P              = null
     group                   udg_AI_Targets             = null
     location                udg_AI_Targets_Point       = null
     group                   udg_Temp_Group             = null
@@ -1405,6 +1403,7 @@ globals
     integer                 Eng_OrdThunderbolt         = 0
     integer                 Eng_OrdAcidbomb            = 0
     integer                 Eng_OrdBloodlust           = 0
+    integer                 Eng_OrdMagicLeash          = 0
     real                    Eng_MinX                   = 0.00
     real                    Eng_MinY                   = 0.00
     real                    Eng_MaxX                   = 0.00
@@ -1565,16 +1564,24 @@ function Dummy_RecycleTimed takes unit u, real delay, integer removeAbil returns
     set Rcy_Abil[Rcy_N] = removeAbil
 endfunction
 
+function Dummy_RemoveTimed takes unit u, real delay returns nothing
+    call Dummy_RecycleTimed(u, delay, -1)
+endfunction
+
 function Rcy_Tick takes nothing returns nothing
     local integer i = Rcy_N
     loop
         exitwhen i < 1
         set Rcy_Time[i] = Rcy_Time[i] - Eng_TickRate
         if Rcy_Time[i] <= 0.00 then
-            if Rcy_Abil[i] != 0 then
-                call UnitRemoveAbility(Rcy_Unit[i], Rcy_Abil[i])
+            if Rcy_Abil[i] == -1 then
+                call RemoveUnit(Rcy_Unit[i])
+            else
+                if Rcy_Abil[i] != 0 then
+                    call UnitRemoveAbility(Rcy_Unit[i], Rcy_Abil[i])
+                endif
+                call Dummy_Recycle(Rcy_Unit[i])
             endif
-            call Dummy_Recycle(Rcy_Unit[i])
             set Rcy_Unit[i] = Rcy_Unit[Rcy_N]
             set Rcy_Time[i] = Rcy_Time[Rcy_N]
             set Rcy_Abil[i] = Rcy_Abil[Rcy_N]
@@ -1589,7 +1596,7 @@ endfunction
 // Target validation shared by all engine collision checks.
 //===========================================================================
 function Eng_IsDummyType takes integer t returns boolean
-    return t == 'h005' or t == 'h00Q' or t == 'h00R' or t == 'e002' or t == 'h00Y' or t == 'hrif' or t == 'hgry' or t == 'hgyr' or t == 'h016' or t == 'hkni' or t == 'h014' or t == 'h00C'
+    return t == 'h005' or t == 'h00Q' or t == 'h00R' or t == 'e002' or t == 'h00Y' or t == 'hrif' or t == 'hgry' or t == 'hgyr' or t == 'h016' or t == 'hkni' or t == 'h014' or t == 'h00C' or t == 'h00L'
 endfunction
 
 function Eng_ValidTarget takes unit u, player castOwner returns boolean
@@ -2368,6 +2375,44 @@ function Cgl_Tick takes nothing returns nothing
 endfunction
 
 //===========================================================================
+// Glacial Freeze (ability 'A02Z') - one 3-second A030 channel caster per
+// valid enemy. Channel casters are pooled after the object-data duration;
+// the elemental visual keeps its original four-second lifetime.
+//===========================================================================
+function GlacialFreeze_Launch takes unit caster returns nothing
+    local player p = GetOwningPlayer(caster)
+    local group targets = CreateGroup()
+    local unit u
+    local unit d
+    local unit visual
+    local integer lvl = GetUnitAbilityLevel(caster, 'A02Z')
+    local real x = GetUnitX(caster)
+    local real y = GetUnitY(caster)
+    call SFX_Point("war3mapImported\\cone of cold.mdx", x, y)
+    set visual = Dummy_Get(p, 'h00L', x, y, bj_UNIT_FACING)
+    call Dummy_RemoveTimed(visual, 4.00)
+    call GroupEnumUnitsInRange(targets, x, y, 750.00, null)
+    loop
+        set u = FirstOfGroup(targets)
+        exitwhen u == null
+        call GroupRemoveUnit(targets, u)
+        if not IsUnitType(u, UNIT_TYPE_STRUCTURE) and GetWidgetLife(u) > 0.405 and IsUnitEnemy(u, p) and GetUnitAbilityLevel(u, 'A00A') < 1 then
+            set d = Dummy_Get(p, 'hsor', x, y, bj_UNIT_FACING)
+            call UnitAddAbility(d, 'A030')
+            call SetUnitAbilityLevel(d, 'A030', lvl)
+            call IssueTargetOrderById(d, Eng_OrdMagicLeash, u)
+            call Dummy_RecycleTimed(d, 3.10, 'A030')
+        endif
+    endloop
+    call DestroyGroup(targets)
+    set p = null
+    set targets = null
+    set u = null
+    set d = null
+    set visual = null
+endfunction
+
+//===========================================================================
 // Tremor (ability 'A01A') - one instance owns its 17 pooled crater dummies.
 // After ten seconds every crater emits the original overlapping death burst,
 // then all per-cast units and the persistent group are recycled or destroyed.
@@ -2486,6 +2531,7 @@ function Engine_Init takes nothing returns nothing
     set Eng_OrdThunderbolt = OrderId("thunderbolt")
     set Eng_OrdAcidbomb = OrderId("acidbomb")
     set Eng_OrdBloodlust = OrderId("bloodlust")
+    set Eng_OrdMagicLeash = OrderId("magicleash")
     set Trp_OnHit = CreateTrigger()
     call TriggerAddCondition(Trp_OnHit, Condition(function Torpedo_OnHit))
     set Prc_OnHit = CreateTrigger()
@@ -8700,50 +8746,8 @@ endfunction
 //===========================================================================
 // Trigger: Glacial Freeze
 //===========================================================================
-function Trig_Glacial_Freeze_Func006001003001001 takes nothing returns boolean
-    return ( IsUnitType(GetFilterUnit(), UNIT_TYPE_STRUCTURE) == false )
-endfunction
-
-function Trig_Glacial_Freeze_Func006001003001002 takes nothing returns boolean
-    return ( IsUnitAliveBJ(GetFilterUnit()) == true )
-endfunction
-
-function Trig_Glacial_Freeze_Func006001003001 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Glacial_Freeze_Func006001003001001(), Trig_Glacial_Freeze_Func006001003001002() )
-endfunction
-
-function Trig_Glacial_Freeze_Func006001003002001 takes nothing returns boolean
-    return ( IsUnitEnemy(GetFilterUnit(), GetOwningPlayer(udg_Glacial_C)) == true )
-endfunction
-
-function Trig_Glacial_Freeze_Func006001003002002 takes nothing returns boolean
-    return ( GetUnitAbilityLevelSwapped('A00A', GetFilterUnit()) < 1 )
-endfunction
-
-function Trig_Glacial_Freeze_Func006001003002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Glacial_Freeze_Func006001003002001(), Trig_Glacial_Freeze_Func006001003002002() )
-endfunction
-
-function Trig_Glacial_Freeze_Func006001003 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Glacial_Freeze_Func006001003001(), Trig_Glacial_Freeze_Func006001003002() )
-endfunction
-
-function Trig_Glacial_Freeze_Func006A takes nothing returns nothing
-    call CreateNUnitsAtLoc( 1, 'hsor', GetOwningPlayer(udg_Glacial_C), udg_Glacial_P, bj_UNIT_FACING )
-    call UnitAddAbilityBJ( 'A030', GetLastCreatedUnit() )
-    call SetUnitAbilityLevelSwapped( 'A030', GetLastCreatedUnit(), GetUnitAbilityLevelSwapped('A02Z', udg_Glacial_C) )
-    call IssueTargetOrderBJ( GetLastCreatedUnit(), "magicleash", GetEnumUnit() )
-endfunction
-
 function Trig_Glacial_Freeze_Actions takes nothing returns nothing
-    set udg_Glacial_C = GetTriggerUnit()
-    set udg_Glacial_P = GetUnitLoc(GetTriggerUnit())
-    call AddSpecialEffectLocBJ( udg_Glacial_P, "war3mapImported\\cone of cold.mdx" )
-    call DestroyEffectBJ( GetLastCreatedEffectBJ() )
-    call CreateNUnitsAtLoc( 1, 'h00L', GetOwningPlayer(udg_Glacial_C), udg_Glacial_P, bj_UNIT_FACING )
-    set bj_wantDestroyGroup = true
-    call ForGroupBJ( GetUnitsInRangeOfLocMatching(750.00, udg_Glacial_P, Condition(function Trig_Glacial_Freeze_Func006001003)), function Trig_Glacial_Freeze_Func006A )
-    call RemoveLocation (udg_Glacial_P)
+    call GlacialFreeze_Launch(GetTriggerUnit())
 endfunction
 
 //===========================================================================

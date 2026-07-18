@@ -27,21 +27,22 @@
 | Module | API | Notes |
 |---|---|---|
 | Dummy pool | `Dummy_Get(p, typeId, x, y, faceDeg)` / `Dummy_Recycle(u)` | Stacks per unit-type in `Eng_HT` (parent=typeId, child 0=count, child n=unit). Checkout restores life/mana; recycle resets scale and removes dead units instead of storing them. Never CreateUnit a dummy directly. |
-| Timed recycler | `Dummy_RecycleTimed(u, delay, removeAbilOr0)` | Replaces every `UnitApplyTimedLife` on dummies; strips temp abilities on expiry. |
-| Dummy casting | `Dummy_CastTarget(p, abil, orderId, target)` / `Dummy_CastTargetLevel(..., lvl, ...)` / `Stun_Bolt(p, target)` | Order ids precomputed: `Eng_OrdThunderbolt/Acidbomb/Bloodlust`. Stun = 'h005'+'A00V'. |
+| Timed recycler | `Dummy_RecycleTimed(u, delay, removeAbilOr0)` / `Dummy_RemoveTimed(u, delay)` | Recycles ordinary dummies and strips temp abilities; the remove variant permanently removes self-decaying visuals that are unsafe to pool. |
+| Dummy casting | `Dummy_CastTarget(p, abil, orderId, target)` / `Dummy_CastTargetLevel(..., lvl, ...)` / `Stun_Bolt(p, target)` | Order ids precomputed: `Eng_OrdThunderbolt/Acidbomb/Bloodlust/MagicLeash`. Stun = 'h005'+'A00V'. |
 | Damage | `Damage_Phys / Damage_Magic / Damage_Pure (s, t, amt)` | Pure = CHAOS/FIRE (matches old map convention). |
 | SFX | `SFX_Point(model, x, y)` / `SFX_Unit(model, u, attach)` | One-shot, zero-leak. |
 | Trees | `Eng_KillTreesAt(x, y, radius)` | Kills 'ZTtw'/'ZTtc' only, circle-exact, no locations. |
-| Target filter | `Eng_ValidTarget(u, castOwner)` + `Eng_IsDummyType(t)` | Dummy list: 'h005','h00Q','h00R','e002','h00Y','hrif','hgry','hgyr','h016','hkni','h014','h00C'. Extend when new dummy types join the engine. |
+| Target filter | `Eng_ValidTarget(u, castOwner)` + `Eng_IsDummyType(t)` | Dummy list: 'h005','h00Q','h00R','e002','h00Y','hrif','hgry','hgyr','h016','hkni','h014','h00C','h00L'. Extend when new dummy types join the engine. |
 | **MissileCore** | `Missile_LaunchXY(owner,x,y,tx,ty,speed,maxDist,radius,dummyType,model,onHitTrig,onEndTrig) -> i`, `Missile_SetHoming(i,target)`, `Missile_SetOnTick(i,trig)` | Callbacks are triggers holding `Condition(function F)`; dispatch via `TriggerEvaluate`. Context globals: `EV_MISSILE`, `EV_UNIT`. onHit returning `true` kills the missile; `false` = pierce. Per-instance slots `Msl_Data[i]` (int), `Msl_DataR[i]` (real). **World-bounds clamped** — `SetUnitX/Y` outside world bounds hard-crashes WC3; bounds are `Eng_MinX/MaxX/MinY/MaxY` (playable area ±64). |
 | **HookCore** | `Hook_Launch(caster, tx, ty)` | Pudge Hook v2 per user spec: never pauses caster, chain re-laid each tick caster→head (moving launch/retract), 3000 range, multi-instance, links pooled in `Eng_HT` parent `1000000+i`. |
 | Shard channel | `FreezingBlast_Launch(caster)` | 0.2s cadence on master tick. |
 | Dash channel | `CuttingGlide_Launch(caster, tx, ty)` | MotionCore's first resident; restores invuln/tint/pathing even on death. |
+| Glacial Freeze | `GlacialFreeze_Launch(caster)` | Native 750-range enumeration; one pooled `hsor` + 3-second A030 channel per valid enemy. The self-decaying `h00L` visual is permanently removed after four seconds. |
 | Tremor channel | `Tremor_Launch(caster, tx, ty)` | Per-cast crater group; `Trm_Tick` expires all 17 pooled craters together and destroys the group. |
 | Heartbeat | `Eng_MasterTick` (0.025s) → `Rcy_Tick, Msl_Tick, Hk_Tick, Fbz_Tick, Cgl_Tick, Trm_Tick` | `Engine_Init()` is called from `main` after `InitGlobals`. Add new channels to both places. |
 
 ### Spells migrated (cast triggers are now one-line shims; old loops are empty stubs or deleted)
-Hook ('A03B'), Torpedo ('A02K'), Piercing Shot ('A03F'), Soul Strike ('A032'), EA growing arrow ('A02P'), Freezing Blast ('A043', levels on 'A000'), Cutting Glide ('A06O', dmg on 'A002'), Tremor ('A01A'), plus leak-free rewrites of Divine Light, Starfall, and Inferno.
+Hook ('A03B'), Torpedo ('A02K'), Piercing Shot ('A03F'), Soul Strike ('A032'), EA growing arrow ('A02P'), Freezing Blast ('A043', levels on 'A000'), Cutting Glide ('A06O', dmg on 'A002'), Tremor ('A01A'), Glacial Freeze ('A02Z'), plus leak-free rewrites of Divine Light, Starfall, and Inferno.
 
 ### Spell dispatch (how casts reach the shims — keep using it)
 `Trig_Init_Trigger_Actions` (~line 17200s) maps `udg_SpellEventAbility[n]` → `udg_SpellEventTrigger[n]` (gg_trg_*). Event data (GetTriggerUnit/GetSpellTargetX/Y) survives the TriggerExecute dispatch. To migrate a spell: rewrite its `Trig_X_Actions` body as `call X_Launch(GetTriggerUnit(), GetSpellTargetX(), GetSpellTargetY())`, put the implementation in the engine section, stub its loop trigger's `InitTrig` to empty.
@@ -87,22 +88,24 @@ Completed in leak-scrub batch 15: Tremor and Inferno now use native isolated dam
 Keep `leak_baseline.txt` at zero; every new finding is now a regression.
 
 ### 3b. Migrate remaining loop spells to engine channels (pattern is established — copy an existing one)
-- **Glacial Freeze**, **Arrow Shower** (multi-missile via N × `Missile_LaunchXY`), **Thunder Ball**-style homing users via `Missile_SetHoming`, **Water Clone / CS / BL loops** (~12400), **Lightning Grip** (HDS tether system ~12550 — model on HookCore's pull pattern), **Melting Strike / MS_Loop** (now sole owner of `udg_MUI_1`), **Toss Rock + Bounce**, **Repelling Ward**, **Lightning Ward** (pool 'h014').
+- **Arrow Shower** (multi-missile via N × `Missile_LaunchXY`), **Thunder Ball**-style homing users via `Missile_SetHoming`, **Water Clone / CS / BL loops** (~12400), **Lightning Grip** (HDS tether system ~12550 — model on HookCore's pull pattern), **Melting Strike / MS_Loop** (now sole owner of `udg_MUI_1`), **Toss Rock + Bounce**, **Repelling Ward**, **Lightning Ward** (pool 'h014').
 - **Knockback_2D / JUMP / Leap / Warp** systems → fold into MotionCore next to `Cgl_*` (plan §10).
 
 Completed in engine-channel batch 16: Tremor now owns one crater group per cast on `Trm_Tick`. The old `Trig_TLoop` bookkeeping timer, `Trig_Tremor_D` global death listener, saved location/player/level state, and Tremor-only initialization globals are deleted. All 18 visual units are pooled; each crater applies the original overlapping delayed burst before recycling. Inferno was already reduced to a native one-shot implementation in batch 15.
+
+Completed in engine-channel batch 17: Glacial Freeze now uses native coordinates and an isolated per-cast enumeration. Each valid enemy receives the original three-second A030 Magic Leash from a pooled `hsor`, then the caster is stripped and recycled; the four-second self-decaying `h00L` visual uses the timed permanent-removal path. The legacy location/global state and GUI filter/callback tree are deleted.
 
 ### 3c. Then the big layers, per plan milestones (§18)
 M3 BuffCore (§7) → finish M4 MotionCore (§10) → M5-M7 SpellCore registration + remaining batches + items (§9, §13) → M8 **WarMind AI** replacing `Trig_Player_2..10`/`P*_Att`/`P*_Skill`/Wander/Behavior1-3/KS/Retreat (§11) → xlsx→JASS codegen (§12) → M9 leak-zero polish + 60-min soak test (§17).
 
 ### 3d. Testing reminders
-No in-game test has been run yet (only static validation + successful MPQ pack). First priority for a session with the game available: load `dist/Tides_of_War_Compiled.w3x`, cast Hook while moving (spec: no pause, chain follows moving Pudge, 3000 range, multi-cast), Torpedo, Piercing Shot, Soul Strike, EA, Freezing Blast, Cutting Glide, and simultaneous Tremors; then `-hc`-style handle soak per plan §17 (debug suite not built yet).
+No in-game test has been run yet (only static validation + successful MPQ pack). First priority for a session with the game available: load `dist/Tides_of_War_Compiled.w3x`, cast Hook while moving (spec: no pause, chain follows moving Pudge, 3000 range, multi-cast), Torpedo, Piercing Shot, Soul Strike, EA, Freezing Blast, Cutting Glide, simultaneous Tremors, and Glacial Freeze against several targets; then `-hc`-style handle soak per plan §17 (debug suite not built yet).
 
 ---
 
 ## 4. File map
 - `TIDES_OF_WAR_MASTER_PLAN.md` — **the architecture contract.** §13 = migration order, §16 = coding standards, §17 = QA protocol.
-- `src/war3map.j` — everything. Engine = after globals block. ~23,850 lines.
+- `src/war3map.j` — everything. Engine = after globals block. ~23,700 lines.
 - `.agents/skills/warcraft3-jass-optimization/` — skill + `analyze_jass_leaks.py` + `validate_jass_syntax.py` + `leak_baseline.txt`.
 - `build.bat` — gated build. `base_map.w3x` — immutable shell (object data source). `dist/` — output.
 - `database/*.xlsx` — future data pipeline source (plan §12), not yet wired.
