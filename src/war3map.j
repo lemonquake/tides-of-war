@@ -1593,7 +1593,7 @@ endfunction
 // Target validation shared by all engine collision checks.
 //===========================================================================
 function Eng_IsDummyType takes integer t returns boolean
-    return t == 'h005' or t == 'h00Q' or t == 'h00R' or t == 'e002' or t == 'h00Y' or t == 'hrif' or t == 'hgry'
+    return t == 'h005' or t == 'h00Q' or t == 'h00R' or t == 'e002' or t == 'h00Y' or t == 'hrif' or t == 'hgry' or t == 'hgyr' or t == 'h016'
 endfunction
 
 function Eng_ValidTarget takes unit u, player castOwner returns boolean
@@ -9475,9 +9475,14 @@ endfunction
 // Trigger: Take Aim
 //===========================================================================
 function Trig_Take_Aim_Actions takes nothing returns nothing
-    call CreateNUnitsAtLoc( 1, 'hgyr', GetOwningPlayer(GetTriggerUnit()), GetUnitLoc(GetSpellTargetUnit()), bj_UNIT_FACING )
-    call IssueTargetOrderBJ( GetLastCreatedUnit(), "move", GetSpellTargetUnit() )
-    call UnitApplyTimedLifeBJ( ( 1 + ( 1 * I2R(GetUnitAbilityLevelSwapped('A02A', GetTriggerUnit())) ) ), 'BTLF', GetLastCreatedUnit() )
+    local unit caster = GetTriggerUnit()
+    local unit target = GetSpellTargetUnit()
+    local unit d = Dummy_Get(GetOwningPlayer(caster), 'hgyr', GetUnitX(target), GetUnitY(target), bj_UNIT_FACING)
+    call IssueTargetOrder(d, "move", target)
+    call Dummy_RecycleTimed(d, 1.00 + I2R(GetUnitAbilityLevel(caster, 'A02A')), 0)
+    set caster = null
+    set target = null
+    set d = null
 endfunction
 
 //===========================================================================
@@ -10746,10 +10751,13 @@ endfunction
 // Trigger: Fury1
 //===========================================================================
 function Trig_Fury1_Actions takes nothing returns nothing
-    call CreateNUnitsAtLoc( 1, 'h005', GetOwningPlayer(GetTriggerUnit()), GetUnitLoc(GetTriggerUnit()), bj_UNIT_FACING )
-    call UnitAddAbilityBJ( 'A02V', GetLastCreatedUnit() )
-    call IssueImmediateOrderBJ( GetLastCreatedUnit(), "fanofknives" )
-    call UnitApplyTimedLifeBJ( 1.00, 'BTLF', GetLastCreatedUnit() )
+    local unit caster = GetTriggerUnit()
+    local unit d = Dummy_Get(GetOwningPlayer(caster), 'h005', GetUnitX(caster), GetUnitY(caster), bj_UNIT_FACING)
+    call UnitAddAbility(d, 'A02V')
+    call IssueImmediateOrder(d, "fanofknives")
+    call Dummy_RecycleTimed(d, 1.00, 'A02V')
+    set caster = null
+    set d = null
 endfunction
 
 //===========================================================================
@@ -12148,53 +12156,33 @@ endfunction
 //===========================================================================
 // Trigger: Tidal Strike
 //===========================================================================
-function Trig_Tidal_Strike_Func002002003001 takes nothing returns boolean
-    return ( IsUnitType(GetFilterUnit(), UNIT_TYPE_STRUCTURE) == false )
-endfunction
-
-function Trig_Tidal_Strike_Func002002003002001 takes nothing returns boolean
-    return ( IsUnitAliveBJ(GetFilterUnit()) == true )
-endfunction
-
-function Trig_Tidal_Strike_Func002002003002002001 takes nothing returns boolean
-    return ( GetUnitAbilityLevelSwapped('A00A', GetFilterUnit()) < 1 )
-endfunction
-
-function Trig_Tidal_Strike_Func002002003002002002 takes nothing returns boolean
-    return ( IsUnitEnemy(GetFilterUnit(), GetOwningPlayer(GetTriggerUnit())) == true )
-endfunction
-
-function Trig_Tidal_Strike_Func002002003002002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Tidal_Strike_Func002002003002002001(), Trig_Tidal_Strike_Func002002003002002002() )
-endfunction
-
-function Trig_Tidal_Strike_Func002002003002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Tidal_Strike_Func002002003002001(), Trig_Tidal_Strike_Func002002003002002() )
-endfunction
-
-function Trig_Tidal_Strike_Func002002003 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Tidal_Strike_Func002002003001(), Trig_Tidal_Strike_Func002002003002() )
-endfunction
-
-function Trig_Tidal_Strike_Func004A takes nothing returns nothing
-    call CreateNUnitsAtLoc( 1, 'h005', GetOwningPlayer(GetTriggerUnit()), GetUnitLoc(GetEnumUnit()), bj_UNIT_FACING )
-    call UnitAddAbilityBJ( 'A04A', GetLastCreatedUnit() )
-    call SetUnitAbilityLevelSwapped( 'A04A', GetLastCreatedUnit(), GetUnitAbilityLevelSwapped('A049', GetTriggerUnit()) )
-    call IssueTargetOrderBJ( GetLastCreatedUnit(), "ensnare", GetEnumUnit() )
-    call UnitApplyTimedLifeBJ( 2.00, 'BTLF', GetLastCreatedUnit() )
-    call CreateNUnitsAtLoc( 1, 'h016', GetOwningPlayer(GetTriggerUnit()), GetUnitLoc(GetEnumUnit()), bj_UNIT_FACING )
-    call SetUnitAbilityLevelSwapped( 'A048', GetLastCreatedUnit(), GetUnitAbilityLevelSwapped('A049', GetTriggerUnit()) )
-    call IssueTargetOrderBJ( GetLastCreatedUnit(), "attack", GetEnumUnit() )
-    call UnitApplyTimedLifeBJ( 2.00, 'BTLF', GetLastCreatedUnit() )
-endfunction
-
 function Trig_Tidal_Strike_Actions takes nothing returns nothing
-    set udg_TempPoint = GetUnitLoc(GetTriggerUnit())
-    set udg_Temp_Group = GetUnitsInRangeOfLocMatching(500.00, udg_TempPoint, Condition(function Trig_Tidal_Strike_Func002002003))
-    set bj_wantDestroyGroup = true
-    call ForGroupBJ( udg_Temp_Group, function Trig_Tidal_Strike_Func004A )
-    call DestroyGroup(udg_Temp_Group)
-    call RemoveLocation(udg_TempPoint)
+    local unit caster = GetTriggerUnit()
+    local player p = GetOwningPlayer(caster)
+    local integer lvl = GetUnitAbilityLevel(caster, 'A049')
+    local unit u
+    local unit d
+    call GroupEnumUnitsInRange(Eng_Enum, GetUnitX(caster), GetUnitY(caster), 500.00, null)
+    loop
+        set u = FirstOfGroup(Eng_Enum)
+        exitwhen u == null
+        call GroupRemoveUnit(Eng_Enum, u)
+        if not IsUnitType(u, UNIT_TYPE_STRUCTURE) and GetWidgetLife(u) > 0.405 and GetUnitAbilityLevel(u, 'A00A') < 1 and IsUnitEnemy(u, p) then
+            set d = Dummy_Get(p, 'h005', GetUnitX(u), GetUnitY(u), bj_UNIT_FACING)
+            call UnitAddAbility(d, 'A04A')
+            call SetUnitAbilityLevel(d, 'A04A', lvl)
+            call IssueTargetOrder(d, "ensnare", u)
+            call Dummy_RecycleTimed(d, 2.00, 'A04A')
+            set d = Dummy_Get(p, 'h016', GetUnitX(u), GetUnitY(u), bj_UNIT_FACING)
+            call SetUnitAbilityLevel(d, 'A048', lvl)
+            call IssueTargetOrder(d, "attack", u)
+            call Dummy_RecycleTimed(d, 2.00, 0)
+        endif
+    endloop
+    set caster = null
+    set p = null
+    set u = null
+    set d = null
 endfunction
 
 //===========================================================================
@@ -12946,28 +12934,27 @@ function Trig_Vileplume_Conditions takes nothing returns boolean
     return true
 endfunction
 
-function Trig_Vileplume_Func002001002001 takes nothing returns boolean
-    return ( GetUnitTypeId(GetFilterUnit()) == 'h01F' )
-endfunction
-
-function Trig_Vileplume_Func002001002002 takes nothing returns boolean
-    return ( GetOwningPlayer(GetFilterUnit()) == GetOwningPlayer(GetTriggerUnit()) )
-endfunction
-
-function Trig_Vileplume_Func002001002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Vileplume_Func002001002001(), Trig_Vileplume_Func002001002002() )
-endfunction
-
-function Trig_Vileplume_Func002A takes nothing returns nothing
-    call RemoveUnit( GetEnumUnit() )
+function UniqueSummon_Cast takes unit caster, integer summonType, real x, real y, string model returns nothing
+    local player p = GetOwningPlayer(caster)
+    local unit u
+    call GroupEnumUnitsInRect(Eng_Enum, bj_mapInitialPlayableArea, null)
+    loop
+        set u = FirstOfGroup(Eng_Enum)
+        exitwhen u == null
+        call GroupRemoveUnit(Eng_Enum, u)
+        if GetUnitTypeId(u) == summonType and GetOwningPlayer(u) == p then
+            call RemoveUnit(u)
+        endif
+    endloop
+    set u = CreateUnit(p, summonType, x, y, bj_UNIT_FACING)
+    set bj_lastCreatedUnit = u
+    call SFX_Point(model, x, y)
+    set p = null
+    set u = null
 endfunction
 
 function Trig_Vileplume_Actions takes nothing returns nothing
-    set bj_wantDestroyGroup = true
-    call ForGroupBJ( GetUnitsInRectMatching(GetPlayableMapRect(), Condition(function Trig_Vileplume_Func002001002)), function Trig_Vileplume_Func002A )
-    call CreateNUnitsAtLoc( 1, 'h01F', GetOwningPlayer(GetTriggerUnit()), GetSpellTargetLoc(), bj_UNIT_FACING )
-    call AddSpecialEffectLocBJ( GetSpellTargetLoc(), "Abilities\\Spells\\Undead\\RaiseSkeletonWarrior\\RaiseSkeleton.mdl" )
-    call DestroyEffectBJ( GetLastCreatedEffectBJ() )
+    call UniqueSummon_Cast(GetTriggerUnit(), 'h01F', GetSpellTargetX(), GetSpellTargetY(), "Abilities\\Spells\\Undead\\RaiseSkeletonWarrior\\RaiseSkeleton.mdl")
 endfunction
 
 //===========================================================================
@@ -13044,28 +13031,8 @@ function Trig_Butterfree_Conditions takes nothing returns boolean
     return true
 endfunction
 
-function Trig_Butterfree_Func002001002001 takes nothing returns boolean
-    return ( GetUnitTypeId(GetFilterUnit()) == 'h01G' )
-endfunction
-
-function Trig_Butterfree_Func002001002002 takes nothing returns boolean
-    return ( GetOwningPlayer(GetFilterUnit()) == GetOwningPlayer(GetTriggerUnit()) )
-endfunction
-
-function Trig_Butterfree_Func002001002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Butterfree_Func002001002001(), Trig_Butterfree_Func002001002002() )
-endfunction
-
-function Trig_Butterfree_Func002A takes nothing returns nothing
-    call RemoveUnit( GetEnumUnit() )
-endfunction
-
 function Trig_Butterfree_Actions takes nothing returns nothing
-    set bj_wantDestroyGroup = true
-    call ForGroupBJ( GetUnitsInRectMatching(GetPlayableMapRect(), Condition(function Trig_Butterfree_Func002001002)), function Trig_Butterfree_Func002A )
-    call CreateNUnitsAtLoc( 1, 'h01G', GetOwningPlayer(GetTriggerUnit()), GetSpellTargetLoc(), bj_UNIT_FACING )
-    call AddSpecialEffectLocBJ( GetSpellTargetLoc(), "Abilities\\Spells\\Undead\\RaiseSkeletonWarrior\\RaiseSkeleton.mdl" )
-    call DestroyEffectBJ( GetLastCreatedEffectBJ() )
+    call UniqueSummon_Cast(GetTriggerUnit(), 'h01G', GetSpellTargetX(), GetSpellTargetY(), "Abilities\\Spells\\Undead\\RaiseSkeletonWarrior\\RaiseSkeleton.mdl")
 endfunction
 
 //===========================================================================
@@ -13086,28 +13053,12 @@ function Trig_Blaziken_Conditions takes nothing returns boolean
     return true
 endfunction
 
-function Trig_Blaziken_Func002001002001 takes nothing returns boolean
-    return ( GetUnitTypeId(GetFilterUnit()) == 'h01H' )
-endfunction
-
-function Trig_Blaziken_Func002001002002 takes nothing returns boolean
-    return ( GetOwningPlayer(GetFilterUnit()) == GetOwningPlayer(GetTriggerUnit()) )
-endfunction
-
-function Trig_Blaziken_Func002001002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Blaziken_Func002001002001(), Trig_Blaziken_Func002001002002() )
-endfunction
-
-function Trig_Blaziken_Func002A takes nothing returns nothing
-    call RemoveUnit( GetEnumUnit() )
-endfunction
-
 function Trig_Blaziken_Actions takes nothing returns nothing
-    set bj_wantDestroyGroup = true
-    call ForGroupBJ( GetUnitsInRectMatching(GetPlayableMapRect(), Condition(function Trig_Blaziken_Func002001002)), function Trig_Blaziken_Func002A )
-    call CreateNUnitsAtLoc( 1, 'h01H', GetOwningPlayer(GetTriggerUnit()), GetRandomLocInRect(RectFromCenterSizeBJ(GetUnitLoc(GetTriggerUnit()), 300.00, 300.00)), bj_UNIT_FACING )
-    call AddSpecialEffectLocBJ( GetUnitLoc(GetLastCreatedUnit()), "Abilities\\Spells\\Other\\Doom\\DoomDeath.mdl" )
-    call DestroyEffectBJ( GetLastCreatedEffectBJ() )
+    local unit caster = GetTriggerUnit()
+    local real x = GetUnitX(caster) + GetRandomReal(-150.00, 150.00)
+    local real y = GetUnitY(caster) + GetRandomReal(-150.00, 150.00)
+    call UniqueSummon_Cast(caster, 'h01H', x, y, "Abilities\\Spells\\Other\\Doom\\DoomDeath.mdl")
+    set caster = null
 endfunction
 
 //===========================================================================
@@ -13287,36 +13238,27 @@ function Trig_Overload_Conditions takes nothing returns boolean
     return true
 endfunction
 
-function Trig_Overload_Func003001003001 takes nothing returns boolean
-    return ( IsUnitType(GetFilterUnit(), UNIT_TYPE_STRUCTURE) == false )
-endfunction
-
-function Trig_Overload_Func003001003002001 takes nothing returns boolean
-    return ( IsUnitEnemy(GetFilterUnit(), GetOwningPlayer(udg_GDD_DamageSource)) == true )
-endfunction
-
-function Trig_Overload_Func003001003002002 takes nothing returns boolean
-    return ( GetUnitAbilityLevelSwapped('A00A', GetFilterUnit()) < 1 )
-endfunction
-
-function Trig_Overload_Func003001003002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Overload_Func003001003002001(), Trig_Overload_Func003001003002002() )
-endfunction
-
-function Trig_Overload_Func003001003 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Overload_Func003001003001(), Trig_Overload_Func003001003002() )
-endfunction
-
-function Trig_Overload_Func003A takes nothing returns nothing
-    call UnitDamageTargetBJ( udg_GDD_DamageSource, GetEnumUnit(), ( 300.00 + udg_GDD_Damage ), ATTACK_TYPE_NORMAL, DAMAGE_TYPE_NORMAL )
-    call AddSpecialEffectTargetUnitBJ( "origin", GetEnumUnit(), "Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl" )
-    call DestroyEffectBJ( GetLastCreatedEffectBJ() )
-endfunction
-
 function Trig_Overload_Actions takes nothing returns nothing
-    call UnitRemoveBuffBJ( 'B01D', udg_GDD_DamageSource )
-    set bj_wantDestroyGroup = true
-    call ForGroupBJ( GetUnitsInRangeOfLocMatching(300.00, GetUnitLoc(udg_GDD_DamagedUnit), Condition(function Trig_Overload_Func003001003)), function Trig_Overload_Func003A )
+    local unit source = udg_GDD_DamageSource
+    local unit center = udg_GDD_DamagedUnit
+    local player p = GetOwningPlayer(source)
+    local real damage = 300.00 + udg_GDD_Damage
+    local unit u
+    call UnitRemoveBuffBJ('B01D', source)
+    call GroupEnumUnitsInRange(Eng_Enum, GetUnitX(center), GetUnitY(center), 300.00, null)
+    loop
+        set u = FirstOfGroup(Eng_Enum)
+        exitwhen u == null
+        call GroupRemoveUnit(Eng_Enum, u)
+        if not IsUnitType(u, UNIT_TYPE_STRUCTURE) and IsUnitEnemy(u, p) and GetUnitAbilityLevel(u, 'A00A') < 1 then
+            call UnitDamageTarget(source, u, damage, true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_NORMAL, WEAPON_TYPE_WHOKNOWS)
+            call SFX_Unit("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", u, "origin")
+        endif
+    endloop
+    set source = null
+    set center = null
+    set p = null
+    set u = null
 endfunction
 
 //===========================================================================
@@ -22004,8 +21946,10 @@ function Trig_Mortar_fire_Conditions takes nothing returns boolean
 endfunction
 
 function Trig_Mortar_fire_Actions takes nothing returns nothing
+    local real x = GetSpellTargetX()
+    local real y = GetSpellTargetY()
     call TriggerSleepAction( 1.00 )
-    call TerrainDeformationCraterBJ( 2.00, false, GetSpellTargetLoc(), 512, 64 )
+    set bj_lastCreatedTerrainDeformation = TerrainDeformCrater(x, y, 512.00, 64.00, 2000, false)
 endfunction
 
 //===========================================================================
@@ -22096,11 +22040,10 @@ function Trig_AoT_Cast_Conditions takes nothing returns boolean
 endfunction
 
 function Trig_AoT_Cast_Actions takes nothing returns nothing
-    call UnitRemoveBuffBJ( 'B00M', GetTriggerUnit() )
-    call CreateNUnitsAtLoc( 1, 'h005', GetOwningPlayer(GetTriggerUnit()), GetUnitLoc(GetTriggerUnit()), bj_UNIT_FACING )
-    call UnitAddAbilityBJ( 'A05X', GetLastCreatedUnit() )
-    call IssueTargetOrderBJ( GetLastCreatedUnit(), "bloodlust", GetTriggerUnit() )
-    call UnitApplyTimedLifeBJ( 1.00, 'BTLF', GetLastCreatedUnit() )
+    local unit caster = GetTriggerUnit()
+    call UnitRemoveBuffBJ('B00M', caster)
+    call Dummy_CastTarget(GetOwningPlayer(caster), 'A05X', Eng_OrdBloodlust, caster)
+    set caster = null
 endfunction
 
 //===========================================================================
