@@ -1593,7 +1593,7 @@ endfunction
 // Target validation shared by all engine collision checks.
 //===========================================================================
 function Eng_IsDummyType takes integer t returns boolean
-    return t == 'h005' or t == 'h00Q' or t == 'h00R' or t == 'e002' or t == 'h00Y' or t == 'hrif' or t == 'hgry' or t == 'hgyr' or t == 'h016'
+    return t == 'h005' or t == 'h00Q' or t == 'h00R' or t == 'e002' or t == 'h00Y' or t == 'hrif' or t == 'hgry' or t == 'hgyr' or t == 'h016' or t == 'hkni'
 endfunction
 
 function Eng_ValidTarget takes unit u, player castOwner returns boolean
@@ -6054,35 +6054,44 @@ function Trig_Preload_Func029A takes nothing returns nothing
 endfunction
 
 function Trig_Preload_Actions takes nothing returns nothing
-    call CreateTextTagLocBJ( "TRIGSTR_2844", GetRectCenter(gg_rct_TEXT), 0, 13.00, 100, 100, 100, 20.00 )
-    call SetTextTagPermanentBJ( GetLastCreatedTextTag(), true )
+    local unit d
+    local real x = GetUnitX(gg_unit_H00W_0154)
+    local real y = GetUnitY(gg_unit_H00W_0154)
+    local real a = GetUnitFacing(gg_unit_H00W_0154) * bj_DEGTORAD
+    local real preloadX = (GetRectMinX(bj_mapInitialPlayableArea) + GetRectMaxX(bj_mapInitialPlayableArea)) * 0.50
+    local real preloadY = (GetRectMinY(bj_mapInitialPlayableArea) + GetRectMaxY(bj_mapInitialPlayableArea)) * 0.50
+    set bj_lastCreatedTextTag = CreateTextTag()
+    call SetTextTagText(bj_lastCreatedTextTag, "TRIGSTR_2844", 0.0299)
+    call SetTextTagPos(bj_lastCreatedTextTag, GetRectCenterX(gg_rct_TEXT), GetRectCenterY(gg_rct_TEXT), 0.00)
+    call SetTextTagColor(bj_lastCreatedTextTag, 255, 255, 255, 204)
+    call SetTextTagPermanent(bj_lastCreatedTextTag, true)
     call AddWeatherEffectSaveLast( gg_rct_team1, 'LRma' )
     call EnableWeatherEffect( GetLastCreatedWeatherEffect(), true )
     call AddWeatherEffectSaveLast( gg_rct_team2, 'RLhr' )
     call EnableWeatherEffect( GetLastCreatedWeatherEffect(), true )
-    call IssueImmediateOrderBJ( gg_unit_H00W_0132, "fanofknives" )
-    call IssuePointOrderLocBJ( gg_unit_H00W_0154, "breathoffire", PolarProjectionBJ(GetUnitLoc(gg_unit_H00W_0154), 300.00, GetUnitFacing(gg_unit_H00W_0154)) )
-    call IssueTargetOrderBJ( gg_unit_H003_0155, "thunderbolt", gg_unit_ewsp_0148 )
+    call IssueImmediateOrder(gg_unit_H00W_0132, "fanofknives")
+    call IssuePointOrder(gg_unit_H00W_0154, "breathoffire", x + 300.00 * Cos(a), y + 300.00 * Sin(a))
+    call IssueTargetOrder(gg_unit_H003_0155, "thunderbolt", gg_unit_ewsp_0148)
     call UnitApplyTimedLifeBJ( 3.00, 'BTLF', gg_unit_H00W_0132 )
     call UnitApplyTimedLifeBJ( 3.00, 'BTLF', gg_unit_N005_0133 )
     call UnitApplyTimedLifeBJ( 3.00, 'BTLF', gg_unit_H00W_0154 )
     call UnitApplyTimedLifeBJ( 3.00, 'BTLF', gg_unit_H003_0155 )
-    call IssueTargetOrderBJ( gg_unit_h005_0140, "thunderbolt", gg_unit_H00W_0132 )
+    call IssueTargetOrder(gg_unit_h005_0140, "thunderbolt", gg_unit_H00W_0132)
     call UnitApplyTimedLifeBJ( 1.50, 'BTLF', gg_unit_h005_0140 )
-    call CreateNUnitsAtLoc( 1, 'h005', Player(PLAYER_NEUTRAL_PASSIVE), GetRectCenter(GetPlayableMapRect()), bj_UNIT_FACING )
-    call UnitAddAbilityBJ( 'A059', GetLastCreatedUnit() )
-    call SetUnitAbilityLevelSwapped( 'A059', GetLastCreatedUnit(), 10 )
-    call UnitApplyTimedLifeBJ( 1.00, 'BTLF', GetLastCreatedUnit() )
-    call CreateNUnitsAtLoc( 1, 'h005', Player(PLAYER_NEUTRAL_PASSIVE), GetRectCenter(GetPlayableMapRect()), bj_UNIT_FACING )
-    call UnitAddAbilityBJ( 'A06Z', GetLastCreatedUnit() )
-    call SetUnitAbilityLevelSwapped( 'A06Z', GetLastCreatedUnit(), 10 )
-    call UnitApplyTimedLifeBJ( 1.00, 'BTLF', GetLastCreatedUnit() )
-    call CreateNUnitsAtLoc( 1, 'h005', Player(PLAYER_NEUTRAL_PASSIVE), GetRectCenter(GetPlayableMapRect()), bj_UNIT_FACING )
-    call UnitAddAbilityBJ( 'A06Y', GetLastCreatedUnit() )
-    call SetUnitAbilityLevelSwapped( 'A06Y', GetLastCreatedUnit(), 10 )
-    call UnitApplyTimedLifeBJ( 1.00, 'BTLF', GetLastCreatedUnit() )
-    set bj_wantDestroyGroup = true
+    set d = Dummy_Get(Player(PLAYER_NEUTRAL_PASSIVE), 'h005', preloadX, preloadY, bj_UNIT_FACING)
+    call UnitAddAbility(d, 'A059')
+    call SetUnitAbilityLevel(d, 'A059', 10)
+    call Dummy_RecycleTimed(d, 1.00, 'A059')
+    set d = Dummy_Get(Player(PLAYER_NEUTRAL_PASSIVE), 'h005', preloadX, preloadY, bj_UNIT_FACING)
+    call UnitAddAbility(d, 'A06Z')
+    call SetUnitAbilityLevel(d, 'A06Z', 10)
+    call Dummy_RecycleTimed(d, 1.00, 'A06Z')
+    set d = Dummy_Get(Player(PLAYER_NEUTRAL_PASSIVE), 'h005', preloadX, preloadY, bj_UNIT_FACING)
+    call UnitAddAbility(d, 'A06Y')
+    call SetUnitAbilityLevel(d, 'A06Y', 10)
+    call Dummy_RecycleTimed(d, 1.00, 'A06Y')
     call ForForce( bj_FORCE_ALL_PLAYERS, function Trig_Preload_Func029A )
+    set d = null
 endfunction
 
 //===========================================================================
@@ -6664,15 +6673,24 @@ function Trig_Obser_Func005C takes nothing returns boolean
 endfunction
 
 function Trig_Obser_Actions takes nothing returns nothing
-    call QueueUnitAnimationBJ( gg_unit_h01M_0146, "stand work" )
-    set udg_Obser_Con[GetConvertedPlayerId(GetOwningPlayer(GetTriggerUnit()))] = true
-    call CreateFogModifierRadiusLocBJ( true, GetOwningPlayer(GetTriggerUnit()), FOG_OF_WAR_VISIBLE, GetUnitLoc(GetTriggerUnit()), 4000.00 )
-    set udg_Observatory[GetConvertedPlayerId(GetOwningPlayer(GetTriggerUnit()))] = GetLastCreatedFogModifier()
+    local unit entering = GetTriggerUnit()
+    local player p = GetOwningPlayer(entering)
+    local integer id = GetPlayerId(p) + 1
+    local fogmodifier fm
+    call QueueUnitAnimation(gg_unit_h01M_0146, "stand work")
+    set udg_Obser_Con[id] = true
+    set fm = CreateFogModifierRadius(p, FOG_OF_WAR_VISIBLE, GetUnitX(entering), GetUnitY(entering), 4000.00, true, false)
+    set bj_lastCreatedFogModifier = fm
+    call FogModifierStart(fm)
+    set udg_Observatory[id] = fm
     if ( Trig_Obser_Func005C() ) then
-        call AddSpecialEffectTargetUnitBJ( "overhead", GetTriggerUnit(), "Abilities\\Spells\\Other\\TalkToMe\\TalkToMe.mdl" )
-        set udg_Obser[GetConvertedPlayerId(GetOwningPlayer(GetTriggerUnit()))] = GetLastCreatedEffectBJ()
+        set bj_lastCreatedEffect = AddSpecialEffectTarget("Abilities\\Spells\\Other\\TalkToMe\\TalkToMe.mdl", entering, "overhead")
+        set udg_Obser[id] = bj_lastCreatedEffect
     else
     endif
+    set entering = null
+    set p = null
+    set fm = null
 endfunction
 
 //===========================================================================
@@ -8069,29 +8087,31 @@ endfunction
 //===========================================================================
 // Trigger: SC
 //===========================================================================
-function Trig_SC_Func005001003001 takes nothing returns boolean
-    return ( IsUnitType(GetFilterUnit(), UNIT_TYPE_STRUCTURE) == false )
-endfunction
-
-function Trig_SC_Func005001003002 takes nothing returns boolean
-    return ( IsUnitEnemy(GetFilterUnit(), GetOwningPlayer(GetTriggerUnit())) == true )
-endfunction
-
-function Trig_SC_Func005001003 takes nothing returns boolean
-    return GetBooleanAnd( Trig_SC_Func005001003001(), Trig_SC_Func005001003002() )
-endfunction
-
-function Trig_SC_Func005A takes nothing returns nothing
-    call SetUnitPositionLocFacingLocBJ( GetEnumUnit(), GetUnitLoc(GetSpellAbilityUnit()), GetUnitLoc(GetSpellAbilityUnit()) )
-endfunction
-
 function Trig_SC_Actions takes nothing returns nothing
-    call CreateNUnitsAtLoc( 1, 'hkni', GetOwningPlayer(GetTriggerUnit()), GetUnitLoc(GetTriggerUnit()), bj_UNIT_FACING )
-    call SetUnitAbilityLevelSwapped( 'A007', GetLastCreatedUnit(), GetUnitAbilityLevelSwapped('A004', GetTriggerUnit()) )
-    call IssueImmediateOrderBJ( GetLastCreatedUnit(), "thunderclap" )
-    call UnitApplyTimedLifeBJ( 1.00, 'BTLF', GetLastCreatedUnit() )
-    set bj_wantDestroyGroup = true
-    call ForGroupBJ( GetUnitsInRangeOfLocMatching(600.00, GetUnitLoc(GetSpellAbilityUnit()), Condition(function Trig_SC_Func005001003)), function Trig_SC_Func005A )
+    local unit caster = GetSpellAbilityUnit()
+    local unit d
+    local unit u
+    local player p = GetOwningPlayer(caster)
+    local real x = GetUnitX(caster)
+    local real y = GetUnitY(caster)
+    set d = Dummy_Get(p, 'hkni', x, y, bj_UNIT_FACING)
+    call SetUnitAbilityLevel(d, 'A007', GetUnitAbilityLevel(caster, 'A004'))
+    call IssueImmediateOrder(d, "thunderclap")
+    call Dummy_RecycleTimed(d, 1.00, 0)
+    call GroupEnumUnitsInRange(Eng_Enum, x, y, 600.00, null)
+    loop
+        set u = FirstOfGroup(Eng_Enum)
+        exitwhen u == null
+        call GroupRemoveUnit(Eng_Enum, u)
+        if not IsUnitType(u, UNIT_TYPE_STRUCTURE) and IsUnitEnemy(u, p) then
+            call SetUnitPosition(u, x, y)
+            call SetUnitFacing(u, 0.00)
+        endif
+    endloop
+    set caster = null
+    set d = null
+    set u = null
+    set p = null
 endfunction
 
 //===========================================================================
@@ -8147,51 +8167,38 @@ function Trig_MM_Conditions takes nothing returns boolean
     return true
 endfunction
 
-function Trig_MM_Func006002003001 takes nothing returns boolean
-    return ( IsUnitType(GetFilterUnit(), UNIT_TYPE_STRUCTURE) == false )
-endfunction
-
-function Trig_MM_Func006002003002001001 takes nothing returns boolean
-    return ( IsUnitAliveBJ(GetFilterUnit()) == true )
-endfunction
-
-function Trig_MM_Func006002003002001002 takes nothing returns boolean
-    return ( GetFilterUnit() != GetSpellTargetUnit() )
-endfunction
-
-function Trig_MM_Func006002003002001 takes nothing returns boolean
-    return GetBooleanAnd( Trig_MM_Func006002003002001001(), Trig_MM_Func006002003002001002() )
-endfunction
-
-function Trig_MM_Func006002003002002 takes nothing returns boolean
-    return ( GetUnitAbilityLevelSwapped('A00A', GetFilterUnit()) < 1 )
-endfunction
-
-function Trig_MM_Func006002003002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_MM_Func006002003002001(), Trig_MM_Func006002003002002() )
-endfunction
-
-function Trig_MM_Func006002003 takes nothing returns boolean
-    return GetBooleanAnd( Trig_MM_Func006002003001(), Trig_MM_Func006002003002() )
-endfunction
-
-function Trig_MM_Func008A takes nothing returns nothing
-    call UnitDamageTargetBJ( GetTriggerUnit(), GetEnumUnit(), ( 250.00 + ( I2R(GetHeroStatBJ(bj_HEROSTAT_AGI, GetTriggerUnit(), true)) * 2.00 ) ), ATTACK_TYPE_NORMAL, DAMAGE_TYPE_NORMAL )
-    call CreateNUnitsAtLoc( 1, 'h005', GetOwningPlayer(GetTriggerUnit()), GetUnitLoc(GetTriggerUnit()), bj_UNIT_FACING )
-    call UnitAddAbilityBJ( 'A03Z', GetLastCreatedUnit() )
-    call SetUnitAbilityLevelSwapped( 'A03Z', GetLastCreatedUnit(), GetUnitAbilityLevelSwapped('A008', GetTriggerUnit()) )
-    call IssueTargetOrderBJ( GetLastCreatedUnit(), "thunderbolt", GetEnumUnit() )
-    call UnitApplyTimedLifeBJ( 1.00, 'BTLF', GetLastCreatedUnit() )
-endfunction
-
 function Trig_MM_Actions takes nothing returns nothing
-    call AddSpecialEffectTargetUnitBJ( "hand,right", GetTriggerUnit(), "Abilities\\Weapons\\DragonHawkMissile\\DragonHawkMissile.mdl" )
-    call DestroyEffectBJ( GetLastCreatedEffectBJ() )
-    call UnitDamageTargetBJ( GetTriggerUnit(), GetSpellTargetUnit(), ( 250.00 + ( I2R(GetHeroStatBJ(bj_HEROSTAT_AGI, GetTriggerUnit(), true)) * 2.00 ) ), ATTACK_TYPE_NORMAL, DAMAGE_TYPE_NORMAL )
-    set udg_MagicM_Group = GetUnitsInRangeOfLocMatching(500.00, GetUnitLoc(GetSpellTargetUnit()), Condition(function Trig_MM_Func006002003))
-    set bj_wantDestroyGroup = true
-    call ForGroupBJ( udg_MagicM_Group, function Trig_MM_Func008A )
-    call DestroyGroup(udg_MagicM_Group)
+    local unit caster = GetTriggerUnit()
+    local unit target = GetSpellTargetUnit()
+    local unit u
+    local unit d
+    local player p = GetOwningPlayer(caster)
+    local group g = CreateGroup()
+    local integer lvl = GetUnitAbilityLevel(caster, 'A008')
+    local real damage = 250.00 + 2.00 * I2R(GetHeroAgi(caster, true))
+    call DestroyEffect(AddSpecialEffectTarget("Abilities\\Weapons\\DragonHawkMissile\\DragonHawkMissile.mdl", caster, "hand,right"))
+    call UnitDamageTarget(caster, target, damage, true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_NORMAL, WEAPON_TYPE_WHOKNOWS)
+    call GroupEnumUnitsInRange(g, GetUnitX(target), GetUnitY(target), 500.00, null)
+    loop
+        set u = FirstOfGroup(g)
+        exitwhen u == null
+        call GroupRemoveUnit(g, u)
+        if not IsUnitType(u, UNIT_TYPE_STRUCTURE) and GetWidgetLife(u) > 0.405 and u != target and GetUnitAbilityLevel(u, 'A00A') < 1 then
+            call UnitDamageTarget(caster, u, damage, true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_NORMAL, WEAPON_TYPE_WHOKNOWS)
+            set d = Dummy_Get(p, 'h005', GetUnitX(caster), GetUnitY(caster), bj_UNIT_FACING)
+            call UnitAddAbility(d, 'A03Z')
+            call SetUnitAbilityLevel(d, 'A03Z', lvl)
+            call IssueTargetOrderById(d, Eng_OrdThunderbolt, u)
+            call Dummy_RecycleTimed(d, 1.00, 'A03Z')
+        endif
+    endloop
+    call DestroyGroup(g)
+    set caster = null
+    set target = null
+    set u = null
+    set d = null
+    set p = null
+    set g = null
 endfunction
 
 //===========================================================================
@@ -8255,6 +8262,8 @@ function Trig_NA_Func002C takes nothing returns boolean
 endfunction
 
 function Trig_NA_Actions takes nothing returns nothing
+    local unit caster = GetSpellAbilityUnit()
+    local unit d
     set udg_Nether_Aura = GetRandomInt(1, 100)
     if ( Trig_NA_Func002C() ) then
         if ( Trig_NA_Func002Func002C() ) then
@@ -8267,16 +8276,19 @@ function Trig_NA_Actions takes nothing returns nothing
             call AddSpecialEffectTargetUnitBJ( "overhead", GetTriggerUnit(), "Abilities\\Spells\\Human\\DispelMagic\\DispelMagicTarget.mdl" )
         else
             if ( Trig_NA_Func002Func002Func001C() ) then
-                call CreateNUnitsAtLoc( 1, 'hkni', Player(PLAYER_NEUTRAL_PASSIVE), GetUnitLoc(GetSpellAbilityUnit()), bj_UNIT_FACING )
-                call UnitAddAbilityBJ( 'A00E', GetLastCreatedUnit() )
-                call SetUnitAbilityLevelSwapped( 'A00E', GetLastCreatedUnit(), 4 )
-                call IssueTargetOrderBJ( GetLastCreatedUnit(), "thunderbolt", GetSpellAbilityUnit() )
+                set d = Dummy_Get(Player(PLAYER_NEUTRAL_PASSIVE), 'hkni', GetUnitX(caster), GetUnitY(caster), bj_UNIT_FACING)
+                call UnitAddAbility(d, 'A00E')
+                call SetUnitAbilityLevel(d, 'A00E', 4)
+                call IssueTargetOrderById(d, Eng_OrdThunderbolt, caster)
+                call Dummy_RecycleTimed(d, 1.00, 'A00E')
             else
             endif
         endif
     else
         set udg_NA_Con = false
     endif
+    set caster = null
+    set d = null
 endfunction
 
 //===========================================================================
@@ -8319,12 +8331,15 @@ function Trig_NS_Func019001003 takes nothing returns boolean
 endfunction
 
 function Trig_NS_Func019A takes nothing returns nothing
-    call CreateNUnitsAtLoc( 1, 'h005', GetOwningPlayer(GetTriggerUnit()), GetUnitLoc(GetEnumUnit()), bj_UNIT_FACING )
-    call UnitAddAbilityBJ( 'A00G', GetLastCreatedUnit() )
-    call IssueTargetOrderBJ( GetLastCreatedUnit(), "chainlightning", udg_NS_Caster )
-    call UnitApplyTimedLifeBJ( 1.00, 'BTLF', GetLastCreatedUnit() )
-    call SetUnitX(GetEnumUnit(), GetLocationX(udg_NS_Cast_Loc))
-    call SetUnitY(GetEnumUnit(), GetLocationY(udg_NS_Cast_Loc))
+    local unit u = GetEnumUnit()
+    local unit d = Dummy_Get(GetOwningPlayer(GetTriggerUnit()), 'h005', GetUnitX(u), GetUnitY(u), bj_UNIT_FACING)
+    call UnitAddAbility(d, 'A00G')
+    call IssueTargetOrder(d, "chainlightning", udg_NS_Caster)
+    call Dummy_RecycleTimed(d, 1.00, 'A00G')
+    call SetUnitX(u, GetLocationX(udg_NS_Cast_Loc))
+    call SetUnitY(u, GetLocationY(udg_NS_Cast_Loc))
+    set u = null
+    set d = null
 endfunction
 
 function Trig_NS_Actions takes nothing returns nothing

@@ -11,7 +11,7 @@
 1. Load the project skill `.agents/skills/warcraft3-jass-optimization/SKILL.md` — its six rules are law (native XY coords, null all locals, group/force hygiene, div-by-zero guards).
 2. After **every** edit to `src/war3map.j`:
    `python .agents/skills/warcraft3-jass-optimization/scripts/validate_jass_syntax.py src/war3map.j`
-   It checks block balance, declared-before-use, duplicate functions, and **fails on any leak regression** vs `scripts/leak_baseline.txt` (current baseline: location=17, everything else 0). It caught a real un-nulled local of mine — trust it.
+   It checks block balance, declared-before-use, duplicate functions, and **fails on any leak regression** vs `scripts/leak_baseline.txt` (current baseline: location=9, everything else 0). It caught a real un-nulled local of mine — trust it.
 3. Build: copy `base_map.w3x` → `dist/Tides_of_War_Compiled.w3x`, then `MPQEditor.exe add "dist\Tides_of_War_Compiled.w3x" "src\war3map.j" "war3map.j"` (or run `build.bat nopause`, which gates on the validator).
 4. Commit per batch with a message naming what migrated and the leak delta. Author identity used so far: `-c user.name="Lemon" -c user.email="lemonquake@gmail.com"`, co-author trailer for Claude.
 5. **Update the leak baseline** (`scripts/leak_baseline.txt`) only downward, when you've genuinely removed leaks.
@@ -32,7 +32,7 @@
 | Damage | `Damage_Phys / Damage_Magic / Damage_Pure (s, t, amt)` | Pure = CHAOS/FIRE (matches old map convention). |
 | SFX | `SFX_Point(model, x, y)` / `SFX_Unit(model, u, attach)` | One-shot, zero-leak. |
 | Trees | `Eng_KillTreesAt(x, y, radius)` | Kills 'ZTtw'/'ZTtc' only, circle-exact, no locations. |
-| Target filter | `Eng_ValidTarget(u, castOwner)` + `Eng_IsDummyType(t)` | Dummy list: 'h005','h00Q','h00R','e002','h00Y','hrif','hgry','hgyr','h016'. Extend when new dummy types join the engine. |
+| Target filter | `Eng_ValidTarget(u, castOwner)` + `Eng_IsDummyType(t)` | Dummy list: 'h005','h00Q','h00R','e002','h00Y','hrif','hgry','hgyr','h016','hkni'. Extend when new dummy types join the engine. |
 | **MissileCore** | `Missile_LaunchXY(owner,x,y,tx,ty,speed,maxDist,radius,dummyType,model,onHitTrig,onEndTrig) -> i`, `Missile_SetHoming(i,target)`, `Missile_SetOnTick(i,trig)` | Callbacks are triggers holding `Condition(function F)`; dispatch via `TriggerEvaluate`. Context globals: `EV_MISSILE`, `EV_UNIT`. onHit returning `true` kills the missile; `false` = pierce. Per-instance slots `Msl_Data[i]` (int), `Msl_DataR[i]` (real). **World-bounds clamped** — `SetUnitX/Y` outside world bounds hard-crashes WC3; bounds are `Eng_MinX/MaxX/MinY/MaxY` (playable area ±64). |
 | **HookCore** | `Hook_Launch(caster, tx, ty)` | Pudge Hook v2 per user spec: never pauses caster, chain re-laid each tick caster→head (moving launch/retract), 3000 range, multi-instance, links pooled in `Eng_HT` parent `1000000+i`. |
 | Shard channel | `FreezingBlast_Launch(caster)` | 0.2s cadence on master tick. |
@@ -57,8 +57,8 @@ Hook ('A03B'), Torpedo ('A02K'), Piercing Shot ('A03F'), Soul Strike ('A032'), E
 
 ## 3. What to do NEXT (in order)
 
-### 3a. Burn down the 17 remaining location-leak functions (fast wins)
-The validator baseline is 17. Full hit-list (name @ line, as of HEAD — lines drift, re-run the lister):
+### 3a. Burn down the 9 remaining location-leak functions (fast wins)
+The validator baseline is 9. Full hit-list (name @ line, as of HEAD — lines drift, re-run the lister):
 ```
 python -c "<see git log batch 5 era or re-derive>"   # or just re-run: the one-liner lives in the session notes
 ```
@@ -80,7 +80,9 @@ Completed in leak-scrub batch 11: initialization camera centering, mine detonati
 Completed in leak-scrub batch 12: game intro/mode transmissions, initial camera setup, duel return, repick placement, and revival item recovery now use native coordinates. `Game_TransmissionInitial` owns and cleans the one location required by Blizzard's transmission API plus its temporary audience force. Location warnings: 37 → 27.
 
 Completed in leak-scrub batch 13: bomb planting, pickup/drop tracking, diffuse respawn pings, and hero-pick camera return now use native coordinates and cleaned forces. The analyzer now matches exact allocation APIs, so `GetRectCenterX/Y` and start-location configuration are no longer false positives. Location warnings: 27 → 17.
-False positives to allowlist mentally: `config`, `InitCustomPlayerSlots`, `CreateNeutralPassiveBuildings` (substring matches).
+
+Completed in leak-scrub batch 14: Preload and Observatory now use native coordinates; SC and Magic Missile use native enumeration and pooled casters; Nether Aura recycles its formerly immortal dummy; and the NS callback uses a pooled native-XY caster. Magic Missile retains an isolated destroyed group because damage events may re-enter shared enumeration. Location warnings: 17 → 9.
+
 After each burn-down, lower `leak_baseline.txt`.
 
 ### 3b. Migrate remaining loop spells to engine channels (pattern is established — copy an existing one)
