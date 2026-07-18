@@ -13619,6 +13619,13 @@ function Game_TransmissionInitial takes player audience, integer speakerType, st
     set loc = null
 endfunction
 
+function Game_PingForceAt takes force audience, real x, real y, real duration, integer style, real red, real green, real blue returns nothing
+    local location loc = Location(x, y)
+    call PingMinimapLocForForceEx(audience, loc, duration, style, red, green, blue)
+    call RemoveLocation(loc)
+    set loc = null
+endfunction
+
 function Trig_Game_Func009001001 takes nothing returns boolean
     return ( GetFilterPlayer() != Player(0) )
 endfunction
@@ -14659,44 +14666,68 @@ function Trig_Plant_Func002C takes nothing returns boolean
 endfunction
 
 function Trig_Plant_Actions takes nothing returns nothing
+    local unit caster = GetTriggerUnit()
+    local player p = GetOwningPlayer(caster)
+    local real x = GetSpellTargetX()
+    local real y = GetSpellTargetY()
+    local real px
+    local real py
+    local unit u
+    local force f
     if ( Trig_Plant_Func001C() ) then
         if ( Trig_Plant_Func001Func002C() ) then
             call DisplayTimedTextToForce( bj_FORCE_ALL_PLAYERS, 15.00, "TRIGSTR_3524" )
-            call CreateNUnitsAtLoc( 1, 'hdhw', GetOwningPlayer(GetTriggerUnit()), GetSpellTargetLoc(), bj_UNIT_FACING )
-            call UnitApplyTimedLifeBJ( 17.00, 'BTLF', GetLastCreatedUnit() )
-            call UnitAddAbilityBJ( 'AEsf', GetLastCreatedUnit() )
-            call IssueImmediateOrderBJ( GetLastCreatedUnit(), "starfall" )
-            call CreateNUnitsAtLoc( 1, 'n00D', GetOwningPlayer(GetTriggerUnit()), GetSpellTargetLoc(), bj_UNIT_FACING )
-            call SetUnitVertexColorBJ( GetLastCreatedUnit(), 100, 0.00, 0.00, 0 )
-            call UnitApplyTimedLifeBJ( 16.00, 'BTLF', GetLastCreatedUnit() )
+            set u = CreateUnit(p, 'hdhw', x, y, bj_UNIT_FACING)
+            call UnitApplyTimedLife(u, 'BTLF', 17.00)
+            call UnitAddAbility(u, 'AEsf')
+            call IssueImmediateOrder(u, "starfall")
+            set u = CreateUnit(p, 'n00D', x, y, bj_UNIT_FACING)
+            call SetUnitVertexColorBJ(u, 100, 0.00, 0.00, 0)
+            call UnitApplyTimedLife(u, 'BTLF', 16.00)
         else
-            call IssueImmediateOrderBJ( GetTriggerUnit(), "stop" )
-            call DisplayTimedTextToForce( GetForceOfPlayer(GetOwningPlayer(GetTriggerUnit())), 5.00, "TRIGSTR_3523" )
-            call PingMinimapLocForForceEx( GetForceOfPlayer(GetOwningPlayer(GetTriggerUnit())), GetRectCenter(gg_rct_Bomb2), 5.00, bj_MINIMAPPINGSTYLE_FLASHY, 100, 100, 100 )
-            call PingMinimapLocForForceEx( GetForceOfPlayer(GetOwningPlayer(GetTriggerUnit())), GetRectCenter(gg_rct_Bomb2), 5.00, bj_MINIMAPPINGSTYLE_ATTACK, 100, 100, 100 )
-            call PingMinimapLocForForceEx( GetForceOfPlayer(GetOwningPlayer(GetTriggerUnit())), GetRectCenter(gg_rct_Bomb2), 5.00, bj_MINIMAPPINGSTYLE_SIMPLE, 100, 100, 100 )
+            call IssueImmediateOrder(caster, "stop")
+            set f = CreateForce()
+            call ForceAddPlayer(f, p)
+            call DisplayTimedTextToForce(f, 5.00, "TRIGSTR_3523")
+            set px = (GetRectMinX(gg_rct_Bomb2) + GetRectMaxX(gg_rct_Bomb2)) * 0.50
+            set py = (GetRectMinY(gg_rct_Bomb2) + GetRectMaxY(gg_rct_Bomb2)) * 0.50
+            call Game_PingForceAt(f, px, py, 5.00, bj_MINIMAPPINGSTYLE_FLASHY, 100, 100, 100)
+            call Game_PingForceAt(f, px, py, 5.00, bj_MINIMAPPINGSTYLE_ATTACK, 100, 100, 100)
+            call Game_PingForceAt(f, px, py, 5.00, bj_MINIMAPPINGSTYLE_SIMPLE, 100, 100, 100)
+            call DestroyForce(f)
+            set f = null
         endif
     else
     endif
     if ( Trig_Plant_Func002C() ) then
         if ( Trig_Plant_Func002Func002C() ) then
             call DisplayTimedTextToForce( bj_FORCE_ALL_PLAYERS, 15.00, "TRIGSTR_3526" )
-            call CreateNUnitsAtLoc( 1, 'hdhw', GetOwningPlayer(GetTriggerUnit()), GetSpellTargetLoc(), bj_UNIT_FACING )
-            call UnitApplyTimedLifeBJ( 17.00, 'BTLF', GetLastCreatedUnit() )
-            call UnitAddAbilityBJ( 'AEsf', GetLastCreatedUnit() )
-            call IssueImmediateOrderBJ( GetLastCreatedUnit(), "starfall" )
-            call CreateNUnitsAtLoc( 1, 'n00D', GetOwningPlayer(GetTriggerUnit()), GetSpellTargetLoc(), bj_UNIT_FACING )
-            call SetUnitVertexColorBJ( GetLastCreatedUnit(), 0.00, 100.00, 0.00, 0 )
-            call UnitApplyTimedLifeBJ( 16.00, 'BTLF', GetLastCreatedUnit() )
+            set u = CreateUnit(p, 'hdhw', x, y, bj_UNIT_FACING)
+            call UnitApplyTimedLife(u, 'BTLF', 17.00)
+            call UnitAddAbility(u, 'AEsf')
+            call IssueImmediateOrder(u, "starfall")
+            set u = CreateUnit(p, 'n00D', x, y, bj_UNIT_FACING)
+            call SetUnitVertexColorBJ(u, 0.00, 100.00, 0.00, 0)
+            call UnitApplyTimedLife(u, 'BTLF', 16.00)
         else
-            call IssueImmediateOrderBJ( GetTriggerUnit(), "stop" )
-            call DisplayTimedTextToForce( GetForceOfPlayer(GetOwningPlayer(GetTriggerUnit())), 5.00, "TRIGSTR_3522" )
-            call PingMinimapLocForForceEx( GetForceOfPlayer(GetOwningPlayer(GetTriggerUnit())), GetRectCenter(gg_rct_Bomb1), 5.00, bj_MINIMAPPINGSTYLE_FLASHY, 100, 100, 100 )
-            call PingMinimapLocForForceEx( GetForceOfPlayer(GetOwningPlayer(GetTriggerUnit())), GetRectCenter(gg_rct_Bomb1), 5.00, bj_MINIMAPPINGSTYLE_ATTACK, 100, 100, 100 )
-            call PingMinimapLocForForceEx( GetForceOfPlayer(GetOwningPlayer(GetTriggerUnit())), GetRectCenter(gg_rct_Bomb1), 5.00, bj_MINIMAPPINGSTYLE_SIMPLE, 100, 100, 100 )
+            call IssueImmediateOrder(caster, "stop")
+            set f = CreateForce()
+            call ForceAddPlayer(f, p)
+            call DisplayTimedTextToForce(f, 5.00, "TRIGSTR_3522")
+            set px = (GetRectMinX(gg_rct_Bomb1) + GetRectMaxX(gg_rct_Bomb1)) * 0.50
+            set py = (GetRectMinY(gg_rct_Bomb1) + GetRectMaxY(gg_rct_Bomb1)) * 0.50
+            call Game_PingForceAt(f, px, py, 5.00, bj_MINIMAPPINGSTYLE_FLASHY, 100, 100, 100)
+            call Game_PingForceAt(f, px, py, 5.00, bj_MINIMAPPINGSTYLE_ATTACK, 100, 100, 100)
+            call Game_PingForceAt(f, px, py, 5.00, bj_MINIMAPPINGSTYLE_SIMPLE, 100, 100, 100)
+            call DestroyForce(f)
+            set f = null
         endif
     else
     endif
+    set caster = null
+    set p = null
+    set u = null
+    set f = null
 endfunction
 
 //===========================================================================
@@ -14909,11 +14940,13 @@ function Trig_Pickup_Conditions takes nothing returns boolean
 endfunction
 
 function Trig_Pickup_Actions takes nothing returns nothing
+    local unit u = GetTriggerUnit()
     call DisplayTimedTextToForce( bj_FORCE_ALL_PLAYERS, 10.00, "TRIGSTR_3664" )
-    call DisplayTimedTextToForce( bj_FORCE_ALL_PLAYERS, 10.00, ( udg_Players_Name[GetConvertedPlayerId(GetOwningPlayer(GetTriggerUnit()))] + " picked-up the BOMB!" ) )
+    call DisplayTimedTextToForce( bj_FORCE_ALL_PLAYERS, 10.00, ( udg_Players_Name[GetConvertedPlayerId(GetOwningPlayer(u))] + " picked-up the BOMB!" ) )
     call DisplayTimedTextToForce( bj_FORCE_ALL_PLAYERS, 10.00, "TRIGSTR_3665" )
-    call PingMinimapLocForForceEx( bj_FORCE_ALL_PLAYERS, GetUnitLoc(GetTriggerUnit()), 5.00, bj_MINIMAPPINGSTYLE_SIMPLE, 100, 0.00, 0.00 )
-    call PingMinimapLocForForceEx( bj_FORCE_ALL_PLAYERS, GetUnitLoc(GetTriggerUnit()), 5.00, bj_MINIMAPPINGSTYLE_SIMPLE, 100, 0.00, 0.00 )
+    call Game_PingForceAt(bj_FORCE_ALL_PLAYERS, GetUnitX(u), GetUnitY(u), 5.00, bj_MINIMAPPINGSTYLE_SIMPLE, 100, 0.00, 0.00)
+    call Game_PingForceAt(bj_FORCE_ALL_PLAYERS, GetUnitX(u), GetUnitY(u), 5.00, bj_MINIMAPPINGSTYLE_SIMPLE, 100, 0.00, 0.00)
+    set u = null
 endfunction
 
 //===========================================================================
@@ -14935,12 +14968,14 @@ function Trig_Drop_Conditions takes nothing returns boolean
 endfunction
 
 function Trig_Drop_Actions takes nothing returns nothing
+    local unit u = GetTriggerUnit()
     call DisplayTimedTextToForce( bj_FORCE_ALL_PLAYERS, 10.00, "TRIGSTR_3560" )
-    call DisplayTimedTextToForce( bj_FORCE_ALL_PLAYERS, 10.00, ( udg_Players_Name[GetConvertedPlayerId(GetOwningPlayer(GetTriggerUnit()))] + " has dropped the BOMB!" ) )
+    call DisplayTimedTextToForce( bj_FORCE_ALL_PLAYERS, 10.00, ( udg_Players_Name[GetConvertedPlayerId(GetOwningPlayer(u))] + " has dropped the BOMB!" ) )
     call DisplayTimedTextToForce( bj_FORCE_ALL_PLAYERS, 10.00, "TRIGSTR_3561" )
-    call PingMinimapLocForForceEx( bj_FORCE_ALL_PLAYERS, GetUnitLoc(GetTriggerUnit()), 5.00, bj_MINIMAPPINGSTYLE_SIMPLE, 100, 100, 100 )
-    call PingMinimapLocForForceEx( bj_FORCE_ALL_PLAYERS, GetUnitLoc(GetTriggerUnit()), 5.00, bj_MINIMAPPINGSTYLE_SIMPLE, 100, 100, 100 )
-    call UnitRemoveItemSwapped( GetItemOfTypeFromUnitBJ(GetTriggerUnit(), 'I004'), GetTriggerUnit() )
+    call Game_PingForceAt(bj_FORCE_ALL_PLAYERS, GetUnitX(u), GetUnitY(u), 5.00, bj_MINIMAPPINGSTYLE_SIMPLE, 100, 100, 100)
+    call Game_PingForceAt(bj_FORCE_ALL_PLAYERS, GetUnitX(u), GetUnitY(u), 5.00, bj_MINIMAPPINGSTYLE_SIMPLE, 100, 100, 100)
+    call UnitRemoveItemSwapped(GetItemOfTypeFromUnitBJ(u, 'I004'), u)
+    set u = null
 endfunction
 
 //===========================================================================
@@ -14994,23 +15029,39 @@ function Trig_Diffuse_Func006C takes nothing returns boolean
 endfunction
 
 function Trig_Diffuse_Actions takes nothing returns nothing
+    local force f
+    local real x
+    local real y
     call DisplayTimedTextToForce( bj_FORCE_ALL_PLAYERS, 10.00, "TRIGSTR_3529" )
     set bj_wantDestroyGroup = true
     call ForGroupBJ( GetUnitsInRectMatching(GetPlayableMapRect(), Condition(function Trig_Diffuse_Func004001002)), function Trig_Diffuse_Func004A )
     if ( Trig_Diffuse_Func005C() ) then
-        call CreateItem('I004', GetRectCenterX(gg_rct_Bomb1), GetRectCenterY(gg_rct_Bomb1))
-        call PingMinimapLocForForceEx( GetPlayersAllies(Player(0)), GetRectCenter(gg_rct_Bomb1), 10.00, bj_MINIMAPPINGSTYLE_FLASHY, 100, 100, 100 )
-        call PingMinimapLocForForceEx( GetPlayersAllies(Player(0)), GetRectCenter(gg_rct_Bomb1), 10.00, bj_MINIMAPPINGSTYLE_ATTACK, 100, 100, 100 )
-        call PingMinimapLocForForceEx( GetPlayersAllies(Player(0)), GetRectCenter(gg_rct_Bomb1), 10.00, bj_MINIMAPPINGSTYLE_SIMPLE, 100, 100, 100 )
+        set x = (GetRectMinX(gg_rct_Bomb1) + GetRectMaxX(gg_rct_Bomb1)) * 0.50
+        set y = (GetRectMinY(gg_rct_Bomb1) + GetRectMaxY(gg_rct_Bomb1)) * 0.50
+        call CreateItem('I004', x, y)
+        set f = GetPlayersAllies(Player(0))
+        call Game_PingForceAt(f, x, y, 10.00, bj_MINIMAPPINGSTYLE_FLASHY, 100, 100, 100)
+        call Game_PingForceAt(f, x, y, 10.00, bj_MINIMAPPINGSTYLE_ATTACK, 100, 100, 100)
+        call Game_PingForceAt(f, x, y, 10.00, bj_MINIMAPPINGSTYLE_SIMPLE, 100, 100, 100)
+        call DestroyForce(f)
+        set f = null
     else
     endif
     if ( Trig_Diffuse_Func006C() ) then
-        call CreateItem('I004', GetRectCenterX(gg_rct_Bomb2), GetRectCenterY(gg_rct_Bomb2))
-        call PingMinimapLocForForceEx( GetPlayersAllies(Player(5)), GetRectCenter(gg_rct_Bomb1), 10.00, bj_MINIMAPPINGSTYLE_FLASHY, 100, 100, 100 )
-        call PingMinimapLocForForceEx( GetPlayersAllies(Player(5)), GetRectCenter(gg_rct_Bomb1), 10.00, bj_MINIMAPPINGSTYLE_ATTACK, 100, 100, 100 )
-        call PingMinimapLocForForceEx( GetPlayersAllies(Player(5)), GetRectCenter(gg_rct_Bomb1), 10.00, bj_MINIMAPPINGSTYLE_SIMPLE, 100, 100, 100 )
+        set x = (GetRectMinX(gg_rct_Bomb2) + GetRectMaxX(gg_rct_Bomb2)) * 0.50
+        set y = (GetRectMinY(gg_rct_Bomb2) + GetRectMaxY(gg_rct_Bomb2)) * 0.50
+        call CreateItem('I004', x, y)
+        set x = (GetRectMinX(gg_rct_Bomb1) + GetRectMaxX(gg_rct_Bomb1)) * 0.50
+        set y = (GetRectMinY(gg_rct_Bomb1) + GetRectMaxY(gg_rct_Bomb1)) * 0.50
+        set f = GetPlayersAllies(Player(5))
+        call Game_PingForceAt(f, x, y, 10.00, bj_MINIMAPPINGSTYLE_FLASHY, 100, 100, 100)
+        call Game_PingForceAt(f, x, y, 10.00, bj_MINIMAPPINGSTYLE_ATTACK, 100, 100, 100)
+        call Game_PingForceAt(f, x, y, 10.00, bj_MINIMAPPINGSTYLE_SIMPLE, 100, 100, 100)
+        call DestroyForce(f)
+        set f = null
     else
     endif
+    set f = null
 endfunction
 
 //===========================================================================
@@ -15538,7 +15589,7 @@ function Trig_Pick_Func017001002 takes nothing returns boolean
 endfunction
 
 function Trig_Pick_Func017A takes nothing returns nothing
-    call PanCameraToTimedLocForPlayer( GetOwningPlayer(udg_Hero[udg_Pnum]), GetUnitLoc(GetEnumUnit()), 0 )
+    call PanCameraToTimedForPlayer(GetOwningPlayer(udg_Hero[udg_Pnum]), GetUnitX(GetEnumUnit()), GetUnitY(GetEnumUnit()), 0)
 endfunction
 
 function Trig_Pick_Func019001001 takes nothing returns boolean

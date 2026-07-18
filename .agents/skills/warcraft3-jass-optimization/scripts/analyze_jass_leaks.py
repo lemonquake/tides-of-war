@@ -44,6 +44,14 @@ unnulled_handles = []
 grp_leaks = []
 force_leaks = []
 loc_leaks = []
+location_alloc_patterns = [
+    re.compile(r'\bGetUnitLoc\s*\(', re.IGNORECASE),
+    re.compile(r'\bPolarProjectionBJ\s*\(', re.IGNORECASE),
+    re.compile(r'\bGetSpellTargetLoc\s*\(', re.IGNORECASE),
+    re.compile(r'\bGetOrderPointLoc\s*\(', re.IGNORECASE),
+    re.compile(r'\bGetRectCenter\s*\(', re.IGNORECASE),
+    re.compile(r'\bLocation\s*\(', re.IGNORECASE),
+]
 
 for fn in functions:
     fn_name = fn['name']
@@ -69,7 +77,7 @@ for fn in functions:
         force_leaks.append((fn_name, fn['start']))
 
     # 4. Check location leaks
-    if any(k in fn_text for k in ['GetUnitLoc', 'PolarProjectionBJ', 'GetSpellTargetLoc', 'GetOrderPointLoc', 'GetRectCenter', 'Location(']) and 'RemoveLocation' not in fn_text:
+    if any(pattern.search(fn_text) for pattern in location_alloc_patterns) and 'RemoveLocation' not in fn_text:
         loc_leaks.append((fn_name, fn['start']))
 
 print(f"\n--- Diagnostic Results ---")
