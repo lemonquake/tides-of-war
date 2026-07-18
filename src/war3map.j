@@ -9567,41 +9567,23 @@ endfunction
 //===========================================================================
 // Trigger: Starfall
 //===========================================================================
-function Trig_Starfall_Func002001003001 takes nothing returns boolean
-    return ( IsUnitAliveBJ(GetFilterUnit()) == true )
-endfunction
-
-function Trig_Starfall_Func002001003002 takes nothing returns boolean
-    return ( IsUnitEnemy(GetFilterUnit(), GetOwningPlayer(GetTriggerUnit())) == true )
-endfunction
-
-function Trig_Starfall_Func002001003 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Starfall_Func002001003001(), Trig_Starfall_Func002001003002() )
-endfunction
-
-function Trig_Starfall_Func002Func004002003001 takes nothing returns boolean
-    return ( IsUnitAliveBJ(GetFilterUnit()) == true )
-endfunction
-
-function Trig_Starfall_Func002Func004002003002 takes nothing returns boolean
-    return ( IsUnitEnemy(GetFilterUnit(), GetOwningPlayer(GetTriggerUnit())) == true )
-endfunction
-
-function Trig_Starfall_Func002Func004002003 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Starfall_Func002Func004002003001(), Trig_Starfall_Func002Func004002003002() )
-endfunction
-
-function Trig_Starfall_Func002A takes nothing returns nothing
-    call AddSpecialEffectTargetUnitBJ( "origin", GetEnumUnit(), "Abilities\\Spells\\NightElf\\Starfall\\StarfallTarget.mdl" )
-    call DestroyEffectBJ( GetLastCreatedEffectBJ() )
-    call UnitDamageTargetBJ( GetTriggerUnit(), GetEnumUnit(), 450.00, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_FIRE )
-    set udg_Starfall_G = GetUnitsInRangeOfLocMatching(620.00, GetUnitLoc(GetTriggerUnit()), Condition(function Trig_Starfall_Func002Func004002003))
-    call DestroyGroup(udg_Starfall_G)
-endfunction
-
+// Rewritten on TIDES ENGINE: the old version leaked one location per enemy
+// hit (it built and destroyed a second, entirely unused group per target).
 function Trig_Starfall_Actions takes nothing returns nothing
-    set bj_wantDestroyGroup = true
-    call ForGroupBJ( GetUnitsInRangeOfLocMatching(620.00, GetUnitLoc(GetTriggerUnit()), Condition(function Trig_Starfall_Func002001003)), function Trig_Starfall_Func002A )
+    local unit caster = GetTriggerUnit()
+    local unit u
+    call GroupEnumUnitsInRange(Eng_Enum, GetUnitX(caster), GetUnitY(caster), 620.00, null)
+    loop
+        set u = FirstOfGroup(Eng_Enum)
+        exitwhen u == null
+        call GroupRemoveUnit(Eng_Enum, u)
+        if GetWidgetLife(u) > 0.405 and IsUnitEnemy(u, GetOwningPlayer(caster)) and not Eng_IsDummyType(GetUnitTypeId(u)) then
+            call SFX_Unit("Abilities\\Spells\\NightElf\\Starfall\\StarfallTarget.mdl", u, "origin")
+            call UnitDamageTarget(caster, u, 450.00, true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_FIRE, WEAPON_TYPE_WHOKNOWS)
+        endif
+    endloop
+    set caster = null
+    set u = null
 endfunction
 
 //===========================================================================
