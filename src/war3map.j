@@ -562,7 +562,6 @@ globals
     real                    udg_SR_TempY               = 0
     real                    udg_SR_TempZ               = 0
     real                    udg_SR_TempZ2              = 0
-    integer                 udg_MUI_1                  = 0
     integer                 udg_MUI_2                  = 0
     unit array              udg_cUnit
     location array          udg_cPoint
@@ -576,7 +575,6 @@ globals
     location array          udg_mPoint
     group                   udg_gDamage                = null
     real                    udg_Damage                 = 0
-    integer                 udg_MUI_3                  = 0
     integer                 udg_MUI3                   = 0
     boolean                 udg_TempBoolean            = false
     string                  udg_TempString
@@ -663,24 +661,6 @@ globals
     boolean array           udg_AI_Pass_15
     boolean array           udg_AI_Pass_17
     boolean array           udg_AI_Pass_18
-    integer                 udg_Max_Index              = 0
-    integer                 udg_Temp                   = 0
-    unit array              udg_CL_Caster
-    player array            udg_CL_Player
-    unit array              udg_CL_Target
-    integer array           udg_CL_AbilityLevel
-    integer array           udg_CL_Slashes
-    integer array           udg_CL_Damage
-    real array              udg_CL_AOE
-    integer array           udg_CL_Count
-    boolean array           udg_CL_FirstTarget
-    effect array            udg_CL_Special
-    location array          udg_CL_Loc
-    group array             udg_CL_Group
-    unit array              udg_CL_Victim
-    integer array           udg_MUI_1b
-    integer array           udg_MUI_2b
-    integer array           udg_MUI_3b
     hashtable               udg_Smite_Hash             = null
     real                    udg_Smite_Angle            = 0
     real                    udg_Smite_AOE              = 0
@@ -1106,7 +1086,6 @@ globals
     trigger                 gg_trg_Burning_Will_Cast   = null
     trigger                 gg_trg_Burning_Will        = null
     trigger                 gg_trg_Melting_Strike      = null
-    trigger                 gg_trg_MS_Loop             = null
     trigger                 gg_trg_LF_Init             = null
     trigger                 gg_trg_LF                  = null
     trigger                 gg_trg_LF_Rem              = null
@@ -1412,6 +1391,16 @@ globals
     real array              Lgr_DamageAcc
     boolean array           Lgr_Stop
     boolean                 Lgr_InTick                 = false
+    // --- Melting Strike chained-slash channel
+    integer                 Mst_N                      = 0
+    unit array              Mst_Caster
+    unit array              Mst_Target
+    group array             Mst_Enum
+    group array             Mst_Valid
+    effect array            Mst_Effect
+    real array              Mst_Damage
+    real array              Mst_Acc
+    integer array           Mst_Count
     // --- Freezing Blast shard channel
     integer                 Fbz_N                      = 0
     integer array           Fbz_List
@@ -2343,6 +2332,161 @@ function LightningGrip_Launch takes unit caster, real tx, real ty returns nothin
 endfunction
 
 //===========================================================================
+// Melting Strike (A03I) - five strikes at 0.10-second cadence. The first
+// lands on the spell target; the next four choose random living ground
+// enemies within 600 of that target. Every hit deals 2x caster Strength.
+//===========================================================================
+function MeltingStrike_Expire takes integer i returns nothing
+    local group enumGroup = Mst_Enum[i]
+    local group validGroup = Mst_Valid[i]
+    if Mst_Effect[i] != null then
+        call DestroyEffect(Mst_Effect[i])
+    endif
+    if Mst_Caster[i] != null and GetUnitTypeId(Mst_Caster[i]) != 0 then
+        call ResetToGameCameraForPlayer(GetOwningPlayer(Mst_Caster[i]), 0.00)
+        call SetUnitVertexColor(Mst_Caster[i], 255, 255, 255, 255)
+        call SetUnitTimeScale(Mst_Caster[i], 1.00)
+        call ResetUnitAnimation(Mst_Caster[i])
+    endif
+    if enumGroup != null then
+        call DestroyGroup(enumGroup)
+    endif
+    if validGroup != null then
+        call DestroyGroup(validGroup)
+    endif
+    set Mst_Caster[i] = Mst_Caster[Mst_N]
+    set Mst_Target[i] = Mst_Target[Mst_N]
+    set Mst_Enum[i] = Mst_Enum[Mst_N]
+    set Mst_Valid[i] = Mst_Valid[Mst_N]
+    set Mst_Effect[i] = Mst_Effect[Mst_N]
+    set Mst_Damage[i] = Mst_Damage[Mst_N]
+    set Mst_Acc[i] = Mst_Acc[Mst_N]
+    set Mst_Count[i] = Mst_Count[Mst_N]
+    set Mst_Caster[Mst_N] = null
+    set Mst_Target[Mst_N] = null
+    set Mst_Enum[Mst_N] = null
+    set Mst_Valid[Mst_N] = null
+    set Mst_Effect[Mst_N] = null
+    set Mst_Damage[Mst_N] = 0.00
+    set Mst_Acc[Mst_N] = 0.00
+    set Mst_Count[Mst_N] = 0
+    set Mst_N = Mst_N - 1
+    set enumGroup = null
+    set validGroup = null
+endfunction
+
+function MeltingStrike_StopCaster takes unit caster returns nothing
+    local integer i = Mst_N
+    loop
+        exitwhen i < 1
+        if Mst_Caster[i] == caster then
+            call MeltingStrike_Expire(i)
+        endif
+        set i = i - 1
+    endloop
+endfunction
+
+function MeltingStrike_Strike takes integer i returns boolean
+    local unit caster = Mst_Caster[i]
+    local unit target = Mst_Target[i]
+    local unit u
+    local unit victim = null
+    local group enumGroup = Mst_Enum[i]
+    local group validGroup = Mst_Valid[i]
+    local player p = GetOwningPlayer(caster)
+    local real cx
+    local real cy
+    local real vx
+    local real vy
+    local real a
+    local boolean keep = true
+    if caster == null or GetUnitTypeId(caster) == 0 or GetWidgetLife(caster) <= 0.405 or target == null or GetUnitTypeId(target) == 0 or Mst_Count[i] >= 5 then
+        set keep = false
+    else
+        set cx = GetUnitX(target)
+        set cy = GetUnitY(target)
+        call GroupClear(enumGroup)
+        call GroupClear(validGroup)
+        call GroupEnumUnitsInRange(enumGroup, cx, cy, 600.00, null)
+        loop
+            set u = FirstOfGroup(enumGroup)
+            exitwhen u == null
+            call GroupRemoveUnit(enumGroup, u)
+            if GetWidgetLife(u) > 0.405 and not IsUnitType(u, UNIT_TYPE_FLYING) and IsUnitEnemy(u, p) then
+                call GroupAddUnit(validGroup, u)
+            endif
+        endloop
+        if Mst_Count[i] == 0 then
+            set victim = target
+            set vx = cx
+            set vy = cy
+            set a = Atan2(vy - GetUnitY(caster), vx - GetUnitX(caster))
+            call SetUnitPosition(caster, vx, vy)
+        else
+            set victim = GroupPickRandomUnit(validGroup)
+            if victim == null then
+                set keep = false
+            else
+                set vx = GetUnitX(victim)
+                set vy = GetUnitY(victim)
+                set a = GetRandomReal(0.00, 2.00 * bj_PI)
+                call SetUnitPosition(caster, vx + 50.00 * Cos(a), vy + 50.00 * Sin(a))
+                set a = Atan2(vy - GetUnitY(caster), vx - GetUnitX(caster))
+            endif
+        endif
+        if keep then
+            call SetUnitFacing(caster, a * bj_RADTODEG)
+            call UnitDamageTarget(caster, victim, Mst_Damage[i], true, false, ATTACK_TYPE_MELEE, DAMAGE_TYPE_NORMAL, WEAPON_TYPE_WHOKNOWS)
+            call SetUnitAnimation(caster, "attack")
+            call SFX_Unit("Abilities\\Spells\\Human\\MarkOfChaos\\MarkOfChaosTarget.mdl", caster, "origin")
+            set Mst_Count[i] = Mst_Count[i] + 1
+        endif
+    endif
+    set caster = null
+    set target = null
+    set u = null
+    set victim = null
+    set enumGroup = null
+    set validGroup = null
+    set p = null
+    return keep
+endfunction
+
+function MeltingStrike_Tick takes nothing returns nothing
+    local integer i = Mst_N
+    loop
+        exitwhen i < 1
+        set Mst_Acc[i] = Mst_Acc[i] + Eng_TickRate
+        if Mst_Acc[i] >= 0.10 then
+            set Mst_Acc[i] = Mst_Acc[i] - 0.10
+            if not MeltingStrike_Strike(i) then
+                call MeltingStrike_Expire(i)
+            endif
+        endif
+        set i = i - 1
+    endloop
+endfunction
+
+function MeltingStrike_Launch takes unit caster, unit target returns nothing
+    local effect weaponFx
+    call MeltingStrike_StopCaster(caster)
+    set weaponFx = AddSpecialEffectTarget("Abilities\\Weapons\\PhoenixMissile\\Phoenix_Missile.mdl", caster, "weapon")
+    call SetCameraTargetControllerNoZForPlayer(GetOwningPlayer(caster), caster, 0.00, 0.00, false)
+    call SetUnitVertexColor(caster, 255, 102, 102, 153)
+    call SetUnitTimeScale(caster, 2.00)
+    set Mst_N = Mst_N + 1
+    set Mst_Caster[Mst_N] = caster
+    set Mst_Target[Mst_N] = target
+    set Mst_Enum[Mst_N] = CreateGroup()
+    set Mst_Valid[Mst_N] = CreateGroup()
+    set Mst_Effect[Mst_N] = weaponFx
+    set Mst_Damage[Mst_N] = 2.00 * I2R(GetHeroStr(caster, true))
+    set Mst_Acc[Mst_N] = 0.00
+    set Mst_Count[Mst_N] = 0
+    set weaponFx = null
+endfunction
+
+//===========================================================================
 // Freezing Blast (ability 'A043', levels via 'A000') - ice shards rain at
 // random points around the caster's current position every 0.2s. Each shard
 // lands at its own random radius (the old version rolled one radius per cast)
@@ -2877,6 +3021,7 @@ function Eng_MasterTick takes nothing returns nothing
     call Cgl_Tick()
     call Trm_Tick()
     call LightningGrip_Tick()
+    call MeltingStrike_Tick()
 endfunction
 
 function WaterClone_ClearState takes nothing returns boolean
@@ -4235,7 +4380,6 @@ function InitGlobals takes nothing returns nothing
     set udg_SR_TempY = 0
     set udg_SR_TempZ = 0
     set udg_SR_TempZ2 = 0
-    set udg_MUI_1 = 0
     set udg_MUI_2 = 0
     set i = 0
     loop
@@ -4274,7 +4418,6 @@ function InitGlobals takes nothing returns nothing
 
     set udg_gDamage = CreateGroup()
     set udg_Damage = 0
-    set udg_MUI_3 = 0
     set udg_MUI3 = 0
     set udg_TempBoolean = false
     set udg_TempString = ""
@@ -4450,78 +4593,6 @@ function InitGlobals takes nothing returns nothing
     loop
         exitwhen (i > 12)
         set udg_AI_Pass_18[i] = false
-        set i = i + 1
-    endloop
-
-    set udg_Max_Index = 0
-    set udg_Temp = 0
-    set i = 0
-    loop
-        exitwhen (i > 1)
-        set udg_CL_AbilityLevel[i] = 0
-        set i = i + 1
-    endloop
-
-    set i = 0
-    loop
-        exitwhen (i > 1)
-        set udg_CL_Slashes[i] = 0
-        set i = i + 1
-    endloop
-
-    set i = 0
-    loop
-        exitwhen (i > 1)
-        set udg_CL_Damage[i] = 0
-        set i = i + 1
-    endloop
-
-    set i = 0
-    loop
-        exitwhen (i > 1)
-        set udg_CL_AOE[i] = 0
-        set i = i + 1
-    endloop
-
-    set i = 0
-    loop
-        exitwhen (i > 1)
-        set udg_CL_Count[i] = 0
-        set i = i + 1
-    endloop
-
-    set i = 0
-    loop
-        exitwhen (i > 1)
-        set udg_CL_FirstTarget[i] = false
-        set i = i + 1
-    endloop
-
-    set i = 0
-    loop
-        exitwhen (i > 1)
-        set udg_CL_Group[i] = CreateGroup()
-        set i = i + 1
-    endloop
-
-    set i = 0
-    loop
-        exitwhen (i > 1)
-        set udg_MUI_1b[i] = 0
-        set i = i + 1
-    endloop
-
-    set i = 0
-    loop
-        exitwhen (i > 1)
-        set udg_MUI_2b[i] = 0
-        set i = i + 1
-    endloop
-
-    set i = 0
-    loop
-        exitwhen (i > 1)
-        set udg_MUI_3b[i] = 0
         set i = i + 1
     endloop
 
@@ -11126,46 +11197,8 @@ endfunction
 //
 // All the comment texts that start with *** is configurable for you.
 //===========================================================================
-function Trig_Melting_Strike_Func001C takes nothing returns boolean
-    if ( not ( udg_MUI_1 == 0 ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_Melting_Strike_Func003C takes nothing returns boolean
-    if ( not ( udg_MUI_1 > udg_Max_Index ) ) then
-        return false
-    endif
-    return true
-endfunction
-
 function Trig_Melting_Strike_Actions takes nothing returns nothing
-    if ( Trig_Melting_Strike_Func001C() ) then
-        call EnableTrigger( gg_trg_MS_Loop )
-    else
-    endif
-    set udg_MUI_1 = ( udg_MUI_1 + 1 )
-    if ( Trig_Melting_Strike_Func003C() ) then
-        set udg_MUI_2b[udg_MUI_1] = udg_MUI_1
-        set udg_Max_Index = udg_MUI_1
-    else
-    endif
-    set udg_Temp = udg_MUI_2b[udg_MUI_1]
-    set udg_CL_Caster[udg_Temp] = GetTriggerUnit()
-    call SetCameraTargetControllerNoZForPlayer( GetOwningPlayer(udg_CL_Caster[udg_Temp]), udg_CL_Caster[udg_Temp], 0, 0, false )
-    set udg_CL_Player[udg_Temp] = GetOwningPlayer(GetTriggerUnit())
-    set udg_CL_Target[udg_Temp] = GetSpellTargetUnit()
-    set udg_CL_AbilityLevel[udg_Temp] = GetUnitAbilityLevelSwapped('A03I', GetTriggerUnit())
-    set udg_CL_Slashes[udg_Temp] = 5
-    set udg_CL_Damage[udg_Temp] = ( GetHeroStatBJ(bj_HEROSTAT_STR, udg_CL_Caster[udg_Temp], true) * 2 )
-    set udg_CL_AOE[udg_Temp] = 600.00
-    call AddSpecialEffectTargetUnitBJ( "weapon", udg_CL_Caster[udg_Temp], "Abilities\\Weapons\\PhoenixMissile\\Phoenix_Missile.mdl" )
-    set udg_CL_Count[udg_Temp] = 0
-    set udg_CL_FirstTarget[udg_Temp] = true
-    set udg_CL_Special[udg_Temp] = GetLastCreatedEffectBJ()
-    call SetUnitVertexColorBJ( udg_CL_Caster[udg_Temp], 100.00, 40.00, 40.00, 40.00 )
-    call SetUnitTimeScalePercent( udg_CL_Caster[udg_Temp], 200.00 )
+    call MeltingStrike_Launch(GetTriggerUnit(), GetSpellTargetUnit())
 endfunction
 
 //===========================================================================
@@ -11177,123 +11210,7 @@ endfunction
 //===========================================================================
 // Trigger: MS Loop
 //===========================================================================
-function Trig_MS_Loop_Func001Func004002003001 takes nothing returns boolean
-    return ( IsUnitType(GetFilterUnit(), UNIT_TYPE_FLYING) == false )
-endfunction
-
-function Trig_MS_Loop_Func001Func004002003002001 takes nothing returns boolean
-    return ( IsUnitAliveBJ(GetFilterUnit()) == true )
-endfunction
-
-function Trig_MS_Loop_Func001Func004002003002002 takes nothing returns boolean
-    return ( IsUnitEnemy(GetFilterUnit(), udg_CL_Player[udg_Temp]) == true )
-endfunction
-
-function Trig_MS_Loop_Func001Func004002003002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_MS_Loop_Func001Func004002003002001(), Trig_MS_Loop_Func001Func004002003002002() )
-endfunction
-
-function Trig_MS_Loop_Func001Func004002003 takes nothing returns boolean
-    return GetBooleanAnd( Trig_MS_Loop_Func001Func004002003001(), Trig_MS_Loop_Func001Func004002003002() )
-endfunction
-
-function Trig_MS_Loop_Func001Func005Func001Func011C takes nothing returns boolean
-    if ( not ( udg_MUI_1 == 0 ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_MS_Loop_Func001Func005Func001Func015C takes nothing returns boolean
-    if ( not ( IsUnitAliveBJ(udg_CL_Victim[udg_Temp]) == true ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_MS_Loop_Func001Func005Func001C takes nothing returns boolean
-    if ( not ( IsUnitAliveBJ(udg_CL_Caster[udg_Temp]) == true ) ) then
-        return false
-    endif
-    if ( not ( udg_CL_Count[udg_Temp] <= udg_CL_Slashes[udg_Temp] ) ) then
-        return false
-    endif
-    if ( not ( CountUnitsInGroup(udg_CL_Group[1]) > 0 ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_MS_Loop_Func001Func005C takes nothing returns boolean
-    if ( not ( udg_CL_FirstTarget[udg_Temp] == true ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_MS_Loop_Actions takes nothing returns nothing
-    set udg_MUI_3 = 1
-    loop
-        exitwhen udg_MUI_3 > udg_MUI_1
-        set udg_Temp = udg_MUI_2b[udg_MUI_3]
-        set udg_CL_Count[udg_Temp] = ( udg_CL_Count[udg_Temp] + 1 )
-        set udg_CL_Loc[1] = GetUnitLoc(udg_CL_Target[udg_Temp])
-        set udg_CL_Group[1] = GetUnitsInRangeOfLocMatching(udg_CL_AOE[udg_Temp], udg_CL_Loc[1], Condition(function Trig_MS_Loop_Func001Func004002003))
-        if ( Trig_MS_Loop_Func001Func005C() ) then
-            call SetUnitPositionLoc( udg_CL_Caster[udg_Temp], udg_CL_Loc[1] )
-            call SetUnitFacingToFaceLocTimed( udg_CL_Caster[udg_Temp], udg_CL_Loc[1], 0 )
-            call UnitDamageTargetBJ( udg_CL_Caster[udg_Temp], udg_CL_Target[udg_Temp], I2R(udg_CL_Damage[udg_Temp]), ATTACK_TYPE_MELEE, DAMAGE_TYPE_NORMAL )
-            call SetUnitAnimation( udg_CL_Caster[udg_Temp], "attack" )
-            call AddSpecialEffectTargetUnitBJ( "origin", udg_CL_Caster[udg_Temp], "Abilities\\Spells\\Human\\MarkOfChaos\\MarkOfChaosTarget.mdl" )
-            call DestroyEffectBJ( GetLastCreatedEffectBJ() )
-            set udg_CL_FirstTarget[udg_Temp] = false
-        else
-            if ( Trig_MS_Loop_Func001Func005Func001C() ) then
-                set udg_CL_Victim[udg_Temp] = GroupPickRandomUnit(udg_CL_Group[1])
-                set udg_CL_Loc[2] = GetUnitLoc(udg_CL_Victim[udg_Temp])
-                set udg_CL_Loc[3] = PolarProjectionBJ(udg_CL_Loc[2], 50.00, GetRandomDirectionDeg())
-                if ( Trig_MS_Loop_Func001Func005Func001Func015C() ) then
-                    call SetUnitPositionLoc( udg_CL_Caster[udg_Temp], udg_CL_Loc[3] )
-                else
-                    set udg_TempLoc = GetUnitLoc(udg_CL_Target[udg_Temp])
-                    call SetUnitPositionLoc( udg_CL_Caster[udg_Temp], udg_TempLoc )
-                    call RemoveLocation( udg_TempLoc )
-                endif
-                call SetUnitFacingToFaceLocTimed( udg_CL_Caster[udg_Temp], udg_CL_Loc[2], 0 )
-                call UnitDamageTargetBJ( udg_CL_Caster[udg_Temp], udg_CL_Victim[udg_Temp], I2R(udg_CL_Damage[udg_Temp]), ATTACK_TYPE_MELEE, DAMAGE_TYPE_NORMAL )
-                call SetUnitAnimation( udg_CL_Caster[udg_Temp], "attack" )
-                call AddSpecialEffectTargetUnitBJ( "origin", udg_CL_Caster[udg_Temp], "Abilities\\Spells\\Human\\MarkOfChaos\\MarkOfChaosTarget.mdl" )
-                call DestroyEffectBJ( GetLastCreatedEffectBJ() )
-                call RemoveLocation( udg_CL_Loc[2] )
-                call RemoveLocation( udg_CL_Loc[3] )
-            else
-                call DestroyEffectBJ( udg_CL_Special[udg_Temp] )
-                call PauseUnitBJ( false, udg_CL_Caster[udg_Temp] )
-                call ResetToGameCameraForPlayer( GetOwningPlayer(udg_CL_Caster[udg_Temp]), 0 )
-                call SetUnitVertexColorBJ( udg_CL_Caster[udg_Temp], 100, 100, 100, 0 )
-                call ResetUnitAnimation( udg_CL_Caster[udg_Temp] )
-                set udg_MUI_2b[udg_MUI_3] = udg_MUI_2b[udg_MUI_1]
-                set udg_MUI_2b[udg_MUI_1] = udg_Temp
-                set udg_MUI_1 = ( udg_MUI_1 - 1 )
-                set udg_MUI_3 = ( udg_MUI_3 - 1 )
-                if ( Trig_MS_Loop_Func001Func005Func001Func011C() ) then
-                    call DisableTrigger( GetTriggeringTrigger() )
-                else
-                endif
-            endif
-        endif
-        call RemoveLocation( udg_CL_Loc[1] )
-        call DestroyGroup( udg_CL_Group[1] )
-        set udg_MUI_3 = udg_MUI_3 + 1
-    endloop
-endfunction
-
-//===========================================================================
 function InitTrig_MS_Loop takes nothing returns nothing
-    set gg_trg_MS_Loop = CreateTrigger(  )
-    call DisableTrigger( gg_trg_MS_Loop )
-    call TriggerRegisterTimerEventPeriodic( gg_trg_MS_Loop, 0.10 )
-    call TriggerAddAction( gg_trg_MS_Loop, function Trig_MS_Loop_Actions )
 endfunction
 
 //===========================================================================
@@ -12444,8 +12361,7 @@ endfunction
 // Trigger: Cutting Glide
 //===========================================================================
 // Migrated to TIDES ENGINE dash channel - see CuttingGlide_Launch / Cgl_Tick.
-// Also fixes the shared udg_MUI_1 counter that let Melting Strike and Cutting
-// Glide corrupt each other's loop state.
+// Its former shared MUI counter was fully retired with Melting Strike.
 function Trig_Cutting_Glide_Actions takes nothing returns nothing
     call CuttingGlide_Launch(GetTriggerUnit(), GetSpellTargetX(), GetSpellTargetY())
 endfunction
