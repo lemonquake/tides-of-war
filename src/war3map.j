@@ -219,17 +219,6 @@ globals
     location                udg_BB_Point3              = null
     location                udg_BB_Point2              = null
     hashtable               udg_Int_Cataclysm_Hashtable = null
-    integer array           udg_Int_Cataclysm_Unit
-    real                    udg_Int_Cataclysm_Duration = 0
-    integer                 udg_Int_Cataclysm_UnitsN   = 0
-    location array          udg_Int_Cataclysm_Temppoint
-    player                  udg_Int_Cataclysm_Player   = null
-    handle                  udg_Int_Cataclysm_ID       = null
-    group                   udg_Int_Cataclysm_Dummy    = null
-    integer                 udg_Int_Cataclysm_SpellLevel = 0
-    location                udg_PickedLoc              = null
-    integer array           udg_Tremor_Lvl
-    integer                 udg_Tremor_PN              = 0
     real array              udg_Inferno_Angle
     integer                 udg_Inferno_P              = 0
     unit array              udg_Inferno_Casturr
@@ -1124,8 +1113,6 @@ globals
     trigger                 gg_trg_TR_Cast             = null
     trigger                 gg_trg_Bounce              = null
     trigger                 gg_trg_Tremor              = null
-    trigger                 gg_trg_TLoop               = null
-    trigger                 gg_trg_Tremor_D            = null
     trigger                 gg_trg_Inferno             = null
     trigger                 gg_trg_Hell_Blast_250      = null
     trigger                 gg_trg_Hell_Blast_450      = null
@@ -1487,6 +1474,10 @@ globals
     real array              Cgl_Sin
     real array              Cgl_Dist
     real array              Cgl_MaxDist
+    // --- Tremor delayed crater channel
+    integer                 Trm_N                      = 0
+    group array             Trm_Craters
+    real array              Trm_Time
     // --- HookCore (Pudge's Meat Hook v2)
     real                    HK_SPEED_OUT               = 45.00
     real                    HK_SPEED_BACK              = 55.00
@@ -1530,6 +1521,8 @@ function Dummy_Get takes player p, integer typeId, real x, real y, real face ret
         call RemoveSavedHandle(Eng_HT, typeId, n)
         call SaveInteger(Eng_HT, typeId, 0, n - 1)
         call SetUnitOwner(u, p, false)
+        call SetWidgetLife(u, GetUnitState(u, UNIT_STATE_MAX_LIFE))
+        call SetUnitState(u, UNIT_STATE_MANA, GetUnitState(u, UNIT_STATE_MAX_MANA))
         call PauseUnit(u, false)
         call ShowUnit(u, true)
         call SetUnitX(u, x)
@@ -1547,7 +1540,7 @@ endfunction
 function Dummy_Recycle takes unit u returns nothing
     local integer t = GetUnitTypeId(u)
     local integer n
-    if u != null and t != 0 then
+    if u != null and t != 0 and GetWidgetLife(u) > 0.405 then
         set n = LoadInteger(Eng_HT, t, 0) + 1
         call SaveInteger(Eng_HT, t, 0, n)
         call SaveUnitHandle(Eng_HT, t, n, u)
@@ -1556,6 +1549,8 @@ function Dummy_Recycle takes unit u returns nothing
         call ShowUnit(u, false)
         call SetUnitX(u, Eng_PoolX)
         call SetUnitY(u, Eng_PoolY)
+    elseif u != null and t != 0 then
+        call RemoveUnit(u)
     endif
 endfunction
 
@@ -1594,7 +1589,7 @@ endfunction
 // Target validation shared by all engine collision checks.
 //===========================================================================
 function Eng_IsDummyType takes integer t returns boolean
-    return t == 'h005' or t == 'h00Q' or t == 'h00R' or t == 'e002' or t == 'h00Y' or t == 'hrif' or t == 'hgry' or t == 'hgyr' or t == 'h016' or t == 'hkni' or t == 'h014'
+    return t == 'h005' or t == 'h00Q' or t == 'h00R' or t == 'e002' or t == 'h00Y' or t == 'hrif' or t == 'hgry' or t == 'hgyr' or t == 'h016' or t == 'hkni' or t == 'h014' or t == 'h00C'
 endfunction
 
 function Eng_ValidTarget takes unit u, player castOwner returns boolean
@@ -2372,12 +2367,111 @@ function Cgl_Tick takes nothing returns nothing
     set u = null
 endfunction
 
+//===========================================================================
+// Tremor (ability 'A01A') - one instance owns its 17 pooled crater dummies.
+// After ten seconds every crater emits the original overlapping death burst,
+// then all per-cast units and the persistent group are recycled or destroyed.
+//===========================================================================
+function Tremor_Expire takes group craters returns nothing
+    local group victims = CreateGroup()
+    local unit crater
+    local unit u
+    local player p
+    local real x
+    local real y
+    loop
+        set crater = FirstOfGroup(craters)
+        exitwhen crater == null
+        call GroupRemoveUnit(craters, crater)
+        set p = GetOwningPlayer(crater)
+        set x = GetUnitX(crater)
+        set y = GetUnitY(crater)
+        call SFX_Point("Objects\\Spawnmodels\\Human\\HCancelDeath\\HCancelDeath.mdl", x, y)
+        call GroupEnumUnitsInRange(victims, x, y, 275.00, null)
+        loop
+            set u = FirstOfGroup(victims)
+            exitwhen u == null
+            call GroupRemoveUnit(victims, u)
+            if not IsUnitType(u, UNIT_TYPE_STRUCTURE) and GetWidgetLife(u) > 0.405 and GetUnitAbilityLevel(u, 'A00A') < 1 and IsUnitEnemy(u, p) then
+                call SFX_Point("Objects\\Spawnmodels\\Human\\HCancelDeath\\HCancelDeath.mdl", GetUnitX(u), GetUnitY(u))
+                call SFX_Point("Objects\\Spawnmodels\\Human\\HCancelDeath\\HCancelDeath.mdl", x, y)
+                call UnitDamageTarget(crater, u, 150.00, true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_NORMAL, WEAPON_TYPE_WHOKNOWS)
+            endif
+        endloop
+        call Dummy_Recycle(crater)
+    endloop
+    call DestroyGroup(victims)
+    call DestroyGroup(craters)
+    set victims = null
+    set crater = null
+    set u = null
+    set p = null
+    set craters = null
+endfunction
+
+function Tremor_Launch takes unit caster, real tx, real ty returns nothing
+    local player p = GetOwningPlayer(caster)
+    local group craters = CreateGroup()
+    local unit d = Dummy_Get(p, 'hgry', tx, ty, bj_UNIT_FACING)
+    local unit u
+    local integer n = 1
+    local real a
+    local real x
+    local real y
+    call Dummy_RecycleTimed(d, 3.00 + I2R(GetUnitAbilityLevel(caster, 'A01A')), 0)
+    loop
+        exitwhen n > 17
+        set a = (360.00 / 17.00) * I2R(n) * bj_DEGTORAD
+        set x = tx + 275.00 * Cos(a)
+        set y = ty + 275.00 * Sin(a)
+        set d = Dummy_Get(p, 'h00C', x, y, bj_UNIT_FACING)
+        call GroupAddUnit(craters, d)
+        call SFX_Point("Abilities\\Spells\\Other\\Volcano\\VolcanoDeath.mdl", x, y)
+        set n = n + 1
+    endloop
+    call GroupEnumUnitsInRange(Eng_Enum, tx, ty, 350.00, null)
+    loop
+        set u = FirstOfGroup(Eng_Enum)
+        exitwhen u == null
+        call GroupRemoveUnit(Eng_Enum, u)
+        if IsUnitType(u, UNIT_TYPE_GROUND) and IsUnitEnemy(u, p) then
+            call SetUnitAnimation(u, "decay flesh")
+            call SFX_Point("Abilities\\Spells\\Orc\\MirrorImage\\MirrorImageDeathCaster.mdl", GetUnitX(u), GetUnitY(u))
+        endif
+    endloop
+    set Trm_N = Trm_N + 1
+    set Trm_Craters[Trm_N] = craters
+    set Trm_Time[Trm_N] = 10.00
+    set p = null
+    set craters = null
+    set d = null
+    set u = null
+endfunction
+
+function Trm_Tick takes nothing returns nothing
+    local integer i = Trm_N
+    loop
+        exitwhen i < 1
+        set Trm_Time[i] = Trm_Time[i] - Eng_TickRate
+        if Trm_Time[i] <= 0.00 then
+            call Tremor_Expire(Trm_Craters[i])
+            set Trm_Craters[i] = Trm_Craters[Trm_N]
+            set Trm_Time[i] = Trm_Time[Trm_N]
+            set Trm_Craters[Trm_N] = null
+            set Trm_Time[Trm_N] = 0.00
+            set Trm_N = Trm_N - 1
+        endif
+        set i = i - 1
+    endloop
+endfunction
+
 function Eng_MasterTick takes nothing returns nothing
     call Rcy_Tick()
     call Msl_Tick()
     call Hk_Tick()
     call Fbz_Tick()
     call Cgl_Tick()
+    call Trm_Tick()
 endfunction
 
 function Engine_Init takes nothing returns nothing
@@ -2975,18 +3069,6 @@ function InitGlobals takes nothing returns nothing
         set i = i + 1
     endloop
 
-    set udg_Int_Cataclysm_Duration = 0
-    set udg_Int_Cataclysm_UnitsN = 0
-    set udg_Int_Cataclysm_Dummy = CreateGroup()
-    set udg_Int_Cataclysm_SpellLevel = 0
-    set i = 0
-    loop
-        exitwhen (i > 12)
-        set udg_Tremor_Lvl[i] = 0
-        set i = i + 1
-    endloop
-
-    set udg_Tremor_PN = 0
     set i = 0
     loop
         exitwhen (i > 12)
@@ -5779,10 +5861,6 @@ function Trig_Initialization_Actions takes nothing returns nothing
     set udg_Plant_The_Bomb_Point2 = 0
     set udg_show = true
     set udg_FREEFORALL = false
-    set udg_Int_Cataclysm_Unit[1] = 'h00C'
-    set udg_Int_Cataclysm_Unit[2] = 'hgry'
-    set udg_Int_Cataclysm_Duration = 10.00
-    set udg_Int_Cataclysm_UnitsN = 17
     set udg_VIP_MODE = false
     set udg_C_Damage = 50.00
     set udg_C_DamageArea_int = 300
@@ -9151,156 +9229,14 @@ endfunction
 //===========================================================================
 // Trigger: Tremor
 //===========================================================================
-function Trig_Tremor_Func015001003001 takes nothing returns boolean
-    return ( IsUnitType(GetFilterUnit(), UNIT_TYPE_GROUND) == true )
-endfunction
-
-function Trig_Tremor_Func015001003002 takes nothing returns boolean
-    return ( IsUnitEnemy(GetFilterUnit(), udg_Int_Cataclysm_Player) == true )
-endfunction
-
-function Trig_Tremor_Func015001003 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Tremor_Func015001003001(), Trig_Tremor_Func015001003002() )
-endfunction
-
-function Trig_Tremor_Func015A takes nothing returns nothing
-    set udg_Int_Cataclysm_Temppoint[2] = GetUnitLoc(GetEnumUnit())
-    call SetUnitAnimation( GetEnumUnit(), "decay flesh" )
-    call AddSpecialEffectLocBJ( udg_Int_Cataclysm_Temppoint[2], "Abilities\\Spells\\Orc\\MirrorImage\\MirrorImageDeathCaster.mdl" )
-    call DestroyEffectBJ( GetLastCreatedEffectBJ() )
-    call RemoveLocation(udg_Int_Cataclysm_Temppoint[2])
-endfunction
-
 function Trig_Tremor_Actions takes nothing returns nothing
-    set udg_Tremor_PN = GetConvertedPlayerId(GetOwningPlayer(GetTriggerUnit()))
-    set udg_Tremor_Lvl[udg_Tremor_PN] = GetUnitAbilityLevelSwapped('A01A', GetTriggerUnit())
-    set udg_Int_Cataclysm_Temppoint[1] = GetSpellTargetLoc()
-    set udg_Int_Cataclysm_Player = GetTriggerPlayer()
-    call CreateNUnitsAtLoc( 1, udg_Int_Cataclysm_Unit[2], udg_Int_Cataclysm_Player, udg_Int_Cataclysm_Temppoint[1], bj_UNIT_FACING )
-    call UnitApplyTimedLifeBJ( ( 3.00 + ( 1.00 * I2R(GetUnitAbilityLevelSwapped('A01A', GetTriggerUnit())) ) ), 'BTLF', GetLastCreatedUnit() )
-    set udg_Int_Cataclysm_ID = GetLastCreatedUnit()
-    call SaveRealBJ( udg_Int_Cataclysm_Duration, StringHashBJ("time"), GetHandleIdBJ(udg_Int_Cataclysm_ID), udg_Int_Cataclysm_Hashtable )
-    call SaveLocationHandleBJ( udg_Int_Cataclysm_Temppoint[1], StringHashBJ("point1"), GetHandleIdBJ(udg_Int_Cataclysm_ID), udg_Int_Cataclysm_Hashtable )
-    call SavePlayerHandleBJ( udg_Int_Cataclysm_Player, StringHashBJ("player"), GetHandleIdBJ(udg_Int_Cataclysm_ID), udg_Int_Cataclysm_Hashtable )
-    call SaveIntegerBJ( GetUnitAbilityLevelSwapped(GetSpellAbilityId(), GetTriggerUnit()), StringHashBJ("spell_level"), GetHandleIdBJ(udg_Int_Cataclysm_ID), udg_Int_Cataclysm_Hashtable )
-    call GroupAddUnitSimple( GetLastCreatedUnit(), udg_Int_Cataclysm_Dummy )
-    set bj_forLoopAIndex = 1
-    set bj_forLoopAIndexEnd = udg_Int_Cataclysm_UnitsN
-    loop
-        exitwhen bj_forLoopAIndex > bj_forLoopAIndexEnd
-        set udg_Int_Cataclysm_Temppoint[2] = PolarProjectionBJ(udg_Int_Cataclysm_Temppoint[1], 275.00, ( ( 360.00 / I2R(udg_Int_Cataclysm_UnitsN) ) * I2R(GetForLoopIndexA()) ))
-        call CreateNUnitsAtLoc( 1, udg_Int_Cataclysm_Unit[1], udg_Int_Cataclysm_Player, udg_Int_Cataclysm_Temppoint[2], bj_UNIT_FACING )
-        call UnitApplyTimedLifeBJ( udg_Int_Cataclysm_Duration, 'BTLF', GetLastCreatedUnit() )
-        call AddSpecialEffectLocBJ( udg_Int_Cataclysm_Temppoint[2], "Abilities\\Spells\\Other\\Volcano\\VolcanoDeath.mdl" )
-        call DestroyEffectBJ( GetLastCreatedEffectBJ() )
-        call RemoveLocation(udg_Int_Cataclysm_Temppoint[2])
-        set bj_forLoopAIndex = bj_forLoopAIndex + 1
-    endloop
-     set bj_wantDestroyGroup = true
-    call ForGroupBJ( GetUnitsInRangeOfLocMatching(350.00, udg_Int_Cataclysm_Temppoint[1], Condition(function Trig_Tremor_Func015001003)), function Trig_Tremor_Func015A )
-    call EnableTrigger( gg_trg_TLoop )
-    call RemoveLocation(udg_Int_Cataclysm_Temppoint[1])
+    call Tremor_Launch(GetTriggerUnit(), GetSpellTargetX(), GetSpellTargetY())
 endfunction
 
 //===========================================================================
 function InitTrig_Tremor takes nothing returns nothing
     set gg_trg_Tremor = CreateTrigger(  )
     call TriggerAddAction( gg_trg_Tremor, function Trig_Tremor_Actions )
-endfunction
-
-//===========================================================================
-// Trigger: TLoop
-//===========================================================================
-function Trig_TLoop_Func001Func006Func008C takes nothing returns boolean
-    if ( not ( IsUnitGroupEmptyBJ(udg_Int_Cataclysm_Dummy) == true ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_TLoop_Func001Func006C takes nothing returns boolean
-    if ( not ( udg_Int_Cataclysm_Duration > 0.00 ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_TLoop_Func001A takes nothing returns nothing
-    set udg_Int_Cataclysm_ID = GetEnumUnit()
-    set udg_Int_Cataclysm_Duration = LoadRealBJ(StringHashBJ("time"), GetHandleIdBJ(GetEnumUnit()), udg_Int_Cataclysm_Hashtable)
-    set udg_Int_Cataclysm_Temppoint[1] = LoadLocationHandleBJ(StringHashBJ("point1"), GetHandleIdBJ(GetEnumUnit()), udg_Int_Cataclysm_Hashtable)
-    set udg_Int_Cataclysm_Player = LoadPlayerHandleBJ(StringHashBJ("player"), GetHandleIdBJ(GetEnumUnit()), udg_Int_Cataclysm_Hashtable)
-    set udg_Int_Cataclysm_SpellLevel = LoadIntegerBJ(StringHashBJ("spell_level"), GetHandleIdBJ(GetEnumUnit()), udg_Int_Cataclysm_Hashtable)
-    if ( Trig_TLoop_Func001Func006C() ) then
-        set udg_PickedLoc = GetUnitLoc(GetEnumUnit())
-        call SaveRealBJ( ( udg_Int_Cataclysm_Duration - 1 ), StringHashBJ("time"), GetHandleIdBJ(udg_Int_Cataclysm_ID), udg_Int_Cataclysm_Hashtable )
-         set bj_wantDestroyGroup = true
-        call RemoveLocation(udg_PickedLoc)
-        call RemoveLocation(udg_Int_Cataclysm_Temppoint[1])
-    else
-        call FlushChildHashtableBJ( GetHandleIdBJ(udg_Int_Cataclysm_ID), udg_Int_Cataclysm_Hashtable )
-        call GroupRemoveUnitSimple( GetEnumUnit(), udg_Int_Cataclysm_Dummy )
-        if ( Trig_TLoop_Func001Func006Func008C() ) then
-            call DisableTrigger( GetTriggeringTrigger() )
-        else
-        endif
-    endif
-endfunction
-
-function Trig_TLoop_Actions takes nothing returns nothing
-    call ForGroupBJ( udg_Int_Cataclysm_Dummy, function Trig_TLoop_Func001A )
-endfunction
-
-//===========================================================================
-function InitTrig_TLoop takes nothing returns nothing
-    set gg_trg_TLoop = CreateTrigger(  )
-    call DisableTrigger( gg_trg_TLoop )
-    call TriggerRegisterTimerEventPeriodic( gg_trg_TLoop, 1.00 )
-    call TriggerAddAction( gg_trg_TLoop, function Trig_TLoop_Actions )
-endfunction
-
-//===========================================================================
-// Trigger: Tremor D
-//===========================================================================
-function Trig_Tremor_D_Conditions takes nothing returns boolean
-    if ( not ( GetUnitTypeId(GetDyingUnit()) == 'h00C' ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_Tremor_D_Actions takes nothing returns nothing
-    local unit dying = GetDyingUnit()
-    local unit u
-    local player p = GetOwningPlayer(dying)
-    local group g = CreateGroup()
-    local real x = GetUnitX(dying)
-    local real y = GetUnitY(dying)
-    call SFX_Point("Objects\\Spawnmodels\\Human\\HCancelDeath\\HCancelDeath.mdl", x, y)
-    call GroupEnumUnitsInRange(g, x, y, 275.00, null)
-    loop
-        set u = FirstOfGroup(g)
-        exitwhen u == null
-        call GroupRemoveUnit(g, u)
-        if not IsUnitType(u, UNIT_TYPE_STRUCTURE) and GetWidgetLife(u) > 0.405 and GetUnitAbilityLevel(u, 'A00A') < 1 and IsUnitEnemy(u, p) then
-            call SFX_Point("Objects\\Spawnmodels\\Human\\HCancelDeath\\HCancelDeath.mdl", GetUnitX(u), GetUnitY(u))
-            call SFX_Point("Objects\\Spawnmodels\\Human\\HCancelDeath\\HCancelDeath.mdl", x, y)
-            call UnitDamageTarget(dying, u, 150.00, true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_NORMAL, WEAPON_TYPE_WHOKNOWS)
-        endif
-    endloop
-    call DestroyGroup(g)
-    set dying = null
-    set u = null
-    set p = null
-    set g = null
-endfunction
-
-//===========================================================================
-function InitTrig_Tremor_D takes nothing returns nothing
-    set gg_trg_Tremor_D = CreateTrigger(  )
-    call TriggerRegisterAnyUnitEventBJ( gg_trg_Tremor_D, EVENT_PLAYER_UNIT_DEATH )
-    call TriggerAddCondition( gg_trg_Tremor_D, Condition( function Trig_Tremor_D_Conditions ) )
-    call TriggerAddAction( gg_trg_Tremor_D, function Trig_Tremor_D_Actions )
 endfunction
 
 //===========================================================================
@@ -23128,8 +23064,6 @@ function InitCustomTriggers takes nothing returns nothing
     call InitTrig_TR_Cast(  )
     call InitTrig_Bounce(  )
     call InitTrig_Tremor(  )
-    call InitTrig_TLoop(  )
-    call InitTrig_Tremor_D(  )
     call InitTrig_Inferno(  )
     call InitTrig_Hell_Blast_250(  )
     call InitTrig_Hell_Blast_450(  )
