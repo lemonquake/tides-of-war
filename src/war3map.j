@@ -11060,14 +11060,12 @@ function Trig_Burning_Will_Cast_Func002C takes nothing returns boolean
 endfunction
 
 function Trig_Burning_Will_Cast_Actions takes nothing returns nothing
+    local unit caster = GetTriggerUnit()
     if ( Trig_Burning_Will_Cast_Func002C() ) then
-        call CreateNUnitsAtLoc( 1, 'h005', GetOwningPlayer(GetTriggerUnit()), GetUnitLoc(GetTriggerUnit()), bj_UNIT_FACING )
-        call UnitAddAbilityBJ( 'A00T', GetLastCreatedUnit() )
-        call SetUnitAbilityLevelSwapped( 'A00T', GetLastCreatedUnit(), GetUnitAbilityLevelSwapped('A00S', GetTriggerUnit()) )
-        call UnitApplyTimedLifeBJ( 1.00, 'BTLF', GetLastCreatedUnit() )
-        call IssueTargetOrderBJ( GetLastCreatedUnit(), "bloodlust", GetTriggerUnit() )
+        call Dummy_CastTargetLevel(GetOwningPlayer(caster), 'A00T', GetUnitAbilityLevel(caster, 'A00S'), Eng_OrdBloodlust, caster)
     else
     endif
+    set caster = null
 endfunction
 
 //===========================================================================
@@ -11098,57 +11096,35 @@ function Trig_Burning_Will_Conditions takes nothing returns boolean
     return true
 endfunction
 
-function Trig_Burning_Will_Func002002003001 takes nothing returns boolean
-    return ( IsUnitType(GetFilterUnit(), UNIT_TYPE_STRUCTURE) == false )
-endfunction
-
-function Trig_Burning_Will_Func002002003002001 takes nothing returns boolean
-    return ( IsUnitType(GetFilterUnit(), UNIT_TYPE_MAGIC_IMMUNE) == false )
-endfunction
-
-function Trig_Burning_Will_Func002002003002002001 takes nothing returns boolean
-    return ( IsUnitAliveBJ(GetFilterUnit()) == true )
-endfunction
-
-function Trig_Burning_Will_Func002002003002002002 takes nothing returns boolean
-    return ( IsUnitEnemy(GetFilterUnit(), GetOwningPlayer(udg_GDD_DamageSource)) == true )
-endfunction
-
-function Trig_Burning_Will_Func002002003002002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Burning_Will_Func002002003002002001(), Trig_Burning_Will_Func002002003002002002() )
-endfunction
-
-function Trig_Burning_Will_Func002002003002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Burning_Will_Func002002003002001(), Trig_Burning_Will_Func002002003002002() )
-endfunction
-
-function Trig_Burning_Will_Func002002003 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Burning_Will_Func002002003001(), Trig_Burning_Will_Func002002003002() )
-endfunction
-
-function Trig_Burning_Will_Func004A takes nothing returns nothing
-    call AddSpecialEffectLocBJ( GetUnitLoc(GetEnumUnit()), "Abilities\\Spells\\Human\\MarkOfChaos\\MarkOfChaosTarget.mdl" )
-    call DestroyEffectBJ( GetLastCreatedEffectBJ() )
-    set udg_DTA_Target = GetEnumUnit()
-    set udg_DTA_DmgDealer = udg_GDD_DamageSource
-    set udg_DTA_TotalDamageDealt = 170.00
-    set udg_DTA_Time = 7.00
-    set udg_DTA_Interval = 1.00
-    set udg_DTA_SpecialEffect = "Environment\\LargeBuildingFire\\LargeBuildingFire1.mdl"
-    set udg_DTA_EffectAttachmentPoint = "head"
-    set udg_DTA_Attacktype = ATTACK_TYPE_NORMAL
-    set udg_DTA_DamageType = DAMAGE_TYPE_UNIVERSAL
-    call ConditionalTriggerExecute( gg_trg_Get_DOT )
-endfunction
-
 function Trig_Burning_Will_Actions takes nothing returns nothing
-    set udg_Sample_Point = GetUnitLoc(udg_GDD_DamagedUnit)
-    set udg_Sample_Group = GetUnitsInRangeOfLocMatching(300.00, udg_Sample_Point, Condition(function Trig_Burning_Will_Func002002003))
-    set bj_wantDestroyGroup = true
-    call ForGroupBJ( udg_Sample_Group, function Trig_Burning_Will_Func004A )
-    call DestroyGroup (udg_Sample_Group)
-    call UnitRemoveBuffBJ( 'B010', udg_GDD_DamageSource )
-        call RemoveLocation(udg_Sample_Point)
+    local unit source = udg_GDD_DamageSource
+    local unit center = udg_GDD_DamagedUnit
+    local player p = GetOwningPlayer(source)
+    local unit u
+    call GroupEnumUnitsInRange(Eng_Enum, GetUnitX(center), GetUnitY(center), 300.00, null)
+    loop
+        set u = FirstOfGroup(Eng_Enum)
+        exitwhen u == null
+        call GroupRemoveUnit(Eng_Enum, u)
+        if not IsUnitType(u, UNIT_TYPE_STRUCTURE) and not IsUnitType(u, UNIT_TYPE_MAGIC_IMMUNE) and GetWidgetLife(u) > 0.405 and IsUnitEnemy(u, p) then
+            call SFX_Point("Abilities\\Spells\\Human\\MarkOfChaos\\MarkOfChaosTarget.mdl", GetUnitX(u), GetUnitY(u))
+            set udg_DTA_Target = u
+            set udg_DTA_DmgDealer = source
+            set udg_DTA_TotalDamageDealt = 170.00
+            set udg_DTA_Time = 7.00
+            set udg_DTA_Interval = 1.00
+            set udg_DTA_SpecialEffect = "Environment\\LargeBuildingFire\\LargeBuildingFire1.mdl"
+            set udg_DTA_EffectAttachmentPoint = "head"
+            set udg_DTA_Attacktype = ATTACK_TYPE_NORMAL
+            set udg_DTA_DamageType = DAMAGE_TYPE_UNIVERSAL
+            call ConditionalTriggerExecute(gg_trg_Get_DOT)
+        endif
+    endloop
+    call UnitRemoveBuffBJ('B010', source)
+    set source = null
+    set center = null
+    set p = null
+    set u = null
 endfunction
 
 //===========================================================================
@@ -12975,42 +12951,31 @@ function Trig_Poison_Fumes_Conditions takes nothing returns boolean
     return true
 endfunction
 
-function Trig_Poison_Fumes_Func004001003001001 takes nothing returns boolean
-    return ( IsUnitType(GetFilterUnit(), UNIT_TYPE_STRUCTURE) == false )
-endfunction
-
-function Trig_Poison_Fumes_Func004001003001002 takes nothing returns boolean
-    return ( IsUnitAliveBJ(GetFilterUnit()) == true )
-endfunction
-
-function Trig_Poison_Fumes_Func004001003001 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Poison_Fumes_Func004001003001001(), Trig_Poison_Fumes_Func004001003001002() )
-endfunction
-
-function Trig_Poison_Fumes_Func004001003002 takes nothing returns boolean
-    return ( IsUnitEnemy(GetFilterUnit(), GetOwningPlayer(GetTriggerUnit())) == true )
-endfunction
-
-function Trig_Poison_Fumes_Func004001003 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Poison_Fumes_Func004001003001(), Trig_Poison_Fumes_Func004001003002() )
-endfunction
-
-function Trig_Poison_Fumes_Func004A takes nothing returns nothing
-    set udg_DTA_Target = GetEnumUnit()
-    set udg_DTA_DmgDealer = GetTriggerUnit()
-    set udg_DTA_TotalDamageDealt = 75.00
-    set udg_DTA_Time = 15.00
-    set udg_DTA_Interval = 1.00
-    set udg_DTA_SpecialEffect = "Abilities\\Spells\\Other\\AcidBomb\\BottleImpact.mdl"
-    set udg_DTA_EffectAttachmentPoint = "head"
-    set udg_DTA_Attacktype = ATTACK_TYPE_NORMAL
-    set udg_DTA_DamageType = DAMAGE_TYPE_ENHANCED
-    call ConditionalTriggerExecute( gg_trg_Get_DOT )
-endfunction
-
 function Trig_Poison_Fumes_Actions takes nothing returns nothing
-    set bj_wantDestroyGroup = true
-    call ForGroupBJ( GetUnitsInRangeOfLocMatching(700.00, GetUnitLoc(GetTriggerUnit()), Condition(function Trig_Poison_Fumes_Func004001003)), function Trig_Poison_Fumes_Func004A )
+    local unit caster = GetTriggerUnit()
+    local player p = GetOwningPlayer(caster)
+    local unit u
+    call GroupEnumUnitsInRange(Eng_Enum, GetUnitX(caster), GetUnitY(caster), 700.00, null)
+    loop
+        set u = FirstOfGroup(Eng_Enum)
+        exitwhen u == null
+        call GroupRemoveUnit(Eng_Enum, u)
+        if not IsUnitType(u, UNIT_TYPE_STRUCTURE) and GetWidgetLife(u) > 0.405 and IsUnitEnemy(u, p) then
+            set udg_DTA_Target = u
+            set udg_DTA_DmgDealer = caster
+            set udg_DTA_TotalDamageDealt = 75.00
+            set udg_DTA_Time = 15.00
+            set udg_DTA_Interval = 1.00
+            set udg_DTA_SpecialEffect = "Abilities\\Spells\\Other\\AcidBomb\\BottleImpact.mdl"
+            set udg_DTA_EffectAttachmentPoint = "head"
+            set udg_DTA_Attacktype = ATTACK_TYPE_NORMAL
+            set udg_DTA_DamageType = DAMAGE_TYPE_ENHANCED
+            call ConditionalTriggerExecute(gg_trg_Get_DOT)
+        endif
+    endloop
+    set caster = null
+    set p = null
+    set u = null
 endfunction
 
 //===========================================================================
@@ -13095,40 +13060,34 @@ function Trig_Leash_Conditions takes nothing returns boolean
     return true
 endfunction
 
-function Trig_Leash_Func002001002001 takes nothing returns boolean
-    return ( GetUnitTypeId(GetFilterUnit()) == 'H01E' )
-endfunction
-
-function Trig_Leash_Func002001002002 takes nothing returns boolean
-    return ( GetOwningPlayer(GetFilterUnit()) == GetOwningPlayer(GetAttacker()) )
-endfunction
-
-function Trig_Leash_Func002001002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Leash_Func002001002001(), Trig_Leash_Func002001002002() )
-endfunction
-
-function Trig_Leash_Func002Func002C takes nothing returns boolean
-    if ( not ( DistanceBetweenPoints(GetUnitLoc(GetAttacker()), GetUnitLoc(GetEnumUnit())) >= 1500.00 ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_Leash_Func002A takes nothing returns nothing
-    set udg_TempLoc = GetUnitLoc(GetEnumUnit())
-    if ( Trig_Leash_Func002Func002C() ) then
-        call AddSpecialEffectLocBJ( GetUnitLoc(GetAttacker()), "Abilities\\Spells\\NightElf\\Blink\\BlinkCaster.mdl" )
-        call DestroyEffectBJ( GetLastCreatedEffectBJ() )
-        call SetUnitX(GetAttacker(), GetLocationX(udg_TempLoc))
-        call SetUnitY(GetAttacker(), GetLocationY(udg_TempLoc))
-    else
-    endif
-    call RemoveLocation(udg_TempLoc)
-endfunction
-
 function Trig_Leash_Actions takes nothing returns nothing
-    set bj_wantDestroyGroup = true
-    call ForGroupBJ( GetUnitsInRectMatching(GetPlayableMapRect(), Condition(function Trig_Leash_Func002001002)), function Trig_Leash_Func002A )
+    local unit attacker = GetAttacker()
+    local player p = GetOwningPlayer(attacker)
+    local unit u
+    local real ax = GetUnitX(attacker)
+    local real ay = GetUnitY(attacker)
+    local real dx
+    local real dy
+    call GroupEnumUnitsInRect(Eng_Enum, bj_mapInitialPlayableArea, null)
+    loop
+        set u = FirstOfGroup(Eng_Enum)
+        exitwhen u == null
+        call GroupRemoveUnit(Eng_Enum, u)
+        if GetUnitTypeId(u) == 'H01E' and GetOwningPlayer(u) == p then
+            set ax = GetUnitX(attacker)
+            set ay = GetUnitY(attacker)
+            set dx = GetUnitX(u) - ax
+            set dy = GetUnitY(u) - ay
+            if dx * dx + dy * dy >= 2250000.00 then
+                call SFX_Point("Abilities\\Spells\\NightElf\\Blink\\BlinkCaster.mdl", ax, ay)
+                call SetUnitX(attacker, GetUnitX(u))
+                call SetUnitY(attacker, GetUnitY(u))
+            endif
+        endif
+    endloop
+    set attacker = null
+    set p = null
+    set u = null
 endfunction
 
 //===========================================================================
@@ -13550,37 +13509,28 @@ endfunction
 //===========================================================================
 // Trigger: Valor
 //===========================================================================
-function Trig_Valor_Func003002003001 takes nothing returns boolean
-    return ( IsUnitType(GetFilterUnit(), UNIT_TYPE_STRUCTURE) == false )
-endfunction
-
-function Trig_Valor_Func003002003002001 takes nothing returns boolean
-    return ( IsUnitAliveBJ(GetFilterUnit()) == true )
-endfunction
-
-function Trig_Valor_Func003002003002002 takes nothing returns boolean
-    return ( GetUnitAbilityLevelSwapped('A00A', GetFilterUnit()) == 0 )
-endfunction
-
-function Trig_Valor_Func003002003002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Valor_Func003002003002001(), Trig_Valor_Func003002003002002() )
-endfunction
-
-function Trig_Valor_Func003002003 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Valor_Func003002003001(), Trig_Valor_Func003002003002() )
-endfunction
-
 function Trig_Valor_Actions takes nothing returns nothing
-    call UnitAddAbilityBJ( 'A06Z', GetTriggerUnit() )
-    call UnitAddAbilityBJ( 'A06Y', GetTriggerUnit() )
-    set udg_VALOR_GROUP = GetUnitsInRangeOfLocMatching(1000.00, GetUnitLoc(GetTriggerUnit()), Condition(function Trig_Valor_Func003002003))
-    set udg_VALOR_COUNT = CountUnitsInGroup(udg_VALOR_GROUP)
-    call SetUnitAbilityLevelSwapped( 'A06Z', GetTriggerUnit(), udg_VALOR_COUNT )
-    call SetUnitAbilityLevelSwapped( 'A06Y', GetTriggerUnit(), udg_VALOR_COUNT )
-    call DestroyGroup(udg_VALOR_GROUP)
+    local unit caster = GetTriggerUnit()
+    local unit u
+    call UnitAddAbility(caster, 'A06Z')
+    call UnitAddAbility(caster, 'A06Y')
+    set udg_VALOR_COUNT = 0
+    call GroupEnumUnitsInRange(Eng_Enum, GetUnitX(caster), GetUnitY(caster), 1000.00, null)
+    loop
+        set u = FirstOfGroup(Eng_Enum)
+        exitwhen u == null
+        call GroupRemoveUnit(Eng_Enum, u)
+        if not IsUnitType(u, UNIT_TYPE_STRUCTURE) and GetWidgetLife(u) > 0.405 and GetUnitAbilityLevel(u, 'A00A') == 0 then
+            set udg_VALOR_COUNT = udg_VALOR_COUNT + 1
+        endif
+    endloop
+    call SetUnitAbilityLevel(caster, 'A06Z', udg_VALOR_COUNT)
+    call SetUnitAbilityLevel(caster, 'A06Y', udg_VALOR_COUNT)
     call TriggerSleepAction( 9.00 )
-    call UnitRemoveAbilityBJ( 'A06Z', GetTriggerUnit() )
-    call UnitRemoveAbilityBJ( 'A06Y', GetTriggerUnit() )
+    call UnitRemoveAbility(caster, 'A06Z')
+    call UnitRemoveAbility(caster, 'A06Y')
+    set caster = null
+    set u = null
 endfunction
 
 //===========================================================================
@@ -13599,32 +13549,23 @@ function Trig_Improved_Resistance_Conditions takes nothing returns boolean
     return true
 endfunction
 
-function Trig_Improved_Resistance_Func001002003001 takes nothing returns boolean
-    return ( IsUnitType(GetFilterUnit(), UNIT_TYPE_STRUCTURE) == true )
-endfunction
-
-function Trig_Improved_Resistance_Func001002003002001 takes nothing returns boolean
-    return ( IsUnitAliveBJ(GetFilterUnit()) == true )
-endfunction
-
-function Trig_Improved_Resistance_Func001002003002002 takes nothing returns boolean
-    return ( GetUnitAbilityLevelSwapped('A00A', GetFilterUnit()) == 0 )
-endfunction
-
-function Trig_Improved_Resistance_Func001002003002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Improved_Resistance_Func001002003002001(), Trig_Improved_Resistance_Func001002003002002() )
-endfunction
-
-function Trig_Improved_Resistance_Func001002003 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Improved_Resistance_Func001002003001(), Trig_Improved_Resistance_Func001002003002() )
-endfunction
-
 function Trig_Improved_Resistance_Actions takes nothing returns nothing
-    set udg_Improved_Resistance_Group = GetUnitsInRangeOfLocMatching(512.00, GetUnitLoc(udg_GDD_DamagedUnit), Condition(function Trig_Improved_Resistance_Func001002003))
-    set udg_Improved_Resistance_Counter = CountUnitsInGroup(udg_Improved_Resistance_Group)
+    local unit target = udg_GDD_DamagedUnit
+    local unit u
+    set udg_Improved_Resistance_Counter = 0
+    call GroupEnumUnitsInRange(Eng_Enum, GetUnitX(target), GetUnitY(target), 512.00, null)
+    loop
+        set u = FirstOfGroup(Eng_Enum)
+        exitwhen u == null
+        call GroupRemoveUnit(Eng_Enum, u)
+        if IsUnitType(u, UNIT_TYPE_STRUCTURE) and GetWidgetLife(u) > 0.405 and GetUnitAbilityLevel(u, 'A00A') == 0 then
+            set udg_Improved_Resistance_Counter = udg_Improved_Resistance_Counter + 1
+        endif
+    endloop
     set udg_Improved_Resistance_Damage = ( udg_GDD_Damage * ( I2R(udg_Improved_Resistance_Counter) * 0.02 ) )
-    call SetUnitLifeBJ( udg_GDD_DamagedUnit, ( GetUnitStateSwap(UNIT_STATE_LIFE, udg_GDD_DamagedUnit) + udg_Improved_Resistance_Damage ) )
-    call DestroyGroup(udg_Improved_Resistance_Group)
+    call SetWidgetLife(target, GetWidgetLife(target) + udg_Improved_Resistance_Damage)
+    set target = null
+    set u = null
 endfunction
 
 //===========================================================================

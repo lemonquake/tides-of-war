@@ -2,7 +2,7 @@
 ### Read this first, then read [TIDES_OF_WAR_MASTER_PLAN.md](TIDES_OF_WAR_MASTER_PLAN.md) — the plan is the contract; this file is where we are inside it.
 
 > Status date: 2026-07-19. Map **builds clean and is playable**: `dist/Tides_of_War_Compiled.w3x` (validated + packed at git HEAD).
-> Git history: 5 commits, one per verified batch. `git log --oneline` tells the story.
+> Git history is batch-committed; `git log --oneline` tells the story.
 
 ---
 
@@ -11,7 +11,7 @@
 1. Load the project skill `.agents/skills/warcraft3-jass-optimization/SKILL.md` — its six rules are law (native XY coords, null all locals, group/force hygiene, div-by-zero guards).
 2. After **every** edit to `src/war3map.j`:
    `python .agents/skills/warcraft3-jass-optimization/scripts/validate_jass_syntax.py src/war3map.j`
-   It checks block balance, declared-before-use, duplicate functions, and **fails on any leak regression** vs `scripts/leak_baseline.txt` (current baseline: location=81, everything else 0). It caught a real un-nulled local of mine — trust it.
+   It checks block balance, declared-before-use, duplicate functions, and **fails on any leak regression** vs `scripts/leak_baseline.txt` (current baseline: location=56, everything else 0). It caught a real un-nulled local of mine — trust it.
 3. Build: copy `base_map.w3x` → `dist/Tides_of_War_Compiled.w3x`, then `MPQEditor.exe add "dist\Tides_of_War_Compiled.w3x" "src\war3map.j" "war3map.j"` (or run `build.bat nopause`, which gates on the validator).
 4. Commit per batch with a message naming what migrated and the leak delta. Author identity used so far: `-c user.name="Lemon" -c user.email="lemonquake@gmail.com"`, co-author trailer for Claude.
 5. **Update the leak baseline** (`scripts/leak_baseline.txt`) only downward, when you've genuinely removed leaks.
@@ -32,7 +32,7 @@
 | Damage | `Damage_Phys / Damage_Magic / Damage_Pure (s, t, amt)` | Pure = CHAOS/FIRE (matches old map convention). |
 | SFX | `SFX_Point(model, x, y)` / `SFX_Unit(model, u, attach)` | One-shot, zero-leak. |
 | Trees | `Eng_KillTreesAt(x, y, radius)` | Kills 'ZTtw'/'ZTtc' only, circle-exact, no locations. |
-| Target filter | `Eng_ValidTarget(u, castOwner)` + `Eng_IsDummyType(t)` | Dummy list: 'h005','h00Q','h00R','e002','h00Y'. Extend when new dummy types join the engine. |
+| Target filter | `Eng_ValidTarget(u, castOwner)` + `Eng_IsDummyType(t)` | Dummy list: 'h005','h00Q','h00R','e002','h00Y','hrif','hgry','hgyr','h016'. Extend when new dummy types join the engine. |
 | **MissileCore** | `Missile_LaunchXY(owner,x,y,tx,ty,speed,maxDist,radius,dummyType,model,onHitTrig,onEndTrig) -> i`, `Missile_SetHoming(i,target)`, `Missile_SetOnTick(i,trig)` | Callbacks are triggers holding `Condition(function F)`; dispatch via `TriggerEvaluate`. Context globals: `EV_MISSILE`, `EV_UNIT`. onHit returning `true` kills the missile; `false` = pierce. Per-instance slots `Msl_Data[i]` (int), `Msl_DataR[i]` (real). **World-bounds clamped** — `SetUnitX/Y` outside world bounds hard-crashes WC3; bounds are `Eng_MinX/MaxX/MinY/MaxY` (playable area ±64). |
 | **HookCore** | `Hook_Launch(caster, tx, ty)` | Pudge Hook v2 per user spec: never pauses caster, chain re-laid each tick caster→head (moving launch/retract), 3000 range, multi-instance, links pooled in `Eng_HT` parent `1000000+i`. |
 | Shard channel | `FreezingBlast_Launch(caster)` | 0.2s cadence on master tick. |
@@ -57,17 +57,19 @@ Hook ('A03B'), Torpedo ('A02K'), Piercing Shot ('A03F'), Soul Strike ('A032'), E
 
 ## 3. What to do NEXT (in order)
 
-### 3a. Burn down the 62 remaining location-leak functions (fast wins)
-The validator baseline is 62. Full hit-list (name @ line, as of HEAD — lines drift, re-run the lister):
+### 3a. Burn down the 56 remaining location-leak functions (fast wins)
+The validator baseline is 56. Full hit-list (name @ line, as of HEAD — lines drift, re-run the lister):
 ```
 python -c "<see git log batch 5 era or re-derive>"   # or just re-run: the one-liner lives in the session notes
 ```
 Priority combat leaks (each is an `_Actions` passing inline `GetUnitLoc(...)` to enum/SFX BJs — rewrite with `GroupEnumUnitsInRange(Eng_Enum, GetUnitX..., ...)` + `FirstOfGroup` loop like the Starfall/Divine Light rewrites at ~line 9400):
-`Trig_Poison_Fumes_Actions`, Revive a/b/c, Behavior1/3, P2-P8 skill AI conds.
+Revive a/b/c, Behavior1/3, P2-P8 skill AI conds.
 
 Completed in leak-scrub batch 6: Echo Slam, Smite, Impale, and all three Hell Blast rawcodes now use native XY enumeration and pooled dummies; Hell Blast shares one implementation. Location warnings: 81 → 71.
 
 Completed in leak-scrub batch 7: Take Aim, Fury, Tidal Strike, Vileplume, Butterfree, Blaziken, Overload, Mortar Fire, and AoT Cast now use native XY APIs; eligible caster units are pooled and the three unique summons share one implementation. Location warnings: 71 → 62.
+
+Completed in leak-scrub batch 8: Poison Fumes, Burning Will, Leash, Valor, and Improved Resistance now use native XY enumeration; Burning Will's caster is pooled and obsolete GUI filter/callback trees were removed. Location warnings: 62 → 56.
 False positives to allowlist mentally: `config`, `InitCustomPlayerSlots`, `CreateNeutralPassiveBuildings` (substring matches).
 After each burn-down, lower `leak_baseline.txt`.
 
