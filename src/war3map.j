@@ -1442,6 +1442,7 @@ globals
     trigger                 Sos_OnTick                 = null
     trigger                 Eaw_OnHit                  = null
     trigger                 Ash_OnTick                 = null
+    trigger                 Tbn_OnTick                 = null
     // --- Freezing Blast shard channel
     integer                 Fbz_N                      = 0
     integer array           Fbz_List
@@ -2085,6 +2086,57 @@ function ArrowShower_Launch takes unit caster, real tx, real ty returns nothing
 endfunction
 
 //===========================================================================
+// Thunder Ball (ability 'A04M') - object data supplies the visible homing
+// ZapMissile at speed 2000. An invisible MissileCore proxy mirrors it so the
+// 30% current-life damage lands on impact instead of at cast time. If the
+// target dies or is removed, the proxy expires at its last known position.
+//===========================================================================
+function ThunderBall_OnTick takes nothing returns boolean
+    local integer i = EV_MISSILE
+    local unit target = Msl_Target[i]
+    local real reach = Msl_Step[i] + 25.00
+    local real dx
+    local real dy
+    if target != null and GetUnitTypeId(target) != 0 and GetWidgetLife(target) > 0.405 then
+        set Msl_DataX[i] = GetUnitX(target)
+        set Msl_DataY[i] = GetUnitY(target)
+        set dx = Msl_DataX[i] - Msl_X[i]
+        set dy = Msl_DataY[i] - Msl_Y[i]
+        if dx * dx + dy * dy <= reach * reach then
+            call UnitDamageTarget(Msl_Owner[i], target, GetWidgetLife(target) * 0.30, true, false, ATTACK_TYPE_MELEE, DAMAGE_TYPE_ENHANCED, WEAPON_TYPE_WHOKNOWS)
+            set Msl_Dist[i] = Msl_MaxDist[i]
+        endif
+    else
+        if target != null and GetUnitTypeId(target) != 0 then
+            set Msl_DataX[i] = GetUnitX(target)
+            set Msl_DataY[i] = GetUnitY(target)
+        endif
+        set Msl_Target[i] = null
+        set dx = Msl_DataX[i] - Msl_X[i]
+        set dy = Msl_DataY[i] - Msl_Y[i]
+        if dx * dx + dy * dy <= reach * reach then
+            set Msl_Dist[i] = Msl_MaxDist[i]
+        endif
+    endif
+    set target = null
+    return false
+endfunction
+
+function ThunderBall_Launch takes unit caster, unit target returns nothing
+    local real wx = Eng_MaxX - Eng_MinX
+    local real wy = Eng_MaxY - Eng_MinY
+    local integer i
+    if target != null and GetUnitTypeId(target) != 0 then
+        set i = Missile_LaunchXY(caster, GetUnitX(caster), GetUnitY(caster), GetUnitX(target), GetUnitY(target), 2000.00, SquareRoot(wx * wx + wy * wy) + 1100.00, 0.00, 'h005', "", null, null)
+        set Msl_DataX[i] = GetUnitX(target)
+        set Msl_DataY[i] = GetUnitY(target)
+        call SetUnitFlyHeight(Msl_Dummy[i], 60.00, 0.00)
+        call Missile_SetHoming(i, target)
+        call Missile_SetOnTick(i, Tbn_OnTick)
+    endif
+endfunction
+
+//===========================================================================
 // Freezing Blast (ability 'A043', levels via 'A000') - ice shards rain at
 // random points around the caster's current position every 0.2s. Each shard
 // lands at its own random radius (the old version rolled one radius per cast)
@@ -2645,6 +2697,8 @@ function Engine_Init takes nothing returns nothing
     call TriggerAddCondition(Eaw_OnHit, Condition(function EA_OnHit))
     set Ash_OnTick = CreateTrigger()
     call TriggerAddCondition(Ash_OnTick, Condition(function ArrowShower_OnTick))
+    set Tbn_OnTick = CreateTrigger()
+    call TriggerAddCondition(Tbn_OnTick, Condition(function ThunderBall_OnTick))
     call TimerStart(Eng_Timer, Eng_TickRate, true, function Eng_MasterTick)
 endfunction
 
@@ -12200,7 +12254,7 @@ endfunction
 // Trigger: Thunder Ball
 //===========================================================================
 function Trig_Thunder_Ball_Actions takes nothing returns nothing
-    call UnitDamageTargetBJ( GetTriggerUnit(), GetSpellTargetUnit(), ( GetUnitStateSwap(UNIT_STATE_LIFE, GetSpellTargetUnit()) * 0.30 ), ATTACK_TYPE_MELEE, DAMAGE_TYPE_ENHANCED )
+    call ThunderBall_Launch(GetTriggerUnit(), GetSpellTargetUnit())
 endfunction
 
 //===========================================================================
