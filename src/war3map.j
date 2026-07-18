@@ -1466,6 +1466,16 @@ globals
     trigger                 Prc_OnHit                  = null
     trigger                 Prc_OnTick                 = null
     trigger                 Sos_OnTick                 = null
+    trigger                 Eaw_OnHit                  = null
+    // --- Freezing Blast shard channel
+    integer                 Fbz_N                      = 0
+    integer array           Fbz_List
+    integer                 Fbz_FreeN                  = 0
+    integer array           Fbz_FreeList
+    integer                 Fbz_Max                    = 0
+    unit array              Fbz_Caster
+    integer array           Fbz_Shards
+    real array              Fbz_Acc
     // --- HookCore (Pudge's Meat Hook v2)
     real                    HK_SPEED_OUT               = 45.00
     real                    HK_SPEED_BACK              = 55.00
@@ -1583,12 +1593,19 @@ endfunction
 // Pooled dummy casting - the one-line replacement for every
 // "spawn dummy, add ability, timed life, issue order" block in the map.
 //===========================================================================
-function Dummy_CastTarget takes player p, integer abil, integer ord, unit target returns nothing
+function Dummy_CastTargetLevel takes player p, integer abil, integer lvl, integer ord, unit target returns nothing
     local unit d = Dummy_Get(p, 'h005', GetUnitX(target), GetUnitY(target), 0.00)
     call UnitAddAbility(d, abil)
+    if lvl > 1 then
+        call SetUnitAbilityLevel(d, abil, lvl)
+    endif
     call IssueTargetOrderById(d, ord, target)
     call Dummy_RecycleTimed(d, 1.00, abil)
     set d = null
+endfunction
+
+function Dummy_CastTarget takes player p, integer abil, integer ord, unit target returns nothing
+    call Dummy_CastTargetLevel(p, abil, 1, ord, target)
 endfunction
 
 function Stun_Bolt takes player p, unit target returns nothing
@@ -1900,6 +1917,114 @@ function SoulStrike_Launch takes unit caster, real tx, real ty returns nothing
 endfunction
 
 //===========================================================================
+// Energy Arrow "EA" (ability 'A02P') - line missile that grows stronger the
+// farther it flies (+35 damage / +1 stun level per 270 range, max 3000).
+// On striking an enemy it detonates: 250-radius AoE damage + leveled stun.
+//===========================================================================
+function EA_OnHit takes nothing returns boolean
+    local integer i = EV_MISSILE
+    local integer lvl
+    local player p
+    local unit u
+    if (not IsUnitEnemy(EV_UNIT, GetOwningPlayer(Msl_Owner[i]))) or GetUnitAbilityLevel(EV_UNIT, 'A00A') > 0 then
+        return false
+    endif
+    set p = GetOwningPlayer(Msl_Owner[i])
+    set lvl = R2I(Msl_Dist[i] / 270.00)
+    call GroupEnumUnitsInRange(Eng_Enum, GetUnitX(EV_UNIT), GetUnitY(EV_UNIT), 250.00, null)
+    loop
+        set u = FirstOfGroup(Eng_Enum)
+        exitwhen u == null
+        call GroupRemoveUnit(Eng_Enum, u)
+        if GetWidgetLife(u) > 0.405 and not IsUnitType(u, UNIT_TYPE_STRUCTURE) and not Eng_IsDummyType(GetUnitTypeId(u)) and IsUnitAlly(u, GetOwningPlayer(EV_UNIT)) and GetUnitAbilityLevel(u, 'A00A') == 0 then
+            call UnitDamageTarget(Msl_Owner[i], u, 500.00 + 35.00 * I2R(lvl), true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_NORMAL, WEAPON_TYPE_WHOKNOWS)
+            if lvl > 1 then
+                call Dummy_CastTargetLevel(p, 'A059', lvl, Eng_OrdThunderbolt, u)
+            else
+                call Dummy_CastTargetLevel(p, 'A059', 1, Eng_OrdThunderbolt, u)
+            endif
+        endif
+    endloop
+    set u = null
+    set p = null
+    return true
+endfunction
+
+function EA_Launch takes unit caster, real tx, real ty returns nothing
+    local integer i = Missile_LaunchXY(caster, GetUnitX(caster), GetUnitY(caster), tx, ty, 1000.00, 3000.00, 125.00, 'e000', "", Eaw_OnHit, null)
+    call SetUnitFlyHeight(Msl_Dummy[i], 70.00, 0.00)
+endfunction
+
+//===========================================================================
+// Freezing Blast (ability 'A043', levels via 'A000') - ice shards rain at
+// random points around the caster's current position every 0.2s. Each shard
+// lands at its own random radius (the old version rolled one radius per cast)
+// and damages enemies within 300. Config: udg_C_* set in Configuration.
+//===========================================================================
+function Fbz_Alloc takes nothing returns integer
+    if Fbz_FreeN > 0 then
+        set Fbz_FreeN = Fbz_FreeN - 1
+        return Fbz_FreeList[Fbz_FreeN + 1]
+    endif
+    set Fbz_Max = Fbz_Max + 1
+    return Fbz_Max
+endfunction
+
+function FreezingBlast_Launch takes unit caster returns nothing
+    local integer i = Fbz_Alloc()
+    set Fbz_Caster[i] = caster
+    set Fbz_Shards[i] = R2I(udg_C_ShardAmount * I2R(GetUnitAbilityLevel(caster, 'A000')) + 0.50)
+    set Fbz_Acc[i] = 0.00
+    set Fbz_N = Fbz_N + 1
+    set Fbz_List[Fbz_N] = i
+endfunction
+
+function Fbz_Tick takes nothing returns nothing
+    local integer k = Fbz_N
+    local integer i
+    local real a
+    local real r
+    local real px
+    local real py
+    local unit u
+    loop
+        exitwhen k < 1
+        set i = Fbz_List[k]
+        set Fbz_Acc[i] = Fbz_Acc[i] + Eng_TickRate
+        if Fbz_Caster[i] == null or GetUnitTypeId(Fbz_Caster[i]) == 0 then
+            set Fbz_Shards[i] = 0
+        elseif Fbz_Acc[i] >= 0.20 then
+            set Fbz_Acc[i] = Fbz_Acc[i] - 0.20
+            set Fbz_Shards[i] = Fbz_Shards[i] - 1
+            set a = GetRandomReal(0.00, 6.28318)
+            set r = GetRandomReal(100.00, I2R(udg_C_DamageArea_int))
+            set px = GetUnitX(Fbz_Caster[i]) + r * Cos(a)
+            set py = GetUnitY(Fbz_Caster[i]) + r * Sin(a)
+            call SFX_Point(udg_C_SFX_SpellPathString, px, py)
+            set r = udg_C_Damage * I2R(GetUnitAbilityLevel(Fbz_Caster[i], 'A000'))
+            call GroupEnumUnitsInRange(Eng_Enum, px, py, 300.00, null)
+            loop
+                set u = FirstOfGroup(Eng_Enum)
+                exitwhen u == null
+                call GroupRemoveUnit(Eng_Enum, u)
+                if GetWidgetLife(u) > 0.405 and IsUnitEnemy(u, GetOwningPlayer(Fbz_Caster[i])) and not Eng_IsDummyType(GetUnitTypeId(u)) then
+                    call UnitDamageTarget(Fbz_Caster[i], u, r, true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_NORMAL, WEAPON_TYPE_WHOKNOWS)
+                endif
+            endloop
+        endif
+        if Fbz_Shards[i] <= 0 then
+            set Fbz_Caster[i] = null
+            set Fbz_FreeN = Fbz_FreeN + 1
+            set Fbz_FreeList[Fbz_FreeN] = i
+            set Fbz_List[k] = Fbz_List[Fbz_N]
+            set Fbz_N = Fbz_N - 1
+        endif
+        set k = k - 1
+    endloop
+    set u = null
+endfunction
+
+//===========================================================================
 // HookCore - Pudge's Meat Hook v2.
 //  * Caster is NEVER paused and can move freely the whole time.
 //  * Chain is re-laid every tick from the caster's CURRENT position to the
@@ -2111,6 +2236,7 @@ function Eng_MasterTick takes nothing returns nothing
     call Rcy_Tick()
     call Msl_Tick()
     call Hk_Tick()
+    call Fbz_Tick()
 endfunction
 
 function Engine_Init takes nothing returns nothing
@@ -2133,6 +2259,8 @@ function Engine_Init takes nothing returns nothing
     call TriggerAddCondition(Prc_OnTick, Condition(function PiercingShot_OnTick))
     set Sos_OnTick = CreateTrigger()
     call TriggerAddCondition(Sos_OnTick, Condition(function SoulStrike_OnTick))
+    set Eaw_OnHit = CreateTrigger()
+    call TriggerAddCondition(Eaw_OnHit, Condition(function EA_OnHit))
     call TimerStart(Eng_Timer, Eng_TickRate, true, function Eng_MasterTick)
 endfunction
 
@@ -9595,34 +9723,9 @@ endfunction
 //===========================================================================
 // Trigger: EA Start
 //===========================================================================
-function Trig_EA_Start_Func001C takes nothing returns boolean
-    if ( not ( udg_MUI1 == 0 ) ) then
-        return false
-    endif
-    return true
-endfunction
-
+// Migrated to TIDES ENGINE MissileCore - see EA_Launch / EA_OnHit.
 function Trig_EA_Start_Actions takes nothing returns nothing
-    if ( Trig_EA_Start_Func001C() ) then
-        call EnableTrigger( gg_trg_EA_Movement )
-    else
-    endif
-    set udg_MUI1 = ( udg_MUI1 + 1 )
-    set udg_MUI2 = ( udg_MUI2 + 1 )
-    set udg_EA_cUnit[udg_MUI2] = GetTriggerUnit()
-    set udg_EA_Damage[udg_MUI2] = 500.00
-    set udg_EA_cPoint[udg_MUI2] = GetUnitLoc(GetTriggerUnit())
-    set udg_EA_tPoint = GetSpellTargetLoc()
-    set udg_EA_Angle[udg_MUI2] = AngleBetweenPoints(udg_EA_cPoint[udg_MUI2], udg_EA_tPoint)
-    set udg_EA_Distance[udg_MUI2] = 0.00
-    call CreateNUnitsAtLocFacingLocBJ( 1, 'e000', GetOwningPlayer(GetTriggerUnit()), udg_EA_cPoint[udg_MUI2], udg_EA_tPoint )
-    call SetUnitPathing( GetLastCreatedUnit(), false )
-    set udg_EA_Dummy[udg_MUI2] = GetLastCreatedUnit()
-    call SetUnitFlyHeightBJ( udg_EA_Dummy[udg_MUI2], 70.00, 0.00 )
-    set udg_EA_Timer[udg_MUI2] = 0.00
-    set udg_EA_Level[udg_MUI2] = 0
-    call RemoveLocation (udg_EA_tPoint)
-        call RemoveLocation(udg_EA_cPoint[udg_MUI2])
+    call EA_Launch(GetTriggerUnit(), GetSpellTargetX(), GetSpellTargetY())
 endfunction
 
 //===========================================================================
@@ -9634,154 +9737,9 @@ endfunction
 //===========================================================================
 // Trigger: EA Movement
 //===========================================================================
-function Trig_EA_Movement_Func001Func007C takes nothing returns boolean
-    if ( not ( udg_EA_Timer[udg_MUI3] >= 27.00 ) ) then
-        return false
-    endif
-    return true
-endfunction
+// Retired: EA arrow loop replaced by MissileCore (EA_Launch / EA_OnHit).
 
-function Trig_EA_Movement_Func001Func008002003001 takes nothing returns boolean
-    return ( IsUnitType(GetFilterUnit(), UNIT_TYPE_STRUCTURE) == false )
-endfunction
-
-function Trig_EA_Movement_Func001Func008002003002001 takes nothing returns boolean
-    return ( IsUnitAliveBJ(GetFilterUnit()) == true )
-endfunction
-
-function Trig_EA_Movement_Func001Func008002003002002001 takes nothing returns boolean
-    return ( GetUnitAbilityLevelSwapped('A00A', GetFilterUnit()) < 1 )
-endfunction
-
-function Trig_EA_Movement_Func001Func008002003002002002 takes nothing returns boolean
-    return ( IsUnitEnemy(GetFilterUnit(), GetOwningPlayer(udg_EA_Dummy[udg_MUI3])) == true )
-endfunction
-
-function Trig_EA_Movement_Func001Func008002003002002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_EA_Movement_Func001Func008002003002002001(), Trig_EA_Movement_Func001Func008002003002002002() )
-endfunction
-
-function Trig_EA_Movement_Func001Func008002003002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_EA_Movement_Func001Func008002003002001(), Trig_EA_Movement_Func001Func008002003002002() )
-endfunction
-
-function Trig_EA_Movement_Func001Func008002003 takes nothing returns boolean
-    return GetBooleanAnd( Trig_EA_Movement_Func001Func008002003001(), Trig_EA_Movement_Func001Func008002003002() )
-endfunction
-
-function Trig_EA_Movement_Func001Func010Func002001003001 takes nothing returns boolean
-    return ( IsUnitType(GetFilterUnit(), UNIT_TYPE_STRUCTURE) == false )
-endfunction
-
-function Trig_EA_Movement_Func001Func010Func002001003002001 takes nothing returns boolean
-    return ( IsUnitAliveBJ(GetFilterUnit()) == true )
-endfunction
-
-function Trig_EA_Movement_Func001Func010Func002001003002002001 takes nothing returns boolean
-    return ( IsUnitAlly(GetFilterUnit(), GetOwningPlayer(udg_EA_HitUnit)) == true )
-endfunction
-
-function Trig_EA_Movement_Func001Func010Func002001003002002002 takes nothing returns boolean
-    return ( GetUnitAbilityLevelSwapped('A00A', GetFilterUnit()) < 1 )
-endfunction
-
-function Trig_EA_Movement_Func001Func010Func002001003002002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_EA_Movement_Func001Func010Func002001003002002001(), Trig_EA_Movement_Func001Func010Func002001003002002002() )
-endfunction
-
-function Trig_EA_Movement_Func001Func010Func002001003002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_EA_Movement_Func001Func010Func002001003002001(), Trig_EA_Movement_Func001Func010Func002001003002002() )
-endfunction
-
-function Trig_EA_Movement_Func001Func010Func002001003 takes nothing returns boolean
-    return GetBooleanAnd( Trig_EA_Movement_Func001Func010Func002001003001(), Trig_EA_Movement_Func001Func010Func002001003002() )
-endfunction
-
-function Trig_EA_Movement_Func001Func010Func002A takes nothing returns nothing
-    call UnitDamageTargetBJ( udg_EA_Dummy[udg_MUI3], udg_EA_HitUnit, udg_EA_Damage[udg_MUI3], ATTACK_TYPE_NORMAL, DAMAGE_TYPE_NORMAL )
-    call CreateNUnitsAtLoc( 1, 'h005', GetOwningPlayer(udg_EA_Dummy[udg_MUI3]), GetUnitLoc(GetEnumUnit()), bj_UNIT_FACING )
-    call UnitAddAbilityBJ( 'A059', GetLastCreatedUnit() )
-    call SetUnitAbilityLevelSwapped( 'A059', GetLastCreatedUnit(), udg_EA_Level[udg_MUI3] )
-    call IssueTargetOrderBJ( GetLastCreatedUnit(), "thunderbolt", GetEnumUnit() )
-    call UnitApplyTimedLifeBJ( 3.00, 'BTLF', GetLastCreatedUnit() )
-    call KillUnit( udg_EA_Dummy[udg_MUI3] )
-endfunction
-
-function Trig_EA_Movement_Func001Func010Func009C takes nothing returns boolean
-    if ( ( RectContainsUnit(GetPlayableMapRect(), udg_EA_Dummy[udg_MUI3]) == false ) ) then
-        return true
-    endif
-    if ( ( udg_EA_Distance[udg_MUI3] >= 3000.00 ) ) then
-        return true
-    endif
-    if ( ( udg_EA_HitUnit != null ) ) then
-        return true
-    endif
-    return false
-endfunction
-
-function Trig_EA_Movement_Func001Func010C takes nothing returns boolean
-    if ( not Trig_EA_Movement_Func001Func010Func009C() ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_EA_Movement_Func002C takes nothing returns boolean
-    if ( not ( udg_MUI1 == 0 ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_EA_Movement_Actions takes nothing returns nothing
-    set udg_MUI3 = 1
-    loop
-        exitwhen udg_MUI3 > udg_MUI2
-        set udg_EA_bPoint[udg_MUI3] = GetUnitLoc(udg_EA_Dummy[udg_MUI3])
-        set udg_EA_mPoint[udg_MUI3] = PolarProjectionBJ(udg_EA_bPoint[udg_MUI3], 30.00, udg_EA_Angle[udg_MUI3])
-        set udg_EA_Angle[udg_MUI3] = AngleBetweenPoints(udg_EA_cPoint[udg_MUI3], udg_EA_mPoint[udg_MUI3])
-        call SetUnitPositionLoc( udg_EA_Dummy[udg_MUI3], udg_EA_mPoint[udg_MUI3] )
-        set udg_EA_Distance[udg_MUI3] = DistanceBetweenPoints(udg_EA_cPoint[udg_MUI3], udg_EA_mPoint[udg_MUI3])
-        set udg_EA_Timer[udg_MUI3] = ( udg_EA_Timer[udg_MUI3] + 3.00 )
-        if ( Trig_EA_Movement_Func001Func007C() ) then
-            set udg_EA_Level[udg_MUI3] = ( udg_EA_Level[udg_MUI3] + 1 )
-            set udg_EA_Damage[udg_MUI3] = ( udg_EA_Damage[udg_MUI3] + 35.00 )
-            set udg_EA_Timer[udg_MUI3] = 0.00
-        else
-        endif
-        set udg_EA_Targets[udg_MUI3] = GetUnitsInRangeOfLocMatching(125.00, udg_EA_mPoint[udg_MUI3], Condition(function Trig_EA_Movement_Func001Func008002003))
-        set udg_EA_HitUnit = FirstOfGroup(udg_EA_Targets[udg_MUI3])
-        if ( Trig_EA_Movement_Func001Func010C() ) then
-            set bj_wantDestroyGroup = true
-            call ForGroupBJ( GetUnitsInRangeOfLocMatching(250.00, GetUnitLoc(udg_EA_HitUnit), Condition(function Trig_EA_Movement_Func001Func010Func002001003)), function Trig_EA_Movement_Func001Func010Func002A )
-            set udg_EA_Dummy[udg_MUI3] = null
-            set udg_EA_Timer[udg_MUI3] = 0.00
-            call RemoveLocation (udg_EA_cPoint[udg_MUI3])
-            set udg_MUI1 = ( udg_MUI1 - 1 )
-            set udg_EA_Damage[udg_MUI3] = 250.00
-            call KillUnit( udg_EA_Dummy[udg_MUI3] )
-        else
-        endif
-        call DestroyGroup (udg_EA_Targets[udg_MUI3])
-        set udg_EA_HitUnit = null
-        call RemoveLocation (udg_EA_bPoint[udg_MUI3])
-        call RemoveLocation (udg_EA_mPoint[udg_MUI3])
-        set udg_MUI3 = udg_MUI3 + 1
-    endloop
-    if ( Trig_EA_Movement_Func002C() ) then
-        set udg_MUI2 = 0
-        call DisableTrigger( GetTriggeringTrigger() )
-    else
-    endif
-endfunction
-
-//===========================================================================
 function InitTrig_EA_Movement takes nothing returns nothing
-    set gg_trg_EA_Movement = CreateTrigger(  )
-    call DisableTrigger( gg_trg_EA_Movement )
-    call TriggerRegisterTimerEventPeriodic( gg_trg_EA_Movement, 0.03 )
-    call TriggerAddAction( gg_trg_EA_Movement, function Trig_EA_Movement_Actions )
 endfunction
 
 //===========================================================================
@@ -12071,29 +12029,9 @@ endfunction
 //===========================================================================
 // Trigger: Freezing Blast
 //===========================================================================
-function Trig_Freezing_Blast_Func002C takes nothing returns boolean
-    if ( not ( udg_C_IndexSize > udg_C_IndexMaxSize ) ) then
-        return false
-    endif
-    return true
-endfunction
-
+// Migrated to TIDES ENGINE shard channel - see FreezingBlast_Launch / Fbz_Tick.
 function Trig_Freezing_Blast_Actions takes nothing returns nothing
-    set udg_C_IndexSize = ( udg_C_IndexSize + 1 )
-    if ( Trig_Freezing_Blast_Func002C() ) then
-        set udg_C_Index[udg_C_IndexSize] = udg_C_IndexSize
-        set udg_C_IndexMaxSize = udg_C_IndexSize
-    else
-    endif
-    set udg_C_Integer = udg_C_Index[udg_C_IndexSize]
-    set udg_C_Caster[udg_C_Integer] = GetTriggerUnit()
-    set udg_C_AoE = udg_C_DamageArea_int
-    set udg_C_AoE_A = GetRandomReal(100.00, I2R(udg_C_AoE))
-    set udg_C_RealShardAmount[udg_C_Integer] = ( udg_C_ShardAmount * I2R(GetUnitAbilityLevelSwapped('A000', udg_C_Caster[udg_C_Integer])) )
-    call EnableTrigger( gg_trg_FB )
-    // -----------------------------------------------------------------------------------------------------------
-    // DO NOT TOUCH ANYTHING ABOVE
-    // -----------------------------------------------------------------------------------------------------------
+    call FreezingBlast_Launch(GetTriggerUnit())
 endfunction
 
 //===========================================================================
@@ -12105,65 +12043,8 @@ endfunction
 //===========================================================================
 // Trigger: FB
 //===========================================================================
-function Trig_FB_Func001Func002Func005002003 takes nothing returns boolean
-    return ( IsUnitEnemy(GetFilterUnit(), GetOwningPlayer(udg_C_Caster[udg_C_Integer])) == true )
-endfunction
-
-function Trig_FB_Func001Func002Func008A takes nothing returns nothing
-    call UnitDamageTargetBJ( udg_C_Caster[udg_C_Integer], GetEnumUnit(), udg_C_RealDamage, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_NORMAL )
-endfunction
-
-function Trig_FB_Func001Func002Func016C takes nothing returns boolean
-    if ( not ( udg_C_IndexSize == 0 ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_FB_Func001Func002C takes nothing returns boolean
-    if ( not ( udg_C_RealShardAmount[udg_C_Integer] <= 0.00 ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_FB_Actions takes nothing returns nothing
-    set udg_C_Loop = 1
-    loop
-        exitwhen udg_C_Loop > udg_C_IndexSize
-        set udg_C_Integer = udg_C_Index[udg_C_Loop]
-        if ( Trig_FB_Func001Func002C() ) then
-            set udg_C_Index[udg_C_Loop] = udg_C_Index[udg_C_IndexSize]
-            set udg_C_Index[udg_C_IndexSize] = udg_C_Integer
-            set udg_C_IndexSize = ( udg_C_IndexSize - 1 )
-            set udg_C_Loop = ( udg_C_Loop - 1 )
-            if ( Trig_FB_Func001Func002Func016C() ) then
-                call DisableTrigger( GetTriggeringTrigger() )
-            else
-            endif
-        else
-            set udg_C_RealShardAmount[udg_C_Integer] = ( udg_C_RealShardAmount[udg_C_Integer] - 1 )
-            set udg_C_RealDamage = ( udg_C_Damage * I2R(GetUnitAbilityLevelSwapped('A000', udg_C_Caster[udg_C_Integer])) )
-            set udg_C_CasterPosition = GetUnitLoc(udg_C_Caster[udg_C_Integer])
-            set udg_C_DamagePoints = PolarProjectionBJ(udg_C_CasterPosition, udg_C_AoE_A, GetRandomDirectionDeg())
-            set udg_C_DamageUnits = GetUnitsInRangeOfLocMatching(300.00, udg_C_DamagePoints, Condition(function Trig_FB_Func001Func002Func005002003))
-            call AddSpecialEffectLocBJ( udg_C_DamagePoints, udg_C_SFX_SpellPathString )
-            call DestroyEffectBJ( GetLastCreatedEffectBJ() )
-            call ForGroupBJ( udg_C_DamageUnits, function Trig_FB_Func001Func002Func008A )
-            call RemoveLocation(udg_C_CasterPosition)
-            call RemoveLocation(udg_C_DamagePoints)
-            call DestroyGroup(udg_C_DamageUnits)
-        endif
-        set udg_C_Loop = udg_C_Loop + 1
-    endloop
-endfunction
-
-//===========================================================================
+// Retired: shard loop replaced by the engine's Fbz channel.
 function InitTrig_FB takes nothing returns nothing
-    set gg_trg_FB = CreateTrigger(  )
-    call DisableTrigger( gg_trg_FB )
-    call TriggerRegisterTimerEventPeriodic( gg_trg_FB, 0.20 )
-    call TriggerAddAction( gg_trg_FB, function Trig_FB_Actions )
 endfunction
 
 //===========================================================================
