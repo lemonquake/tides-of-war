@@ -57,13 +57,15 @@ Hook ('A03B'), Torpedo ('A02K'), Piercing Shot ('A03F'), Soul Strike ('A032'), E
 
 ## 3. What to do NEXT (in order)
 
-### 3a. Burn down the 81 remaining location-leak functions (fast wins)
-The validator baseline is 81. Full hit-list (name @ line, as of HEAD — lines drift, re-run the lister):
+### 3a. Burn down the 71 remaining location-leak functions (fast wins)
+The validator baseline is 71. Full hit-list (name @ line, as of HEAD — lines drift, re-run the lister):
 ```
 python -c "<see git log batch 5 era or re-derive>"   # or just re-run: the one-liner lives in the session notes
 ```
 Priority combat leaks (each is an `_Actions` passing inline `GetUnitLoc(...)` to enum/SFX BJs — rewrite with `GroupEnumUnitsInRange(Eng_Enum, GetUnitX..., ...)` + `FirstOfGroup` loop like the Starfall/Divine Light rewrites at ~line 9400):
-`Trig_Echo_Slam_Actions`+`Func007A` (7848), `Trig_Smite_Actions` (8379), `Trig_Impale_Actions` (8662), `Trig_Hell_Blast_250/450/750_*` (9422-9540 — three copies of one spell, unify to one function reading level), `Trig_Take_Aim_Actions`, `Trig_Tidal_Strike_Func004A`, `Trig_Vileplume/Poison_Fumes/Butterfree/Blaziken_Actions` (13028-13168), `Trig_Overload_Actions`, `Trig_Fury1_Actions`, `Trig_Mortar_fire_Actions`, `Trig_AoT_Cast_Actions`, Revive a/b/c, Behavior1/3, P2-P8 skill AI conds.
+`Trig_Take_Aim_Actions`, `Trig_Tidal_Strike_Func004A`, `Trig_Vileplume/Poison_Fumes/Butterfree/Blaziken_Actions` (13028-13168), `Trig_Overload_Actions`, `Trig_Fury1_Actions`, `Trig_Mortar_fire_Actions`, `Trig_AoT_Cast_Actions`, Revive a/b/c, Behavior1/3, P2-P8 skill AI conds.
+
+Completed in leak-scrub batch 6: Echo Slam, Smite, Impale, and all three Hell Blast rawcodes now use native XY enumeration and pooled dummies; Hell Blast shares one implementation. Location warnings: 81 → 71.
 False positives to allowlist mentally: `config`, `InitCustomPlayerSlots`, `CreateNeutralPassiveBuildings` (substring matches).
 After each burn-down, lower `leak_baseline.txt`.
 

@@ -1593,7 +1593,7 @@ endfunction
 // Target validation shared by all engine collision checks.
 //===========================================================================
 function Eng_IsDummyType takes integer t returns boolean
-    return t == 'h005' or t == 'h00Q' or t == 'h00R' or t == 'e002' or t == 'h00Y'
+    return t == 'h005' or t == 'h00Q' or t == 'h00R' or t == 'e002' or t == 'h00Y' or t == 'hrif' or t == 'hgry'
 endfunction
 
 function Eng_ValidTarget takes unit u, player castOwner returns boolean
@@ -7818,41 +7818,36 @@ endfunction
 //===========================================================================
 // Trigger: Echo Slam
 //===========================================================================
-function Trig_Echo_Slam_Func007001003001 takes nothing returns boolean
-    return ( IsUnitAliveBJ(GetFilterUnit()) == true )
-endfunction
-
-function Trig_Echo_Slam_Func007001003002001 takes nothing returns boolean
-    return ( IsUnitType(GetFilterUnit(), UNIT_TYPE_STRUCTURE) == false )
-endfunction
-
-function Trig_Echo_Slam_Func007001003002002 takes nothing returns boolean
-    return ( GetUnitAbilityLevelSwapped('A00A', GetFilterUnit()) < 1 )
-endfunction
-
-function Trig_Echo_Slam_Func007001003002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Echo_Slam_Func007001003002001(), Trig_Echo_Slam_Func007001003002002() )
-endfunction
-
-function Trig_Echo_Slam_Func007001003 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Echo_Slam_Func007001003001(), Trig_Echo_Slam_Func007001003002() )
-endfunction
-
-function Trig_Echo_Slam_Func007A takes nothing returns nothing
-    call CreateNUnitsAtLoc( 1, 'h005', GetOwningPlayer(GetTriggerUnit()), GetUnitLoc(GetEnumUnit()), bj_UNIT_FACING )
-    call UnitAddAbilityBJ( 'A101', GetLastCreatedUnit() )
-    call IssueImmediateOrderBJ( GetLastCreatedUnit(), "fanofknives" )
-    call UnitApplyTimedLifeBJ( 1.00, 'BTLF', GetLastCreatedUnit() )
-endfunction
-
+// Rewritten on TIDES ENGINE: native terrain deformation, pooled casters, and
+// one reused enumeration group replace every temporary location/group.
 function Trig_Echo_Slam_Actions takes nothing returns nothing
-    call TerrainDeformationRippleBJ( 2.00, false, GetUnitLoc(GetTriggerUnit()), 400.00, 400.00, 70.00, 0.30, 400.00 )
-    call CreateNUnitsAtLoc( 1, 'h005', GetOwningPlayer(GetTriggerUnit()), GetUnitLoc(GetTriggerUnit()), bj_UNIT_FACING )
-    call UnitAddAbilityBJ( 'A070', GetLastCreatedUnit() )
-    call IssueImmediateOrderBJ( GetLastCreatedUnit(), "fanofknives" )
-    call UnitApplyTimedLifeBJ( 1.00, 'BTLF', GetLastCreatedUnit() )
-    set bj_wantDestroyGroup = true
-    call ForGroupBJ( GetUnitsInRangeOfLocMatching(400.00, GetUnitLoc(GetTriggerUnit()), Condition(function Trig_Echo_Slam_Func007001003)), function Trig_Echo_Slam_Func007A )
+    local unit caster = GetTriggerUnit()
+    local player p = GetOwningPlayer(caster)
+    local unit u
+    local unit d
+    local real x = GetUnitX(caster)
+    local real y = GetUnitY(caster)
+    set bj_lastCreatedTerrainDeformation = TerrainDeformRipple(x, y, 400.00, 70.00, 2000, 1, 2.00, 13.333333, 1.00, false)
+    set d = Dummy_Get(p, 'h005', x, y, bj_UNIT_FACING)
+    call UnitAddAbility(d, 'A070')
+    call IssueImmediateOrder(d, "fanofknives")
+    call Dummy_RecycleTimed(d, 1.00, 'A070')
+    call GroupEnumUnitsInRange(Eng_Enum, x, y, 400.00, null)
+    loop
+        set u = FirstOfGroup(Eng_Enum)
+        exitwhen u == null
+        call GroupRemoveUnit(Eng_Enum, u)
+        if GetWidgetLife(u) > 0.405 and not IsUnitType(u, UNIT_TYPE_STRUCTURE) and GetUnitAbilityLevel(u, 'A00A') < 1 then
+            set d = Dummy_Get(p, 'h005', GetUnitX(u), GetUnitY(u), bj_UNIT_FACING)
+            call UnitAddAbility(d, 'A101')
+            call IssueImmediateOrder(d, "fanofknives")
+            call Dummy_RecycleTimed(d, 1.00, 'A101')
+        endif
+    endloop
+    set caster = null
+    set p = null
+    set u = null
+    set d = null
 endfunction
 
 //===========================================================================
@@ -8350,35 +8345,27 @@ endfunction
 //===========================================================================
 // Trigger: Smite
 //===========================================================================
-function Trig_Smite_Func002001003001 takes nothing returns boolean
-    return ( IsUnitType(GetFilterUnit(), UNIT_TYPE_STRUCTURE) == false )
-endfunction
-
-function Trig_Smite_Func002001003002001 takes nothing returns boolean
-    return ( IsUnitAliveBJ(GetFilterUnit()) == true )
-endfunction
-
-function Trig_Smite_Func002001003002002 takes nothing returns boolean
-    return ( IsUnitEnemy(GetFilterUnit(), GetOwningPlayer(GetTriggerUnit())) == true )
-endfunction
-
-function Trig_Smite_Func002001003002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Smite_Func002001003002001(), Trig_Smite_Func002001003002002() )
-endfunction
-
-function Trig_Smite_Func002001003 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Smite_Func002001003001(), Trig_Smite_Func002001003002() )
-endfunction
-
-function Trig_Smite_Func002A takes nothing returns nothing
-    call UnitDamageTargetBJ( GetTriggerUnit(), GetEnumUnit(), ( 150.00 + ( 2.00 * I2R(GetHeroStatBJ(bj_HEROSTAT_STR, GetSpellTargetUnit(), true)) ) ), ATTACK_TYPE_HERO, DAMAGE_TYPE_NORMAL )
-    call AddSpecialEffectTargetUnitBJ( "origin", GetEnumUnit(), "war3mapImported\\AquaSpike.mdx" )
-    call DestroyEffectBJ( GetLastCreatedEffectBJ() )
-endfunction
-
+// Rewritten on TIDES ENGINE: native XY enumeration and one-shot SFX.
 function Trig_Smite_Actions takes nothing returns nothing
-    set bj_wantDestroyGroup = true
-    call ForGroupBJ( GetUnitsInRangeOfLocMatching(300.00, GetUnitLoc(GetSpellTargetUnit()), Condition(function Trig_Smite_Func002001003)), function Trig_Smite_Func002A )
+    local unit caster = GetTriggerUnit()
+    local unit target = GetSpellTargetUnit()
+    local unit u
+    local player p = GetOwningPlayer(caster)
+    local real damage = 150.00 + 2.00 * I2R(GetHeroStr(target, true))
+    call GroupEnumUnitsInRange(Eng_Enum, GetUnitX(target), GetUnitY(target), 300.00, null)
+    loop
+        set u = FirstOfGroup(Eng_Enum)
+        exitwhen u == null
+        call GroupRemoveUnit(Eng_Enum, u)
+        if not IsUnitType(u, UNIT_TYPE_STRUCTURE) and GetWidgetLife(u) > 0.405 and IsUnitEnemy(u, p) then
+            call UnitDamageTarget(caster, u, damage, true, false, ATTACK_TYPE_HERO, DAMAGE_TYPE_NORMAL, WEAPON_TYPE_WHOKNOWS)
+            call SFX_Unit("war3mapImported\\AquaSpike.mdx", u, "origin")
+        endif
+    endloop
+    set caster = null
+    set target = null
+    set u = null
+    set p = null
 endfunction
 
 //===========================================================================
@@ -8659,12 +8646,17 @@ endfunction
 //===========================================================================
 // Trigger: Impale
 //===========================================================================
+// Rewritten on TIDES ENGINE: the impale caster is pooled and point targeting
+// uses native coordinates, eliminating both leaked locations per cast.
 function Trig_Impale_Actions takes nothing returns nothing
-    call CreateNUnitsAtLoc( 1, 'hrif', GetOwningPlayer(GetTriggerUnit()), GetUnitLoc(GetTriggerUnit()), bj_UNIT_FACING )
-    call UnitAddAbilityBJ( 'A011', GetLastCreatedUnit() )
-    call SetUnitAbilityLevelSwapped( 'A011', GetLastCreatedUnit(), GetUnitAbilityLevelSwapped('A017', GetTriggerUnit()) )
-    call IssuePointOrderLocBJ( GetLastCreatedUnit(), "impale", GetSpellTargetLoc() )
-    call UnitApplyTimedLifeBJ( 2.50, 'BTLF', GetLastCreatedUnit() )
+    local unit caster = GetTriggerUnit()
+    local unit d = Dummy_Get(GetOwningPlayer(caster), 'hrif', GetUnitX(caster), GetUnitY(caster), bj_UNIT_FACING)
+    call UnitAddAbility(d, 'A011')
+    call SetUnitAbilityLevel(d, 'A011', GetUnitAbilityLevel(caster, 'A017'))
+    call IssuePointOrder(d, "impale", GetSpellTargetX(), GetSpellTargetY())
+    call Dummy_RecycleTimed(d, 2.50, 'A011')
+    set caster = null
+    set d = null
 endfunction
 
 //===========================================================================
@@ -9399,41 +9391,52 @@ endfunction
 //===========================================================================
 // Trigger: Hell Blast 250
 //===========================================================================
-function Trig_Hell_Blast_250_Func006001003001 takes nothing returns boolean
-    return ( IsUnitType(GetFilterUnit(), UNIT_TYPE_STRUCTURE) == false )
-endfunction
-
-function Trig_Hell_Blast_250_Func006001003002001 takes nothing returns boolean
-    return ( IsUnitEnemy(GetFilterUnit(), GetOwningPlayer(GetLastCreatedUnit())) == true )
-endfunction
-
-function Trig_Hell_Blast_250_Func006001003002002 takes nothing returns boolean
-    return ( GetUnitAbilityLevelSwapped('A00A', GetFilterUnit()) < 1 )
-endfunction
-
-function Trig_Hell_Blast_250_Func006001003002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Hell_Blast_250_Func006001003002001(), Trig_Hell_Blast_250_Func006001003002002() )
-endfunction
-
-function Trig_Hell_Blast_250_Func006001003 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Hell_Blast_250_Func006001003001(), Trig_Hell_Blast_250_Func006001003002() )
-endfunction
-
-function Trig_Hell_Blast_250_Func006A takes nothing returns nothing
-    call UnitDamageTargetBJ( GetTriggerUnit(), GetEnumUnit(), ( 300.00 + ( I2R(GetHeroStatBJ(bj_HEROSTAT_AGI, GetTriggerUnit(), true)) / 2.00 ) ), ATTACK_TYPE_CHAOS, DAMAGE_TYPE_ENHANCED )
-    call CreateNUnitsAtLoc( 1, 'hgry', GetOwningPlayer(GetTriggerUnit()), GetUnitLoc(GetEnumUnit()), bj_UNIT_FACING )
-    call UnitAddAbilityBJ( 'A01R', GetLastCreatedUnit() )
-    call UnitApplyTimedLifeBJ( 0.50, 'BTLF', GetLastCreatedUnit() )
-    call IssueTargetOrderBJ( GetLastCreatedUnit(), "slow", GetEnumUnit() )
+// All three rawcodes share one implementation; the ability id selects the
+// original reach and agility divisor.
+function HellBlast_Cast takes unit caster returns nothing
+    local integer abil = GetSpellAbilityId()
+    local real distance = 250.00
+    local real divisor = 2.00
+    local real a = GetUnitFacing(caster) * bj_DEGTORAD
+    local real x
+    local real y
+    local real damage
+    local player p = GetOwningPlayer(caster)
+    local unit u
+    local unit d
+    if abil == 'A01C' then
+        set distance = 450.00
+        set divisor = 3.00
+    elseif abil == 'A01D' then
+        set distance = 750.00
+        set divisor = 5.00
+    endif
+    set x = GetUnitX(caster) + distance * Cos(a)
+    set y = GetUnitY(caster) + distance * Sin(a)
+    set damage = 300.00 + I2R(GetHeroAgi(caster, true)) / RMaxBJ(divisor, 0.01)
+    call SFX_Point("Abilities\\Spells\\Other\\Doom\\DoomDeath.mdl", x, y)
+    set d = Dummy_Get(p, 'hgry', x, y, bj_UNIT_FACING)
+    call Dummy_RecycleTimed(d, 1.00, 0)
+    call GroupEnumUnitsInRange(Eng_Enum, x, y, 300.00, null)
+    loop
+        set u = FirstOfGroup(Eng_Enum)
+        exitwhen u == null
+        call GroupRemoveUnit(Eng_Enum, u)
+        if not IsUnitType(u, UNIT_TYPE_STRUCTURE) and IsUnitEnemy(u, p) and GetUnitAbilityLevel(u, 'A00A') < 1 then
+            call UnitDamageTarget(caster, u, damage, true, false, ATTACK_TYPE_CHAOS, DAMAGE_TYPE_ENHANCED, WEAPON_TYPE_WHOKNOWS)
+            set d = Dummy_Get(p, 'hgry', GetUnitX(u), GetUnitY(u), bj_UNIT_FACING)
+            call UnitAddAbility(d, 'A01R')
+            call IssueTargetOrder(d, "slow", u)
+            call Dummy_RecycleTimed(d, 0.50, 'A01R')
+        endif
+    endloop
+    set p = null
+    set u = null
+    set d = null
 endfunction
 
 function Trig_Hell_Blast_250_Actions takes nothing returns nothing
-    call AddSpecialEffectLocBJ( PolarProjectionBJ(GetUnitLoc(GetTriggerUnit()), 250.00, GetUnitFacing(GetTriggerUnit())), "Abilities\\Spells\\Other\\Doom\\DoomDeath.mdl" )
-    call DestroyEffectBJ( GetLastCreatedEffectBJ() )
-    call CreateNUnitsAtLoc( 1, 'hgry', GetOwningPlayer(GetTriggerUnit()), PolarProjectionBJ(GetUnitLoc(GetTriggerUnit()), 250.00, GetUnitFacing(GetTriggerUnit())), bj_UNIT_FACING )
-    call UnitApplyTimedLifeBJ( 1.00, 'BTLF', GetLastCreatedUnit() )
-    set bj_wantDestroyGroup = true
-    call ForGroupBJ( GetUnitsInRangeOfLocMatching(300.00, GetUnitLoc(GetLastCreatedUnit()), Condition(function Trig_Hell_Blast_250_Func006001003)), function Trig_Hell_Blast_250_Func006A )
+    call HellBlast_Cast(GetTriggerUnit())
 endfunction
 
 //===========================================================================
@@ -9445,41 +9448,8 @@ endfunction
 //===========================================================================
 // Trigger: Hell Blast 450
 //===========================================================================
-function Trig_Hell_Blast_450_Func006001003001 takes nothing returns boolean
-    return ( IsUnitType(GetFilterUnit(), UNIT_TYPE_STRUCTURE) == false )
-endfunction
-
-function Trig_Hell_Blast_450_Func006001003002001 takes nothing returns boolean
-    return ( IsUnitEnemy(GetFilterUnit(), GetOwningPlayer(GetLastCreatedUnit())) == true )
-endfunction
-
-function Trig_Hell_Blast_450_Func006001003002002 takes nothing returns boolean
-    return ( GetUnitAbilityLevelSwapped('A00A', GetFilterUnit()) < 1 )
-endfunction
-
-function Trig_Hell_Blast_450_Func006001003002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Hell_Blast_450_Func006001003002001(), Trig_Hell_Blast_450_Func006001003002002() )
-endfunction
-
-function Trig_Hell_Blast_450_Func006001003 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Hell_Blast_450_Func006001003001(), Trig_Hell_Blast_450_Func006001003002() )
-endfunction
-
-function Trig_Hell_Blast_450_Func006A takes nothing returns nothing
-    call UnitDamageTargetBJ( GetTriggerUnit(), GetEnumUnit(), ( 300.00 + ( I2R(GetHeroStatBJ(bj_HEROSTAT_AGI, GetTriggerUnit(), true)) / 3.00 ) ), ATTACK_TYPE_CHAOS, DAMAGE_TYPE_ENHANCED )
-    call CreateNUnitsAtLoc( 1, 'hgry', GetOwningPlayer(GetTriggerUnit()), GetUnitLoc(GetEnumUnit()), bj_UNIT_FACING )
-    call UnitAddAbilityBJ( 'A01R', GetLastCreatedUnit() )
-    call UnitApplyTimedLifeBJ( 0.50, 'BTLF', GetLastCreatedUnit() )
-    call IssueTargetOrderBJ( GetLastCreatedUnit(), "slow", GetEnumUnit() )
-endfunction
-
 function Trig_Hell_Blast_450_Actions takes nothing returns nothing
-    call AddSpecialEffectLocBJ( PolarProjectionBJ(GetUnitLoc(GetTriggerUnit()), 450.00, GetUnitFacing(GetTriggerUnit())), "Abilities\\Spells\\Other\\Doom\\DoomDeath.mdl" )
-    call DestroyEffectBJ( GetLastCreatedEffectBJ() )
-    call CreateNUnitsAtLoc( 1, 'hgry', GetOwningPlayer(GetTriggerUnit()), PolarProjectionBJ(GetUnitLoc(GetTriggerUnit()), 450.00, GetUnitFacing(GetTriggerUnit())), bj_UNIT_FACING )
-    call UnitApplyTimedLifeBJ( 1.00, 'BTLF', GetLastCreatedUnit() )
-    set bj_wantDestroyGroup = true
-    call ForGroupBJ( GetUnitsInRangeOfLocMatching(300.00, GetUnitLoc(GetLastCreatedUnit()), Condition(function Trig_Hell_Blast_450_Func006001003)), function Trig_Hell_Blast_450_Func006A )
+    call HellBlast_Cast(GetTriggerUnit())
 endfunction
 
 //===========================================================================
@@ -9491,41 +9461,8 @@ endfunction
 //===========================================================================
 // Trigger: Hell Blast 750
 //===========================================================================
-function Trig_Hell_Blast_750_Func006001003001 takes nothing returns boolean
-    return ( IsUnitType(GetFilterUnit(), UNIT_TYPE_STRUCTURE) == false )
-endfunction
-
-function Trig_Hell_Blast_750_Func006001003002001 takes nothing returns boolean
-    return ( IsUnitEnemy(GetFilterUnit(), GetOwningPlayer(GetLastCreatedUnit())) == true )
-endfunction
-
-function Trig_Hell_Blast_750_Func006001003002002 takes nothing returns boolean
-    return ( GetUnitAbilityLevelSwapped('A00A', GetFilterUnit()) < 1 )
-endfunction
-
-function Trig_Hell_Blast_750_Func006001003002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Hell_Blast_750_Func006001003002001(), Trig_Hell_Blast_750_Func006001003002002() )
-endfunction
-
-function Trig_Hell_Blast_750_Func006001003 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Hell_Blast_750_Func006001003001(), Trig_Hell_Blast_750_Func006001003002() )
-endfunction
-
-function Trig_Hell_Blast_750_Func006A takes nothing returns nothing
-    call UnitDamageTargetBJ( GetTriggerUnit(), GetEnumUnit(), ( 300.00 + ( I2R(GetHeroStatBJ(bj_HEROSTAT_AGI, GetTriggerUnit(), true)) / 5.00 ) ), ATTACK_TYPE_CHAOS, DAMAGE_TYPE_ENHANCED )
-    call CreateNUnitsAtLoc( 1, 'hgry', GetOwningPlayer(GetTriggerUnit()), GetUnitLoc(GetEnumUnit()), bj_UNIT_FACING )
-    call UnitAddAbilityBJ( 'A01R', GetLastCreatedUnit() )
-    call UnitApplyTimedLifeBJ( 0.50, 'BTLF', GetLastCreatedUnit() )
-    call IssueTargetOrderBJ( GetLastCreatedUnit(), "slow", GetEnumUnit() )
-endfunction
-
 function Trig_Hell_Blast_750_Actions takes nothing returns nothing
-    call AddSpecialEffectLocBJ( PolarProjectionBJ(GetUnitLoc(GetTriggerUnit()), 750.00, GetUnitFacing(GetTriggerUnit())), "Abilities\\Spells\\Other\\Doom\\DoomDeath.mdl" )
-    call DestroyEffectBJ( GetLastCreatedEffectBJ() )
-    call CreateNUnitsAtLoc( 1, 'hgry', GetOwningPlayer(GetTriggerUnit()), PolarProjectionBJ(GetUnitLoc(GetTriggerUnit()), 750.00, GetUnitFacing(GetTriggerUnit())), bj_UNIT_FACING )
-    call UnitApplyTimedLifeBJ( 1.00, 'BTLF', GetLastCreatedUnit() )
-    set bj_wantDestroyGroup = true
-    call ForGroupBJ( GetUnitsInRangeOfLocMatching(300.00, GetUnitLoc(GetLastCreatedUnit()), Condition(function Trig_Hell_Blast_750_Func006001003)), function Trig_Hell_Blast_750_Func006A )
+    call HellBlast_Cast(GetTriggerUnit())
 endfunction
 
 //===========================================================================
