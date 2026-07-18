@@ -42,11 +42,12 @@
 | Thunder Ball | `ThunderBall_Launch(caster, target)` | Invisible speed-2000 homing proxy synchronized with A04M's native ZapMissile; 30% current-life damage occurs on impact, with last-known-point cleanup. |
 | Chain Shock | `ChainShock_Launch(caster, tx, ty)` | MissileCore steering preserves the radial flight, blocked-terrain deflection, 1600 range, and 0.90-second A04G pulse cadence without the legacy CS/BL globals. |
 | Water Clone guard | GDD handler + `Wcl_HT` | Each A06P/B01Q clone independently absorbs its first damage event at full life and dies on its second regardless of source or amount; death/expiry flushes its counter. |
+| Lightning Grip | `LightningGrip_Launch(caster, tx, ty)` / `LightningGrip_StopCaster(caster)` | Per-cast gravity well: pooled h01A beacon, A06N slow aura, terrain-safe 166.67/sec pull in 500, explicit 100 pure DPS in 375, and re-entry-safe channel-end cleanup. |
 | Tremor channel | `Tremor_Launch(caster, tx, ty)` | Per-cast crater group; `Trm_Tick` expires all 17 pooled craters together and destroys the group. |
-| Heartbeat | `Eng_MasterTick` (0.025s) → `Rcy_Tick, Msl_Tick, Hk_Tick, Fbz_Tick, Cgl_Tick, Trm_Tick` | `Engine_Init()` is called from `main` after `InitGlobals`. Add new channels to both places. |
+| Heartbeat | `Eng_MasterTick` (0.025s) → `Rcy_Tick, Msl_Tick, Hk_Tick, Fbz_Tick, Cgl_Tick, Trm_Tick, LightningGrip_Tick` | `Engine_Init()` is called from `main` after `InitGlobals`. Add new channels to both places. |
 
 ### Spells migrated (cast triggers are now one-line shims; old loops are empty stubs or deleted)
-Hook ('A03B'), Torpedo ('A02K'), Piercing Shot ('A03F'), Soul Strike ('A032'), EA growing arrow ('A02P'), Freezing Blast ('A043', levels on 'A000'), Cutting Glide ('A06O', dmg on 'A002'), Tremor ('A01A'), Glacial Freeze ('A02Z'), Arrow Shower ('A00P'), Thunder Ball ('A04M'), Chain Shock ('A05O', compatibility entry 'A05P'), plus leak-free rewrites of Divine Light, Starfall, and Inferno.
+Hook ('A03B'), Torpedo ('A02K'), Piercing Shot ('A03F'), Soul Strike ('A032'), EA growing arrow ('A02P'), Freezing Blast ('A043', levels on 'A000'), Cutting Glide ('A06O', dmg on 'A002'), Tremor ('A01A'), Glacial Freeze ('A02Z'), Arrow Shower ('A00P'), Thunder Ball ('A04M'), Chain Shock ('A05O', compatibility entry 'A05P'), Lightning Grip ('A04J'), plus leak-free rewrites of Divine Light, Starfall, and Inferno.
 
 ### Spell dispatch (how casts reach the shims — keep using it)
 `Trig_Init_Trigger_Actions` (~line 17200s) maps `udg_SpellEventAbility[n]` → `udg_SpellEventTrigger[n]` (gg_trg_*). Event data (GetTriggerUnit/GetSpellTargetX/Y) survives the TriggerExecute dispatch. To migrate a spell: rewrite its `Trig_X_Actions` body as `call X_Launch(GetTriggerUnit(), GetSpellTargetX(), GetSpellTargetY())`, put the implementation in the engine section, stub its loop trigger's `InitTrig` to empty.
@@ -92,7 +93,7 @@ Completed in leak-scrub batch 15: Tremor and Inferno now use native isolated dam
 Keep `leak_baseline.txt` at zero; every new finding is now a regression.
 
 ### 3b. Migrate remaining loop spells to engine channels (pattern is established — copy an existing one)
-- **Lightning Grip** (HDS tether system ~12550 — model on HookCore's pull pattern), **Melting Strike / MS_Loop** (now sole owner of `udg_MUI_1`), **Toss Rock + Bounce**, **Repelling Ward**, **Lightning Ward** (pool 'h014').
+- **Melting Strike / MS_Loop** (now sole owner of `udg_MUI_1`), **Toss Rock + Bounce**, **Repelling Ward**, **Lightning Ward** (pool 'h014').
 - **Knockback_2D / JUMP / Leap / Warp** systems → fold into MotionCore next to `Cgl_*` (plan §10).
 
 Completed in engine-channel batch 16: Tremor now owns one crater group per cast on `Trm_Tick`. The old `Trig_TLoop` bookkeeping timer, `Trig_Tremor_D` global death listener, saved location/player/level state, and Tremor-only initialization globals are deleted. All 18 visual units are pooled; each crater applies the original overlapping delayed burst before recycling. Inferno was already reduced to a native one-shot implementation in batch 15.
@@ -105,17 +106,19 @@ Completed in engine-channel batch 19: Thunder Ball keeps A04M's native `ZapMissi
 
 Completed in engine-channel batch 20: Chain Shock now launches directly from A05O through MissileCore; A05P remains as a compatibility dispatch only. Its original 400-speed radial steering, +25-degree/333.33-speed blocked-terrain deflection, 1600 range, 0.90-second pulses, and caster teleport to the orb endpoint are preserved. Each pulse uses isolated enumeration and pooled A04G chain-lightning casters for every valid enemy in 600 range. The old h01I projectile, CS/BL globals, 0.03-second trigger, and callback tree are deleted. Water Clone was also overhauled into an amount/source-independent two-hit guard: the first GDD event restores the individual B01Q clone to full life, the second kills it, and a death listener clears stale per-handle state.
 
+Completed in engine-channel batch 21: Lightning Grip now owns one master-tick instance per A04J channel. The object-data audit confirmed a five-second/500-radius spell, h01A beacon, and A06N -55% slow aura; it also confirmed the legacy HDS path never registered its beacon, never saved its caster/timer, and multiplied damage by unrelated A000. The replacement pools h01A, removes its inherited nondeterministic A06M damage aura, pulls enemies at the old 166.67 units/sec with terrain/bounds checks, and applies the live tooltip's 100 pure DPS inside 375. Spell interruption, caster death, expiry, overlapping casts, and damage-event re-entry all cleanly destroy the instance group and recycle the beacon. The two old periodic triggers, HDS globals/groups/locations, callback tree, and stale hashtable payloads are deleted.
+
 ### 3c. Then the big layers, per plan milestones (§18)
 M3 BuffCore (§7) → finish M4 MotionCore (§10) → M5-M7 SpellCore registration + remaining batches + items (§9, §13) → M8 **WarMind AI** replacing `Trig_Player_2..10`/`P*_Att`/`P*_Skill`/Wander/Behavior1-3/KS/Retreat (§11) → xlsx→JASS codegen (§12) → M9 leak-zero polish + 60-min soak test (§17).
 
 ### 3d. Testing reminders
-No in-game test has been run yet (only static validation + successful MPQ pack). First priority for a session with the game available: load `dist/Tides_of_War_Compiled.w3x`, cast Hook while moving (spec: no pause, chain follows moving Pudge, 3000 range, multi-cast), Torpedo, Piercing Shot, Soul Strike, EA, Freezing Blast, Cutting Glide, simultaneous Tremors, Glacial Freeze against several targets, overlapping Arrow Showers, Thunder Ball against moving/dying targets, and overlapping Chain Shocks across blocked terrain. For Water Clone, test both H015/H01B forms and multiple damage sources: a massive first hit must leave the clone alive, then even a one-damage second hit must destroy it. Finish with the `-hc`-style handle soak per plan §17 (debug suite not built yet).
+No in-game test has been run yet (only static validation + successful MPQ pack). First priority for a session with the game available: load `dist/Tides_of_War_Compiled.w3x`, cast Hook while moving (spec: no pause, chain follows moving Pudge, 3000 range, multi-cast), Torpedo, Piercing Shot, Soul Strike, EA, Freezing Blast, Cutting Glide, simultaneous Tremors, Glacial Freeze against several targets, overlapping Arrow Showers, Thunder Ball against moving/dying targets, and overlapping Chain Shocks across blocked terrain. For Water Clone, test both H015/H01B forms and multiple damage sources: a massive first hit must leave the clone alive, then even a one-damage second hit must destroy it. For Lightning Grip, verify smooth pull/slow and 100 DPS, blocked-terrain refusal, simultaneous wells from different players, early channel interruption, and caster death during a damage pulse. Finish with the `-hc`-style handle soak per plan §17 (debug suite not built yet).
 
 ---
 
 ## 4. File map
 - `TIDES_OF_WAR_MASTER_PLAN.md` — **the architecture contract.** §13 = migration order, §16 = coding standards, §17 = QA protocol.
-- `src/war3map.j` — everything. Engine = after globals block. 23,477 lines.
+- `src/war3map.j` — everything. Engine = after globals block. 23,317 lines.
 - `.agents/skills/warcraft3-jass-optimization/` — skill + `analyze_jass_leaks.py` + `validate_jass_syntax.py` + `leak_baseline.txt`.
 - `build.bat` — gated build. `base_map.w3x` — immutable shell (object data source). `dist/` — output.
 - `database/*.xlsx` — future data pipeline source (plan §12), not yet wired.

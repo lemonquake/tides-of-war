@@ -502,29 +502,6 @@ globals
     group                   udg_VIP_Group2             = null
     unit                    udg_VIP_Unit               = null
     unit                    udg_VIP_Unit2              = null
-    hashtable               udg_LG_Hash                = null
-    integer                 udg_HDS_Ability            = 0
-    integer                 udg_HDS_Dummy              = 0
-    integer                 udg_HDS_Slow_Buff          = 0
-    boolean                 udg_HDS_Pulls_Allies       = false
-    real                    udg_HDS_Duration           = 0
-    real                    udg_HDS_Damage             = 0
-    real                    udg_HDS_Drag_Speed         = 0
-    real                    udg_HDS_Catch_Range        = 0
-    real                    udg_HDS_Damage_Range       = 0
-    unit                    udg_Temp_Unit_1            = null
-    location                udg_Temp_Loc_1             = null
-    unit                    udg_Temp_Unit_3            = null
-    group                   udg_Holy_Dragging_Spell_Lightning = null
-    group                   udg_Temp_Group_1           = null
-    unit                    udg_Temp_Unit_2            = null
-    location                udg_Temp_Loc_2             = null
-    real                    udg_Temp_Real_2            = 0
-    group                   udg_Holy_Dragging_Spell_Group = null
-    real                    udg_Temp_Real_1            = 0
-    real                    udg_Temp_Real_3            = 0
-    real                    udg_Temp_Real_4            = 0
-    real                    udg_Temp_Real_5            = 0
     integer                 udg_AI_Players             = 0
     integer                 udg_AI_Hero_Pick           = 0
     integer                 udg_Say                    = 0
@@ -760,7 +737,6 @@ globals
     integer                 udg_K2DFX                  = 0
     group                   udg_LeaklessGroup          = null
     location array          udg_RF_Points
-    location array          udg_LG_Points
     integer                 udg_DYN2_INDEX_LISTENER    = 0
     integer                 udg_DYN2_CURRENT_INDEX     = 0
     integer                 udg_DYN2_INDEX_SIZE        = 0
@@ -1151,12 +1127,7 @@ globals
     trigger                 gg_trg_CS_CAST             = null
     trigger                 gg_trg_CS                  = null
     trigger                 gg_trg_Thunder_Ball        = null
-    trigger                 gg_trg_Lightning_Grip_In   = null
     trigger                 gg_trg_LGC                 = null
-    trigger                 gg_trg_LG_CAST             = null
-    trigger                 gg_trg_LG_Cast             = null
-    trigger                 gg_trg_LG                  = null
-    trigger                 gg_trg_LG_ef               = null
     trigger                 gg_trg_LG_End              = null
     trigger                 gg_trg_Cast_Spell          = null
     trigger                 gg_trg_Loop_Spell          = null
@@ -1430,6 +1401,17 @@ globals
     trigger                 Tbn_OnTick                 = null
     trigger                 Csh_OnTick                 = null
     trigger                 Csh_OnEnd                  = null
+    // --- Lightning Grip gravity-well channel
+    integer                 Lgr_N                      = 0
+    unit array              Lgr_Caster
+    unit array              Lgr_Beacon
+    group array             Lgr_Targets
+    real array              Lgr_X
+    real array              Lgr_Y
+    real array              Lgr_Time
+    real array              Lgr_DamageAcc
+    boolean array           Lgr_Stop
+    boolean                 Lgr_InTick                 = false
     // --- Freezing Blast shard channel
     integer                 Fbz_N                      = 0
     integer array           Fbz_List
@@ -1573,7 +1555,7 @@ endfunction
 // Target validation shared by all engine collision checks.
 //===========================================================================
 function Eng_IsDummyType takes integer t returns boolean
-    return t == 'h005' or t == 'h00Q' or t == 'h00R' or t == 'e002' or t == 'h00Y' or t == 'hrif' or t == 'hgry' or t == 'hgyr' or t == 'h016' or t == 'hkni' or t == 'h014' or t == 'h00C' or t == 'h00L' or t == 'h00U' or t == 'h00V'
+    return t == 'h005' or t == 'h00Q' or t == 'h00R' or t == 'e002' or t == 'h00Y' or t == 'hrif' or t == 'hgry' or t == 'hgyr' or t == 'h016' or t == 'hkni' or t == 'h014' or t == 'h00C' or t == 'h00L' or t == 'h00U' or t == 'h00V' or t == 'h01A'
 endfunction
 
 function Eng_ValidTarget takes unit u, player castOwner returns boolean
@@ -2214,6 +2196,153 @@ function ChainShock_Launch takes unit caster, real tx, real ty returns nothing
 endfunction
 
 //===========================================================================
+// Lightning Grip (A04J) - five-second gravity well centered on a pooled
+// h01A beacon. Enemies within 500 are pulled at the legacy 166.67 units/sec;
+// enemies within 375 take the live tooltip's 100 pure damage/sec. The beacon
+// retains its A06N slow aura, while its inherited A06M damage aura is removed
+// so damage is deterministic and credited to the caster.
+//===========================================================================
+function LightningGrip_Expire takes integer i returns nothing
+    local group targets = Lgr_Targets[i]
+    if Lgr_Beacon[i] != null then
+        call UnitRemoveAbility(Lgr_Beacon[i], 'A06N')
+        call Dummy_Recycle(Lgr_Beacon[i])
+    endif
+    if targets != null then
+        call DestroyGroup(targets)
+    endif
+    set Lgr_Caster[i] = Lgr_Caster[Lgr_N]
+    set Lgr_Beacon[i] = Lgr_Beacon[Lgr_N]
+    set Lgr_Targets[i] = Lgr_Targets[Lgr_N]
+    set Lgr_X[i] = Lgr_X[Lgr_N]
+    set Lgr_Y[i] = Lgr_Y[Lgr_N]
+    set Lgr_Time[i] = Lgr_Time[Lgr_N]
+    set Lgr_DamageAcc[i] = Lgr_DamageAcc[Lgr_N]
+    set Lgr_Stop[i] = Lgr_Stop[Lgr_N]
+    set Lgr_Caster[Lgr_N] = null
+    set Lgr_Beacon[Lgr_N] = null
+    set Lgr_Targets[Lgr_N] = null
+    set Lgr_X[Lgr_N] = 0.00
+    set Lgr_Y[Lgr_N] = 0.00
+    set Lgr_Time[Lgr_N] = 0.00
+    set Lgr_DamageAcc[Lgr_N] = 0.00
+    set Lgr_Stop[Lgr_N] = false
+    set Lgr_N = Lgr_N - 1
+    set targets = null
+endfunction
+
+function LightningGrip_StopCaster takes unit caster returns nothing
+    local integer i = Lgr_N
+    loop
+        exitwhen i < 1
+        if Lgr_Caster[i] == caster then
+            if Lgr_InTick then
+                set Lgr_Stop[i] = true
+            else
+                call LightningGrip_Expire(i)
+            endif
+        endif
+        set i = i - 1
+    endloop
+endfunction
+
+function LightningGrip_Update takes integer i returns nothing
+    local unit caster = Lgr_Caster[i]
+    local unit u
+    local group targets = Lgr_Targets[i]
+    local player p = GetOwningPlayer(caster)
+    local integer t
+    local real ux
+    local real uy
+    local real dx
+    local real dy
+    local real distSq
+    local real factor
+    local real nx
+    local real ny
+    local boolean damagePulse = false
+    set Lgr_DamageAcc[i] = Lgr_DamageAcc[i] + Eng_TickRate
+    if Lgr_DamageAcc[i] >= 0.10 then
+        set Lgr_DamageAcc[i] = Lgr_DamageAcc[i] - 0.10
+        set damagePulse = true
+    endif
+    call GroupClear(targets)
+    call GroupEnumUnitsInRange(targets, Lgr_X[i], Lgr_Y[i], 500.00, null)
+    loop
+        set u = FirstOfGroup(targets)
+        exitwhen u == null
+        call GroupRemoveUnit(targets, u)
+        set t = GetUnitTypeId(u)
+        if u != caster and t != 0 and t != 'h000' and not Eng_IsDummyType(t) and GetWidgetLife(u) > 0.405 and not IsUnitType(u, UNIT_TYPE_STRUCTURE) and IsUnitEnemy(u, p) then
+            set ux = GetUnitX(u)
+            set uy = GetUnitY(u)
+            set dx = Lgr_X[i] - ux
+            set dy = Lgr_Y[i] - uy
+            set distSq = dx * dx + dy * dy
+            if distSq >= 1089.00 then
+                set factor = 166.67 * Eng_TickRate / RMaxBJ(SquareRoot(distSq), 0.01)
+                set nx = ux + dx * factor
+                set ny = uy + dy * factor
+                if nx >= Eng_MinX and nx <= Eng_MaxX and ny >= Eng_MinY and ny <= Eng_MaxY and not IsTerrainPathable(nx, ny, PATHING_TYPE_WALKABILITY) then
+                    call SetUnitFacing(u, Atan2(dy, dx) * bj_RADTODEG)
+                    call SetUnitX(u, nx)
+                    call SetUnitY(u, ny)
+                    set dx = Lgr_X[i] - nx
+                    set dy = Lgr_Y[i] - ny
+                    set distSq = dx * dx + dy * dy
+                endif
+            endif
+            if damagePulse and distSq <= 140625.00 then
+                call Damage_Pure(caster, u, 10.00)
+            endif
+        endif
+    endloop
+    set caster = null
+    set u = null
+    set targets = null
+    set p = null
+endfunction
+
+function LightningGrip_Tick takes nothing returns nothing
+    local integer i = Lgr_N
+    set Lgr_InTick = true
+    loop
+        exitwhen i < 1
+        if Lgr_Stop[i] or Lgr_Caster[i] == null or GetUnitTypeId(Lgr_Caster[i]) == 0 or GetWidgetLife(Lgr_Caster[i]) <= 0.405 or Lgr_Beacon[i] == null or GetUnitTypeId(Lgr_Beacon[i]) == 0 or GetWidgetLife(Lgr_Beacon[i]) <= 0.405 then
+            call LightningGrip_Expire(i)
+        else
+            call LightningGrip_Update(i)
+            set Lgr_Time[i] = Lgr_Time[i] - Eng_TickRate
+            if Lgr_Stop[i] or Lgr_Time[i] <= 0.00 then
+                call LightningGrip_Expire(i)
+            endif
+        endif
+        set i = i - 1
+    endloop
+    set Lgr_InTick = false
+endfunction
+
+function LightningGrip_Launch takes unit caster, real tx, real ty returns nothing
+    local player p = GetOwningPlayer(caster)
+    local unit beacon
+    call LightningGrip_StopCaster(caster)
+    set beacon = Dummy_Get(p, 'h01A', tx, ty, bj_UNIT_FACING)
+    call UnitRemoveAbility(beacon, 'A06M')
+    call UnitAddAbility(beacon, 'A06N')
+    set Lgr_N = Lgr_N + 1
+    set Lgr_Caster[Lgr_N] = caster
+    set Lgr_Beacon[Lgr_N] = beacon
+    set Lgr_Targets[Lgr_N] = CreateGroup()
+    set Lgr_X[Lgr_N] = tx
+    set Lgr_Y[Lgr_N] = ty
+    set Lgr_Time[Lgr_N] = 5.00
+    set Lgr_DamageAcc[Lgr_N] = 0.00
+    set Lgr_Stop[Lgr_N] = false
+    set p = null
+    set beacon = null
+endfunction
+
+//===========================================================================
 // Freezing Blast (ability 'A043', levels via 'A000') - ice shards rain at
 // random points around the caster's current position every 0.2s. Each shard
 // lands at its own random radius (the old version rolled one radius per cast)
@@ -2747,6 +2876,7 @@ function Eng_MasterTick takes nothing returns nothing
     call Fbz_Tick()
     call Cgl_Tick()
     call Trm_Tick()
+    call LightningGrip_Tick()
 endfunction
 
 function WaterClone_ClearState takes nothing returns boolean
@@ -4063,20 +4193,6 @@ function InitGlobals takes nothing returns nothing
     set udg_VIP_MODE = false
     set udg_VIP_Group = CreateGroup()
     set udg_VIP_Group2 = CreateGroup()
-    set udg_HDS_Pulls_Allies = false
-    set udg_HDS_Duration = 0
-    set udg_HDS_Damage = 0
-    set udg_HDS_Drag_Speed = 0
-    set udg_HDS_Catch_Range = 0
-    set udg_HDS_Damage_Range = 0
-    set udg_Holy_Dragging_Spell_Lightning = CreateGroup()
-    set udg_Temp_Group_1 = CreateGroup()
-    set udg_Temp_Real_2 = 0
-    set udg_Holy_Dragging_Spell_Group = CreateGroup()
-    set udg_Temp_Real_1 = 0
-    set udg_Temp_Real_3 = 0
-    set udg_Temp_Real_4 = 0
-    set udg_Temp_Real_5 = 0
     set udg_AI_Players = 0
     set udg_AI_Hero_Pick = 0
     set udg_Say = 0
@@ -6870,14 +6986,12 @@ function Trig_Clear_Group_Actions takes nothing returns nothing
     call GroupRemoveUnitSimple( GetTriggerUnit(), udg_Repeleds )
     call GroupRemoveUnitSimple( GetTriggerUnit(), udg_KB_KnockbackedUnits )
     call GroupRemoveUnitSimple( GetTriggerUnit(), udg_LeaklessGroup )
-    call GroupRemoveUnitSimple( GetTriggerUnit(), udg_Holy_Dragging_Spell_Group )
     call GroupRemoveUnitSimple( GetTriggerUnit(), udg_GC_Group )
     call GroupRemoveUnitSimple( GetTriggerUnit(), udg_Enemies )
     call FlushChildHashtableBJ( GetHandleIdBJ(GetTriggerUnit()), udg_Int_Cataclysm_Hashtable )
     call FlushChildHashtableBJ( GetHandleIdBJ(GetTriggerUnit()), udg_Repel_Hash )
     call FlushChildHashtableBJ( GetHandleIdBJ(GetTriggerUnit()), udg_QJS_arrowTable )
     call FlushChildHashtableBJ( GetHandleIdBJ(GetTriggerUnit()), udg_Hashtable )
-    call FlushChildHashtableBJ( GetHandleIdBJ(GetTriggerUnit()), udg_LG_Hash )
     call FlushChildHashtableBJ( GetHandleIdBJ(GetTriggerUnit()), udg_SpellHash )
 endfunction
 
@@ -12161,35 +12275,14 @@ endfunction
 //===========================================================================
 // Trigger: Lightning Grip In
 //===========================================================================
-function Trig_Lightning_Grip_In_Actions takes nothing returns nothing
-    call InitHashtableBJ(  )
-    set udg_LG_Hash = GetLastCreatedHashtableBJ()
-    set udg_HDS_Ability = 'A03K'
-    set udg_HDS_Dummy = 'h005'
-    set udg_HDS_Slow_Buff = 'B016'
-    set udg_HDS_Pulls_Allies = false
-    set udg_HDS_Duration = 5.00
-    set udg_HDS_Damage = 50.00
-    set udg_HDS_Drag_Speed = 5.00
-    set udg_HDS_Catch_Range = 500.00
-    set udg_HDS_Damage_Range = 375.00
-endfunction
-
-//===========================================================================
 function InitTrig_Lightning_Grip_In takes nothing returns nothing
-    set gg_trg_Lightning_Grip_In = CreateTrigger(  )
-    call TriggerRegisterTimerEventSingle( gg_trg_Lightning_Grip_In, 1.00 )
-    call TriggerAddAction( gg_trg_Lightning_Grip_In, function Trig_Lightning_Grip_In_Actions )
 endfunction
 
 //===========================================================================
 // Trigger: LGC
 //===========================================================================
 function Trig_LGC_Actions takes nothing returns nothing
-    set udg_LG_Points[2] = GetSpellTargetLoc()
-    call CreateNUnitsAtLoc( 1, 'h01A', GetOwningPlayer(GetTriggerUnit()), udg_LG_Points[2], bj_UNIT_FACING )
-    call UnitApplyTimedLifeBJ( 5.00, 'BTLF', GetLastCreatedUnit() )
-    call RemoveLocation(udg_LG_Points[2])
+    call LightningGrip_Launch(GetTriggerUnit(), GetSpellTargetX(), GetSpellTargetY())
 endfunction
 
 //===========================================================================
@@ -12201,264 +12294,13 @@ endfunction
 //===========================================================================
 // Trigger: LG
 //===========================================================================
-function Trig_LG_Func001Func004Func005Func008C takes nothing returns boolean
-    if ( not ( IsTerrainPathableBJ(udg_Temp_Loc_2, PATHING_TYPE_WALKABILITY) == false ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_LG_Func001Func004Func005C takes nothing returns boolean
-    if ( not ( udg_Temp_Real_1 >= 33.00 ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_LG_Func001Func004Func008Func003Func003001002001 takes nothing returns boolean
-    return ( GetUnitTypeId(GetFilterUnit()) == 'htow' )
-endfunction
-
-function Trig_LG_Func001Func004Func008Func003Func003001002002 takes nothing returns boolean
-    return ( GetOwningPlayer(GetFilterUnit()) == GetOwningPlayer(udg_Temp_Unit_2) )
-endfunction
-
-function Trig_LG_Func001Func004Func008Func003Func003001002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_LG_Func001Func004Func008Func003Func003001002001(), Trig_LG_Func001Func004Func008Func003Func003001002002() )
-endfunction
-
-function Trig_LG_Func001Func004Func008Func003Func003A takes nothing returns nothing
-    call UnitDamageTargetBJ( GetEnumUnit(), udg_Temp_Unit_1, 2.00, ATTACK_TYPE_CHAOS, DAMAGE_TYPE_FIRE )
-endfunction
-
-function Trig_LG_Func001Func004Func008Func003C takes nothing returns boolean
-    if ( not ( IsPlayerEnemy(GetOwningPlayer(udg_Temp_Unit_1), GetOwningPlayer(udg_Temp_Unit_2)) == true ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_LG_Func001Func004Func008C takes nothing returns boolean
-    if ( not ( DistanceBetweenPoints(udg_Temp_Loc_1, udg_Temp_Loc_2) < udg_HDS_Damage_Range ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_LG_Func001Func004Func012C takes nothing returns boolean
-    if ( not ( IsUnitGroupEmptyBJ(udg_Holy_Dragging_Spell_Group) == true ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_LG_Func001Func004C takes nothing returns boolean
-    if ( not ( IsUnitAliveBJ(udg_Temp_Unit_2) == true ) ) then
-        return false
-    endif
-    if ( not ( udg_Temp_Real_1 < udg_HDS_Catch_Range ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_LG_Func001A takes nothing returns nothing
-    set udg_Temp_Unit_1 = GetEnumUnit()
-    set udg_Temp_Unit_2 = LoadUnitHandleBJ(StringHashBJ("beacon"), GetHandleIdBJ(GetEnumUnit()), udg_Int_Cataclysm_Hashtable)
-    set udg_Temp_Real_1 = LoadRealBJ(StringHashBJ("distance"), GetHandleIdBJ(GetEnumUnit()), udg_Int_Cataclysm_Hashtable)
-    if ( Trig_LG_Func001Func004C() ) then
-        if ( Trig_LG_Func001Func004Func005C() ) then
-            set udg_Temp_Loc_1 = GetUnitLoc(udg_Temp_Unit_1)
-            set udg_Temp_Real_3 = LoadRealBJ(StringHashBJ("angle"), GetHandleIdBJ(GetEnumUnit()), udg_Int_Cataclysm_Hashtable)
-            set udg_Temp_Real_4 = GetLocationX(udg_Temp_Loc_1)
-            set udg_Temp_Real_5 = GetLocationY(udg_Temp_Loc_1)
-            set udg_Temp_Real_4 = ( udg_Temp_Real_4 + ( udg_HDS_Drag_Speed * CosBJ(udg_Temp_Real_3) ) )
-            set udg_Temp_Real_5 = ( udg_Temp_Real_5 + ( udg_HDS_Drag_Speed * SinBJ(udg_Temp_Real_3) ) )
-            set udg_Temp_Loc_2 = Location(udg_Temp_Real_4, udg_Temp_Real_5)
-            if ( Trig_LG_Func001Func004Func005Func008C() ) then
-                call SetUnitFacingTimed( udg_Temp_Unit_1, ( GetUnitFacing(udg_Temp_Unit_2) + 90.00 ), 0 )
-                call SetUnitX(udg_Temp_Unit_1, udg_Temp_Real_4)
-                call SetUnitY(udg_Temp_Unit_1, udg_Temp_Real_5)
-            else
-            endif
-            call RemoveLocation(udg_Temp_Loc_1)
-            call RemoveLocation(udg_Temp_Loc_2)
-        else
-        endif
-        set udg_Temp_Loc_1 = GetUnitLoc(udg_Temp_Unit_1)
-        set udg_Temp_Loc_2 = LoadLocationHandleBJ(StringHashBJ("center"), GetHandleIdBJ(GetEnumUnit()), udg_Int_Cataclysm_Hashtable)
-        if ( Trig_LG_Func001Func004Func008C() ) then
-            set udg_Temp_Unit_2 = LoadUnitHandleBJ(StringHashBJ("caster"), GetHandleIdBJ(GetEnumUnit()), udg_Int_Cataclysm_Hashtable)
-            if ( Trig_LG_Func001Func004Func008Func003C() ) then
-                set bj_wantDestroyGroup = true
-                call ForGroupBJ( GetUnitsInRectMatching(gg_rct_hitman, Condition(function Trig_LG_Func001Func004Func008Func003Func003001002)), function Trig_LG_Func001Func004Func008Func003Func003A )
-            else
-            endif
-        else
-        endif
-        call SaveRealBJ( AngleBetweenPoints(udg_Temp_Loc_1, udg_Temp_Loc_2), StringHashBJ("angle"), GetHandleIdBJ(GetEnumUnit()), udg_Int_Cataclysm_Hashtable )
-        call SaveRealBJ( DistanceBetweenPoints(udg_Temp_Loc_2, udg_Temp_Loc_1), StringHashBJ("distance"), GetHandleIdBJ(GetEnumUnit()), udg_Int_Cataclysm_Hashtable )
-        call RemoveLocation(udg_Temp_Loc_1)
-    else
-        set udg_Temp_Loc_2 = LoadLocationHandleBJ(StringHashBJ("center"), GetHandleIdBJ(GetEnumUnit()), udg_Int_Cataclysm_Hashtable)
-        call RemoveLocation(udg_Temp_Loc_2)
-        call UnitRemoveBuffBJ( udg_HDS_Slow_Buff, GetEnumUnit() )
-        call FlushChildHashtableBJ( GetHandleIdBJ(GetEnumUnit()), udg_Int_Cataclysm_Hashtable )
-        call GroupRemoveUnitSimple( udg_Temp_Unit_1, udg_Holy_Dragging_Spell_Group )
-        if ( Trig_LG_Func001Func004Func012C() ) then
-            call DisableTrigger( GetTriggeringTrigger() )
-        else
-        endif
-    endif
-endfunction
-
-function Trig_LG_Actions takes nothing returns nothing
-    call ForGroupBJ( udg_Holy_Dragging_Spell_Group, function Trig_LG_Func001A )
-endfunction
-
-//===========================================================================
 function InitTrig_LG takes nothing returns nothing
-    set gg_trg_LG = CreateTrigger(  )
-    call DisableTrigger( gg_trg_LG )
-    call TriggerRegisterTimerEventPeriodic( gg_trg_LG, 0.03 )
-    call TriggerAddAction( gg_trg_LG, function Trig_LG_Actions )
 endfunction
 
 //===========================================================================
 // Trigger: LG ef
 //===========================================================================
-function Trig_LG_ef_Func001Func004Func003002003001001 takes nothing returns boolean
-    return ( IsUnitAliveBJ(GetFilterUnit()) == true )
-endfunction
-
-function Trig_LG_ef_Func001Func004Func003002003001002 takes nothing returns boolean
-    return ( GetFilterUnit() != udg_Temp_Unit_2 )
-endfunction
-
-function Trig_LG_ef_Func001Func004Func003002003001 takes nothing returns boolean
-    return GetBooleanAnd( Trig_LG_ef_Func001Func004Func003002003001001(), Trig_LG_ef_Func001Func004Func003002003001002() )
-endfunction
-
-function Trig_LG_ef_Func001Func004Func003002003002001 takes nothing returns boolean
-    return ( GetFilterUnit() != udg_Temp_Unit_1 )
-endfunction
-
-function Trig_LG_ef_Func001Func004Func003002003002002001 takes nothing returns boolean
-    return ( GetUnitTypeId(GetFilterUnit()) != 'h000' )
-endfunction
-
-function Trig_LG_ef_Func001Func004Func003002003002002002 takes nothing returns boolean
-    return ( IsUnitType(GetFilterUnit(), UNIT_TYPE_STRUCTURE) == false )
-endfunction
-
-function Trig_LG_ef_Func001Func004Func003002003002002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_LG_ef_Func001Func004Func003002003002002001(), Trig_LG_ef_Func001Func004Func003002003002002002() )
-endfunction
-
-function Trig_LG_ef_Func001Func004Func003002003002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_LG_ef_Func001Func004Func003002003002001(), Trig_LG_ef_Func001Func004Func003002003002002() )
-endfunction
-
-function Trig_LG_ef_Func001Func004Func003002003 takes nothing returns boolean
-    return GetBooleanAnd( Trig_LG_ef_Func001Func004Func003002003001(), Trig_LG_ef_Func001Func004Func003002003002() )
-endfunction
-
-function Trig_LG_ef_Func001Func004Func004Func002Func002C takes nothing returns boolean
-    if ( not ( IsUnitInGroup(udg_Temp_Unit_3, udg_Holy_Dragging_Spell_Group) == false ) ) then
-        return false
-    endif
-    if ( not ( IsUnitEnemy(udg_Temp_Unit_3, GetOwningPlayer(udg_Temp_Unit_2)) == true ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_LG_ef_Func001Func004Func004Func002A takes nothing returns nothing
-    set udg_Temp_Unit_3 = GetEnumUnit()
-    if ( Trig_LG_ef_Func001Func004Func004Func002Func002C() ) then
-        set udg_Temp_Loc_2 = GetUnitLoc(udg_Temp_Unit_3)
-        call CreateNUnitsAtLoc( 1, udg_HDS_Dummy, Player(PLAYER_NEUTRAL_PASSIVE), udg_Temp_Loc_2, udg_Temp_Real_2 )
-        call UnitAddAbilityBJ( 'A04K', GetLastCreatedUnit() )
-        call IssueTargetOrderBJ( GetLastCreatedUnit(), "cripple", udg_Temp_Unit_3 )
-        call UnitApplyTimedLifeBJ( 1.00, 'BTLF', GetLastCreatedUnit() )
-        set udg_Temp_Real_2 = AngleBetweenPoints(udg_Temp_Loc_2, udg_Temp_Loc_1)
-        call GroupAddUnitSimple( udg_Temp_Unit_2, udg_Holy_Dragging_Spell_Group )
-        call SaveLocationHandleBJ( udg_Temp_Loc_1, StringHashBJ("center"), GetHandleIdBJ(GetEnumUnit()), udg_Int_Cataclysm_Hashtable )
-        call SaveRealBJ( udg_Temp_Real_2, StringHashBJ("angle"), GetHandleIdBJ(GetEnumUnit()), udg_Int_Cataclysm_Hashtable )
-        call SaveRealBJ( udg_HDS_Drag_Speed, StringHashBJ("escape_timer"), GetHandleIdBJ(GetEnumUnit()), udg_Int_Cataclysm_Hashtable )
-        call SaveRealBJ( DistanceBetweenPoints(udg_Temp_Loc_1, udg_Temp_Loc_2), StringHashBJ("distance"), GetHandleIdBJ(GetEnumUnit()), udg_Int_Cataclysm_Hashtable )
-        call SaveRealBJ( ( ( udg_HDS_Damage * ( 1 * 0.03 ) ) * I2R(GetUnitAbilityLevelSwapped('A000', udg_Temp_Unit_2)) ), StringHashBJ("damage"), GetHandleIdBJ(GetEnumUnit()), udg_Int_Cataclysm_Hashtable )
-        call SaveUnitHandleBJ( udg_Temp_Unit_1, StringHashBJ("beacon"), GetHandleIdBJ(GetEnumUnit()), udg_Int_Cataclysm_Hashtable )
-        call SaveUnitHandleBJ( udg_Temp_Unit_2, StringHashBJ("caster"), GetHandleIdBJ(GetEnumUnit()), udg_Int_Cataclysm_Hashtable )
-        call GroupAddUnitSimple( udg_Temp_Unit_3, udg_Holy_Dragging_Spell_Group )
-        call RemoveLocation(udg_Temp_Loc_2)
-        call EnableTrigger( gg_trg_LG )
-    else
-        call RemoveLocation(udg_Temp_Loc_1)
-    endif
-endfunction
-
-function Trig_LG_ef_Func001Func004Func004C takes nothing returns boolean
-    if ( not ( IsUnitGroupEmptyBJ(udg_Temp_Group_1) == false ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_LG_ef_Func001Func004Func010C takes nothing returns boolean
-    if ( not ( IsUnitGroupEmptyBJ(udg_Holy_Dragging_Spell_Lightning) == true ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_LG_ef_Func001Func004C takes nothing returns boolean
-    if ( not ( udg_Temp_Real_1 > 0.01 ) ) then
-        return false
-    endif
-    if ( not ( IsUnitAliveBJ(udg_Temp_Unit_1) == true ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_LG_ef_Func001A takes nothing returns nothing
-    set udg_Temp_Unit_1 = GetEnumUnit()
-    set udg_Temp_Unit_2 = LoadUnitHandleBJ(StringHashBJ("caster"), GetHandleIdBJ(GetEnumUnit()), udg_Int_Cataclysm_Hashtable)
-    set udg_Temp_Real_1 = LoadRealBJ(StringHashBJ("timer"), GetHandleIdBJ(GetEnumUnit()), udg_Int_Cataclysm_Hashtable)
-    if ( Trig_LG_ef_Func001Func004C() ) then
-        set udg_Temp_Loc_1 = GetUnitLoc(udg_Temp_Unit_1)
-        set udg_Temp_Group_1 = GetUnitsInRangeOfLocMatching(udg_HDS_Catch_Range, udg_Temp_Loc_1, Condition(function Trig_LG_ef_Func001Func004Func003002003))
-        if ( Trig_LG_ef_Func001Func004Func004C() ) then
-            call ForGroupBJ( udg_Temp_Group_1, function Trig_LG_ef_Func001Func004Func004Func002A )
-        else
-            call RemoveLocation(udg_Temp_Loc_1)
-        endif
-        call DestroyGroup(udg_Temp_Group_1)
-        call SaveRealBJ( ( udg_Temp_Real_1 - 0.25 ), StringHashBJ("timer"), GetHandleIdBJ(GetEnumUnit()), udg_Int_Cataclysm_Hashtable )
-    else
-        set udg_Temp_Loc_1 = LoadLocationHandleBJ(StringHashBJ("center"), GetHandleIdBJ(GetEnumUnit()), udg_Int_Cataclysm_Hashtable)
-        call RemoveLocation(udg_Temp_Loc_1)
-        call FlushChildHashtableBJ( GetHandleIdBJ(GetEnumUnit()), udg_Int_Cataclysm_Hashtable )
-        call GroupRemoveUnitSimple( udg_Temp_Unit_1, udg_Holy_Dragging_Spell_Lightning )
-        if ( Trig_LG_ef_Func001Func004Func010C() ) then
-            call DisableTrigger( GetTriggeringTrigger() )
-            call DisableTrigger( gg_trg_LG_End )
-        else
-        endif
-    endif
-endfunction
-
-function Trig_LG_ef_Actions takes nothing returns nothing
-    call ForGroupBJ( udg_Holy_Dragging_Spell_Lightning, function Trig_LG_ef_Func001A )
-endfunction
-
-//===========================================================================
 function InitTrig_LG_ef takes nothing returns nothing
-    set gg_trg_LG_ef = CreateTrigger(  )
-    call DisableTrigger( gg_trg_LG_ef )
-    call TriggerRegisterTimerEventPeriodic( gg_trg_LG_ef, 0.25 )
-    call TriggerAddAction( gg_trg_LG_ef, function Trig_LG_ef_Actions )
 endfunction
 
 //===========================================================================
@@ -12472,14 +12314,12 @@ function Trig_LG_End_Conditions takes nothing returns boolean
 endfunction
 
 function Trig_LG_End_Actions takes nothing returns nothing
-    call KillUnit( LoadUnitHandleBJ(StringHashBJ("beacon"), GetHandleIdBJ(GetTriggerUnit()), udg_Int_Cataclysm_Hashtable) )
-    call FlushChildHashtableBJ( GetHandleIdBJ(GetTriggerUnit()), udg_Int_Cataclysm_Hashtable )
+    call LightningGrip_StopCaster(GetTriggerUnit())
 endfunction
 
 //===========================================================================
 function InitTrig_LG_End takes nothing returns nothing
     set gg_trg_LG_End = CreateTrigger(  )
-    call DisableTrigger( gg_trg_LG_End )
     call TriggerRegisterAnyUnitEventBJ( gg_trg_LG_End, EVENT_PLAYER_UNIT_SPELL_ENDCAST )
     call TriggerAddCondition( gg_trg_LG_End, Condition( function Trig_LG_End_Conditions ) )
     call TriggerAddAction( gg_trg_LG_End, function Trig_LG_End_Actions )
