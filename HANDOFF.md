@@ -11,7 +11,7 @@
 1. Load the project skill `.agents/skills/warcraft3-jass-optimization/SKILL.md` — its six rules are law (native XY coords, null all locals, group/force hygiene, div-by-zero guards).
 2. After **every** edit to `src/war3map.j`:
    `python .agents/skills/warcraft3-jass-optimization/scripts/validate_jass_syntax.py src/war3map.j`
-   It checks block balance, declared-before-use, duplicate functions, and **fails on any leak regression** vs `scripts/leak_baseline.txt` (current baseline: location=53, everything else 0). It caught a real un-nulled local of mine — trust it.
+   It checks block balance, declared-before-use, duplicate functions, and **fails on any leak regression** vs `scripts/leak_baseline.txt` (current baseline: location=46, everything else 0). It caught a real un-nulled local of mine — trust it.
 3. Build: copy `base_map.w3x` → `dist/Tides_of_War_Compiled.w3x`, then `MPQEditor.exe add "dist\Tides_of_War_Compiled.w3x" "src\war3map.j" "war3map.j"` (or run `build.bat nopause`, which gates on the validator).
 4. Commit per batch with a message naming what migrated and the leak delta. Author identity used so far: `-c user.name="Lemon" -c user.email="lemonquake@gmail.com"`, co-author trailer for Claude.
 5. **Update the leak baseline** (`scripts/leak_baseline.txt`) only downward, when you've genuinely removed leaks.
@@ -57,13 +57,13 @@ Hook ('A03B'), Torpedo ('A02K'), Piercing Shot ('A03F'), Soul Strike ('A032'), E
 
 ## 3. What to do NEXT (in order)
 
-### 3a. Burn down the 53 remaining location-leak functions (fast wins)
-The validator baseline is 53. Full hit-list (name @ line, as of HEAD — lines drift, re-run the lister):
+### 3a. Burn down the 46 remaining location-leak functions (fast wins)
+The validator baseline is 46. Full hit-list (name @ line, as of HEAD — lines drift, re-run the lister):
 ```
 python -c "<see git log batch 5 era or re-derive>"   # or just re-run: the one-liner lives in the session notes
 ```
 Priority combat leaks (each is an `_Actions` passing inline `GetUnitLoc(...)` to enum/SFX BJs — rewrite with `GroupEnumUnitsInRange(Eng_Enum, GetUnitX..., ...)` + `FirstOfGroup` loop like the Starfall/Divine Light rewrites at ~line 9400):
-Behavior1/3, P2-P8 skill AI conds.
+Next: re-run the current hit list and continue through the remaining initialization/debug, spell-loop, and game-flow warnings.
 
 Completed in leak-scrub batch 6: Echo Slam, Smite, Impale, and all three Hell Blast rawcodes now use native XY enumeration and pooled dummies; Hell Blast shares one implementation. Location warnings: 81 → 71.
 
@@ -72,6 +72,8 @@ Completed in leak-scrub batch 7: Take Aim, Fury, Tidal Strike, Vileplume, Butter
 Completed in leak-scrub batch 8: Poison Fumes, Burning Will, Leash, Valor, and Improved Resistance now use native XY enumeration; Burning Will's caster is pooled and obsolete GUI filter/callback trees were removed. Location warnings: 62 → 56.
 
 Completed in leak-scrub batch 9: the TEAM1, TEAM2, and free-for-all revive paths now roll native XY respawn coordinates, call `ReviveHero` directly, and pan cameras without temporary locations. Location warnings: 56 → 53.
+
+Completed in leak-scrub batch 10: Behavior1/3 and the P2/P4/P6/P7/P8 area-count decisions now use native coordinates. One shared `Eng_CountUnitsAt` replaces five leaking GUI count expressions; Behavior3 uses pooled stun dummies. Location warnings: 53 → 46.
 False positives to allowlist mentally: `config`, `InitCustomPlayerSlots`, `CreateNeutralPassiveBuildings` (substring matches).
 After each burn-down, lower `leak_baseline.txt`.
 

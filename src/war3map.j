@@ -1600,6 +1600,20 @@ function Eng_ValidTarget takes unit u, player castOwner returns boolean
     return u != null and GetUnitTypeId(u) != 0 and not Eng_IsDummyType(GetUnitTypeId(u)) and GetWidgetLife(u) > 0.405 and not IsUnitType(u, UNIT_TYPE_STRUCTURE) and GetOwningPlayer(u) != castOwner and GetUnitAbilityLevel(u, 'Aloc') == 0
 endfunction
 
+function Eng_CountUnitsAt takes real x, real y, real radius returns integer
+    local integer count = 0
+    local unit u
+    call GroupEnumUnitsInRange(Eng_Enum, x, y, radius, null)
+    loop
+        set u = FirstOfGroup(Eng_Enum)
+        exitwhen u == null
+        call GroupRemoveUnit(Eng_Enum, u)
+        set count = count + 1
+    endloop
+    set u = null
+    return count
+endfunction
+
 //===========================================================================
 // Pooled dummy casting - the one-line replacement for every
 // "spawn dummy, add ability, timed life, issue order" block in the map.
@@ -18656,8 +18670,7 @@ function Trig_P2_Skill_Func003C takes nothing returns boolean
 endfunction
 
 function Trig_P2_Skill_Func004Func001Func001C takes nothing returns boolean
-    set bj_wantDestroyGroup = true
-    if ( not ( CountUnitsInGroupBJ(GetUnitsInRangeOfLocAll(500.00, GetUnitLoc(gg_unit_H002_0016))) >= 3 ) ) then
+    if ( not ( Eng_CountUnitsAt(GetUnitX(gg_unit_H002_0016), GetUnitY(gg_unit_H002_0016), 500.00) >= 3 ) ) then
         return false
     endif
     return true
@@ -18974,8 +18987,7 @@ function Trig_P4_Skill_Func003C takes nothing returns boolean
 endfunction
 
 function Trig_P4_Skill_Func004Func002Func001Func001C takes nothing returns boolean
-    set bj_wantDestroyGroup = true
-    if ( not ( CountUnitsInGroupBJ(GetUnitsInRangeOfLocAll(500.00, GetUnitLoc(gg_unit_EEES_0029))) >= 3 ) ) then
+    if ( not ( Eng_CountUnitsAt(GetUnitX(gg_unit_EEES_0029), GetUnitY(gg_unit_EEES_0029), 500.00) >= 3 ) ) then
         return false
     endif
     return true
@@ -19295,8 +19307,7 @@ function Trig_P6_Skill_Func003C takes nothing returns boolean
 endfunction
 
 function Trig_P6_Skill_Func004Func002Func001Func001C takes nothing returns boolean
-    set bj_wantDestroyGroup = true
-    if ( not ( CountUnitsInGroupBJ(GetUnitsInRangeOfLocAll(500.00, GetUnitLoc(gg_unit_EEES_0024))) >= 3 ) ) then
+    if ( not ( Eng_CountUnitsAt(GetUnitX(gg_unit_EEES_0024), GetUnitY(gg_unit_EEES_0024), 500.00) >= 3 ) ) then
         return false
     endif
     return true
@@ -19471,8 +19482,7 @@ function Trig_P7_Skill_Func003C takes nothing returns boolean
 endfunction
 
 function Trig_P7_Skill_Func004Func001Func001C takes nothing returns boolean
-    set bj_wantDestroyGroup = true
-    if ( not ( CountUnitsInGroupBJ(GetUnitsInRangeOfLocAll(500.00, GetUnitLoc(gg_unit_H00J_0028))) >= 3 ) ) then
+    if ( not ( Eng_CountUnitsAt(GetUnitX(gg_unit_H00J_0028), GetUnitY(gg_unit_H00J_0028), 500.00) >= 3 ) ) then
         return false
     endif
     return true
@@ -19700,8 +19710,7 @@ function Trig_P8_Skill_Func005C takes nothing returns boolean
     if ( not ( udg_AI_Skill == 2 ) ) then
         return false
     endif
-    set bj_wantDestroyGroup = true
-    if ( not ( CountUnitsInGroupBJ(GetUnitsInRangeOfLocAll(500.00, GetUnitLoc(gg_unit_H00X_0160))) >= 3 ) ) then
+    if ( not ( Eng_CountUnitsAt(GetUnitX(gg_unit_H00X_0160), GetUnitY(gg_unit_H00X_0160), 500.00) >= 3 ) ) then
         return false
     endif
     return true
@@ -20318,41 +20327,26 @@ endfunction
 //===========================================================================
 // Trigger: Behavior1
 //===========================================================================
-function Trig_Behavior1_Func002001003001 takes nothing returns boolean
-    return ( IsUnitType(GetFilterUnit(), UNIT_TYPE_HERO) == true )
-endfunction
-
-function Trig_Behavior1_Func002001003002 takes nothing returns boolean
-    return ( IsUnitEnemy(GetFilterUnit(), GetOwningPlayer(gg_unit_U000_0120)) == true )
-endfunction
-
-function Trig_Behavior1_Func002001003 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Behavior1_Func002001003001(), Trig_Behavior1_Func002001003002() )
-endfunction
-
-function Trig_Behavior1_Func002Func001C takes nothing returns boolean
-    if ( not ( GetUnitLifePercent(GetEnumUnit()) > 75.00 ) ) then
-        return false
-    endif
-    return true
-endfunction
-
 function Trig_Behavior1_Func002A takes nothing returns nothing
-    if ( Trig_Behavior1_Func002Func001C() ) then
-        set udg_TempPoint = PolarProjectionBJ(GetUnitLoc(gg_unit_U000_0120), 1050.00, GetUnitFacing(gg_unit_U000_0120))
-        call IssuePointOrderLocBJ( gg_unit_U000_0120, "blink", udg_TempPoint )
-        call RemoveLocation(udg_TempPoint)
+    local unit u = GetEnumUnit()
+    local real a
+    if IsUnitType(u, UNIT_TYPE_HERO) and IsUnitEnemy(u, GetOwningPlayer(gg_unit_U000_0120)) and GetUnitLifePercent(u) > 75.00 then
+        set a = GetUnitFacing(gg_unit_U000_0120) * bj_DEGTORAD
+        call IssuePointOrder(gg_unit_U000_0120, "blink", GetUnitX(gg_unit_U000_0120) + 1050.00 * Cos(a), GetUnitY(gg_unit_U000_0120) + 1050.00 * Sin(a))
         call TriggerSleepAction( 0.10 )
-        set udg_TempPoint = GetRectCenter(gg_rct_rev)
-        call IssuePointOrderLocBJ( gg_unit_U000_0120, "attack", udg_TempPoint )
-        call RemoveLocation(udg_TempPoint)
+        call IssuePointOrder(gg_unit_U000_0120, "attack", (GetRectMinX(gg_rct_rev) + GetRectMaxX(gg_rct_rev)) * 0.50, (GetRectMinY(gg_rct_rev) + GetRectMaxY(gg_rct_rev)) * 0.50)
     else
     endif
+    set u = null
 endfunction
 
 function Trig_Behavior1_Actions takes nothing returns nothing
-    set bj_wantDestroyGroup = true
-    call ForGroupBJ( GetUnitsInRangeOfLocMatching(1200.00, GetUnitLoc(gg_unit_U000_0120), Condition(function Trig_Behavior1_Func002001003)), function Trig_Behavior1_Func002A )
+    // This callback sleeps, so it needs an isolated group instead of Eng_Enum.
+    local group g = CreateGroup()
+    call GroupEnumUnitsInRange(g, GetUnitX(gg_unit_U000_0120), GetUnitY(gg_unit_U000_0120), 1200.00, null)
+    call ForGroup(g, function Trig_Behavior1_Func002A)
+    call DestroyGroup(g)
+    set g = null
 endfunction
 
 //===========================================================================
@@ -20394,52 +20388,40 @@ endfunction
 //===========================================================================
 // Trigger: Behavior3
 //===========================================================================
-function Trig_Behavior3_Func003001003001 takes nothing returns boolean
-    return ( IsUnitType(GetFilterUnit(), UNIT_TYPE_HERO) == true )
-endfunction
-
-function Trig_Behavior3_Func003001003002 takes nothing returns boolean
-    return ( IsUnitEnemy(GetFilterUnit(), GetOwningPlayer(gg_unit_U000_0120)) == true )
-endfunction
-
-function Trig_Behavior3_Func003001003 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Behavior3_Func003001003001(), Trig_Behavior3_Func003001003002() )
-endfunction
-
-function Trig_Behavior3_Func003Func001C takes nothing returns boolean
-    if ( not ( GetUnitLifePercent(GetEnumUnit()) < 20.00 ) ) then
-        return false
-    endif
-    if ( not ( UnitHasBuffBJ(GetEnumUnit(), 'B012') == false ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_Behavior3_Func003A takes nothing returns nothing
-    if ( Trig_Behavior3_Func003Func001C() ) then
-        set udg_TempPoint = GetUnitLoc(GetEnumUnit())
-        call IssuePointOrderLocBJ( gg_unit_U000_0120, "blink", udg_TempPoint )
-        call CreateTextTagUnitBJ( "TRIGSTR_2902", GetEnumUnit(), 0.00, 12.00, 100.00, 100.00, 100.00, 0 )
-        call SetTextTagVelocityBJ( GetLastCreatedTextTag(), 120.00, 90.00 )
-        call SetTextTagPermanentBJ( GetLastCreatedTextTag(), false )
-        call SetTextTagLifespanBJ( GetLastCreatedTextTag(), udg_Text_Duration )
-        call SetTextTagFadepointBJ( GetLastCreatedTextTag(), 0.65 )
-        call CreateNUnitsAtLoc( 1, 'h005', Player(PLAYER_NEUTRAL_AGGRESSIVE), udg_TempPoint, bj_UNIT_FACING )
-        call RemoveLocation(udg_TempPoint)
-        call UnitAddAbilityBJ( 'A047', GetLastCreatedUnit() )
-        call IssueTargetOrderBJ( GetLastCreatedUnit(), "thunderbolt", GetEnumUnit() )
-        call UnitApplyTimedLifeBJ( 2.00, 'BTLF', GetLastCreatedUnit() )
-        set udg_TempPoint = PolarProjectionBJ(GetUnitLoc(gg_unit_U000_0120), 800.00, GetRandomDirectionDeg())
-        call SetUnitPositionLoc( gg_unit_U000_0120, udg_TempPoint )
-        call RemoveLocation(udg_TempPoint)
-    else
-    endif
-endfunction
-
 function Trig_Behavior3_Actions takes nothing returns nothing
-    set bj_wantDestroyGroup = true
-    call ForGroupBJ( GetUnitsInRangeOfLocMatching(1200.00, GetUnitLoc(gg_unit_U000_0120), Condition(function Trig_Behavior3_Func003001003)), function Trig_Behavior3_Func003A )
+    local unit boss = gg_unit_U000_0120
+    local player p = GetOwningPlayer(boss)
+    local unit u
+    local unit d
+    local real a
+    local real x
+    local real y
+    call GroupEnumUnitsInRange(Eng_Enum, GetUnitX(boss), GetUnitY(boss), 1200.00, null)
+    loop
+        set u = FirstOfGroup(Eng_Enum)
+        exitwhen u == null
+        call GroupRemoveUnit(Eng_Enum, u)
+        if IsUnitType(u, UNIT_TYPE_HERO) and IsUnitEnemy(u, p) and GetUnitLifePercent(u) < 20.00 and GetUnitAbilityLevel(u, 'B012') == 0 then
+            call IssuePointOrder(boss, "blink", GetUnitX(u), GetUnitY(u))
+            call CreateTextTagUnitBJ( "TRIGSTR_2902", u, 0.00, 12.00, 100.00, 100.00, 100.00, 0 )
+            call SetTextTagVelocityBJ( GetLastCreatedTextTag(), 120.00, 90.00 )
+            call SetTextTagPermanentBJ( GetLastCreatedTextTag(), false )
+            call SetTextTagLifespanBJ( GetLastCreatedTextTag(), udg_Text_Duration )
+            call SetTextTagFadepointBJ( GetLastCreatedTextTag(), 0.65 )
+            set d = Dummy_Get(Player(PLAYER_NEUTRAL_AGGRESSIVE), 'h005', GetUnitX(u), GetUnitY(u), bj_UNIT_FACING)
+            call UnitAddAbility(d, 'A047')
+            call IssueTargetOrderById(d, Eng_OrdThunderbolt, u)
+            call Dummy_RecycleTimed(d, 2.00, 'A047')
+            set a = GetRandomDirectionDeg() * bj_DEGTORAD
+            set x = GetUnitX(boss) + 800.00 * Cos(a)
+            set y = GetUnitY(boss) + 800.00 * Sin(a)
+            call SetUnitPosition(boss, x, y)
+        endif
+    endloop
+    set boss = null
+    set p = null
+    set u = null
+    set d = null
 endfunction
 
 //===========================================================================
