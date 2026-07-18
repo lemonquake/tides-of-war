@@ -5702,7 +5702,7 @@ function Trig_Initialization_Func025A takes nothing returns nothing
     set udg_Kill_Limit[udg_Kill_P] = 50
     call SetPlayerFlagBJ( PLAYER_STATE_GIVES_BOUNTY, true, GetEnumPlayer() )
     call SetPlayerStateBJ( GetEnumPlayer(), PLAYER_STATE_RESOURCE_GOLD, 700 )
-    call PanCameraToTimedForPlayer(GetEnumPlayer(), GetRectCenterX(gg_rct_InitialView), GetRectCenterY(gg_rct_InitialView), 0)
+    call PanCameraToTimedForPlayer(GetEnumPlayer(), (GetRectMinX(gg_rct_InitialView) + GetRectMaxX(gg_rct_InitialView)) * 0.50, (GetRectMinY(gg_rct_InitialView) + GetRectMaxY(gg_rct_InitialView)) * 0.50, 0)
     call CreateFogModifierRectBJ( true, GetEnumPlayer(), FOG_OF_WAR_VISIBLE, gg_rct_InitialView )
 endfunction
 
@@ -6315,28 +6315,27 @@ function Trig_mines_Conditions takes nothing returns boolean
     return true
 endfunction
 
-function Trig_mines_Func002001003001 takes nothing returns boolean
-    return ( IsUnitEnemy(GetFilterUnit(), GetOwningPlayer(GetAttacker())) == true )
-endfunction
-
-function Trig_mines_Func002001003002 takes nothing returns boolean
-    return ( GetUnitAbilityLevelSwapped('A00A', GetFilterUnit()) < 1 )
-endfunction
-
-function Trig_mines_Func002001003 takes nothing returns boolean
-    return GetBooleanAnd( Trig_mines_Func002001003001(), Trig_mines_Func002001003002() )
-endfunction
-
-function Trig_mines_Func002A takes nothing returns nothing
-    call AddSpecialEffectTargetUnitBJ( "origin", GetEnumUnit(), "Objects\\Spawnmodels\\Human\\HCancelDeath\\HCancelDeath.mdl" )
-    call DestroyEffectBJ( GetLastCreatedEffectBJ() )
-    call UnitDamageTargetBJ( GetAttacker(), GetEnumUnit(), 100.00, ATTACK_TYPE_CHAOS, DAMAGE_TYPE_FIRE )
-endfunction
-
 function Trig_mines_Actions takes nothing returns nothing
-    set bj_wantDestroyGroup = true
-    call ForGroupBJ( GetUnitsInRangeOfLocMatching(400.00, GetUnitLoc(GetAttacker()), Condition(function Trig_mines_Func002001003)), function Trig_mines_Func002A )
-    call RemoveUnit( GetAttacker() )
+    local unit mine = GetAttacker()
+    local player p = GetOwningPlayer(mine)
+    local group g = CreateGroup()
+    local unit u
+    call GroupEnumUnitsInRange(g, GetUnitX(mine), GetUnitY(mine), 400.00, null)
+    loop
+        set u = FirstOfGroup(g)
+        exitwhen u == null
+        call GroupRemoveUnit(g, u)
+        if IsUnitEnemy(u, p) and GetUnitAbilityLevel(u, 'A00A') < 1 then
+            call SFX_Unit("Objects\\Spawnmodels\\Human\\HCancelDeath\\HCancelDeath.mdl", u, "origin")
+            call UnitDamageTarget(mine, u, 100.00, true, false, ATTACK_TYPE_CHAOS, DAMAGE_TYPE_FIRE, WEAPON_TYPE_WHOKNOWS)
+        endif
+    endloop
+    call DestroyGroup(g)
+    call RemoveUnit(mine)
+    set mine = null
+    set p = null
+    set g = null
+    set u = null
 endfunction
 
 //===========================================================================
@@ -6418,7 +6417,7 @@ function Trig_Base1_Move_Conditions takes nothing returns boolean
 endfunction
 
 function Trig_Base1_Move_Actions takes nothing returns nothing
-    call SetUnitPosition(GetTriggerUnit(), GetRectCenterX(gg_rct_Base1_Move), GetRectCenterY(gg_rct_Base1_Move))
+    call SetUnitPosition(GetTriggerUnit(), (GetRectMinX(gg_rct_Base1_Move) + GetRectMaxX(gg_rct_Base1_Move)) * 0.50, (GetRectMinY(gg_rct_Base1_Move) + GetRectMaxY(gg_rct_Base1_Move)) * 0.50)
 endfunction
 
 //===========================================================================
@@ -6440,7 +6439,7 @@ function Trig_Base2_Move_Conditions takes nothing returns boolean
 endfunction
 
 function Trig_Base2_Move_Actions takes nothing returns nothing
-    call SetUnitPosition(GetTriggerUnit(), GetRectCenterX(gg_rct_Base2_Move), GetRectCenterY(gg_rct_Base2_Move))
+    call SetUnitPosition(GetTriggerUnit(), (GetRectMinX(gg_rct_Base2_Move) + GetRectMaxX(gg_rct_Base2_Move)) * 0.50, (GetRectMinY(gg_rct_Base2_Move) + GetRectMaxY(gg_rct_Base2_Move)) * 0.50)
 endfunction
 
 //===========================================================================
@@ -6455,13 +6454,13 @@ endfunction
 // Trigger: BM Debug
 //===========================================================================
 function Trig_BM_Debug_Actions takes nothing returns nothing
-    call CreateUnit(Player(PLAYER_NEUTRAL_AGGRESSIVE), 'Hmkg', GetRectCenterX(gg_rct_BM_Debug), GetRectCenterY(gg_rct_BM_Debug), bj_UNIT_FACING)
-    call SetHeroLevelBJ( GetLastCreatedUnit(), 35, false )
-    set udg_TempUnit = GetLastCreatedUnit()
-    call CreateNUnitsAtLoc( 1, 'h005', Player(PLAYER_NEUTRAL_AGGRESSIVE), GetUnitLoc(GetLastCreatedUnit()), bj_UNIT_FACING )
-    call UnitAddAbilityBJ( 'A05X', GetLastCreatedUnit() )
-    call IssueTargetOrderBJ( GetLastCreatedUnit(), "bloodlust", udg_TempUnit )
-    call UnitApplyTimedLifeBJ( 1.00, 'BTLF', GetLastCreatedUnit() )
+    local real x = (GetRectMinX(gg_rct_BM_Debug) + GetRectMaxX(gg_rct_BM_Debug)) * 0.50
+    local real y = (GetRectMinY(gg_rct_BM_Debug) + GetRectMaxY(gg_rct_BM_Debug)) * 0.50
+    local unit u = CreateUnit(Player(PLAYER_NEUTRAL_AGGRESSIVE), 'Hmkg', x, y, bj_UNIT_FACING)
+    call SetHeroLevel(u, 35, false)
+    set udg_TempUnit = u
+    call Dummy_CastTarget(Player(PLAYER_NEUTRAL_AGGRESSIVE), 'A05X', Eng_OrdBloodlust, u)
+    set u = null
 endfunction
 
 //===========================================================================
@@ -6479,10 +6478,7 @@ function Trig_BM_Debug2_Func002001002 takes nothing returns boolean
 endfunction
 
 function Trig_BM_Debug2_Func002A takes nothing returns nothing
-    call CreateNUnitsAtLoc( 1, 'h005', Player(PLAYER_NEUTRAL_AGGRESSIVE), GetUnitLoc(GetEnumUnit()), bj_UNIT_FACING )
-    call UnitAddAbilityBJ( 'A05X', GetLastCreatedUnit() )
-    call IssueTargetOrderBJ( GetLastCreatedUnit(), "bloodlust", GetEnumUnit() )
-    call UnitApplyTimedLifeBJ( 1.00, 'BTLF', GetLastCreatedUnit() )
+    call Dummy_CastTarget(Player(PLAYER_NEUTRAL_AGGRESSIVE), 'A05X', Eng_OrdBloodlust, GetEnumUnit())
 endfunction
 
 function Trig_BM_Debug2_Actions takes nothing returns nothing
@@ -6501,12 +6497,15 @@ endfunction
 // Trigger: BOMB Debug
 //===========================================================================
 function Trig_BOMB_Debug_Actions takes nothing returns nothing
-    call CreateUnit(Player(5), 'n00D', GetRectCenterX(gg_rct_BM_Debug), GetRectCenterY(gg_rct_BM_Debug), bj_UNIT_FACING)
-    call UnitApplyTimedLifeBJ( 16.00, 'BTLF', GetLastCreatedUnit() )
-    call CreateUnit(Player(5), 'hdhw', GetRectCenterX(gg_rct_BM_Debug), GetRectCenterY(gg_rct_BM_Debug), bj_UNIT_FACING)
-    call UnitApplyTimedLifeBJ( 17.00, 'BTLF', GetLastCreatedUnit() )
-    call UnitAddAbilityBJ( 'AEsf', GetLastCreatedUnit() )
-    call IssueImmediateOrderBJ( GetLastCreatedUnit(), "starfall" )
+    local real x = (GetRectMinX(gg_rct_BM_Debug) + GetRectMaxX(gg_rct_BM_Debug)) * 0.50
+    local real y = (GetRectMinY(gg_rct_BM_Debug) + GetRectMaxY(gg_rct_BM_Debug)) * 0.50
+    local unit u = CreateUnit(Player(5), 'n00D', x, y, bj_UNIT_FACING)
+    call UnitApplyTimedLife(u, 'BTLF', 16.00)
+    set u = CreateUnit(Player(5), 'hdhw', x, y, bj_UNIT_FACING)
+    call UnitApplyTimedLife(u, 'BTLF', 17.00)
+    call UnitAddAbility(u, 'AEsf')
+    call IssueImmediateOrder(u, "starfall")
+    set u = null
 endfunction
 
 //===========================================================================
@@ -6520,7 +6519,7 @@ endfunction
 // Trigger: BOMB Debug2
 //===========================================================================
 function Trig_BOMB_Debug2_Actions takes nothing returns nothing
-    call CreateItem('I004', GetRectCenterX(gg_rct_BM_Debug), GetRectCenterY(gg_rct_BM_Debug))
+    call CreateItem('I004', (GetRectMinX(gg_rct_BM_Debug) + GetRectMaxX(gg_rct_BM_Debug)) * 0.50, (GetRectMinY(gg_rct_BM_Debug) + GetRectMaxY(gg_rct_BM_Debug)) * 0.50)
 endfunction
 
 //===========================================================================
@@ -6615,7 +6614,9 @@ function Trig_CAm_Conditions takes nothing returns boolean
 endfunction
 
 function Trig_CAm_Actions takes nothing returns nothing
-    call PanCameraToTimedLocForPlayer( GetOwningPlayer(GetTriggerUnit()), GetUnitLoc(GetTriggerUnit()), 0 )
+    local unit u = GetTriggerUnit()
+    call PanCameraToTimedForPlayer(GetOwningPlayer(u), GetUnitX(u), GetUnitY(u), 0)
+    set u = null
 endfunction
 
 //===========================================================================
