@@ -1476,6 +1476,17 @@ globals
     unit array              Fbz_Caster
     integer array           Fbz_Shards
     real array              Fbz_Acc
+    // --- Cutting Glide dash channel (MotionCore)
+    integer                 Cgl_N                      = 0
+    integer array           Cgl_List
+    integer                 Cgl_FreeN                  = 0
+    integer array           Cgl_FreeList
+    integer                 Cgl_Max                    = 0
+    unit array              Cgl_Unit
+    real array              Cgl_Cos
+    real array              Cgl_Sin
+    real array              Cgl_Dist
+    real array              Cgl_MaxDist
     // --- HookCore (Pudge's Meat Hook v2)
     real                    HK_SPEED_OUT               = 45.00
     real                    HK_SPEED_BACK              = 55.00
@@ -2232,11 +2243,126 @@ endfunction
 //===========================================================================
 // Engine heartbeat + init
 //===========================================================================
+//===========================================================================
+// Cutting Glide (ability 'A06O', damage scales with 'A002') - the caster
+// becomes a gale and dashes to the target point at 1500 u/s, invulnerable and
+// unpathed, shredding enemies within 200 each tick for (5*lvl + dist)/10 and
+// felling trees. State is always restored, even if the caster dies mid-dash.
+//===========================================================================
+function Cgl_Alloc takes nothing returns integer
+    if Cgl_FreeN > 0 then
+        set Cgl_FreeN = Cgl_FreeN - 1
+        return Cgl_FreeList[Cgl_FreeN + 1]
+    endif
+    set Cgl_Max = Cgl_Max + 1
+    return Cgl_Max
+endfunction
+
+function Cgl_Restore takes unit c returns nothing
+    if c != null and GetUnitTypeId(c) != 0 then
+        call SetUnitInvulnerable(c, false)
+        call SetUnitVertexColor(c, 255, 255, 255, 255)
+        call SetUnitPathing(c, true)
+        call UnitRemoveAbility(c, 'A02S')
+        call SFX_Unit("Abilities\\Spells\\Other\\Tornado\\Tornado_Target.mdl", c, "origin")
+    endif
+endfunction
+
+function CuttingGlide_Launch takes unit caster, real tx, real ty returns nothing
+    local integer i = Cgl_Alloc()
+    local real x = GetUnitX(caster)
+    local real y = GetUnitY(caster)
+    local real dx = tx - x
+    local real dy = ty - y
+    local real a = Atan2(dy, dx)
+    set Cgl_Unit[i] = caster
+    set Cgl_Cos[i] = Cos(a)
+    set Cgl_Sin[i] = Sin(a)
+    set Cgl_Dist[i] = 0.00
+    set Cgl_MaxDist[i] = SquareRoot(dx * dx + dy * dy)
+    call SetUnitInvulnerable(caster, true)
+    call UnitAddAbility(caster, 'A02S')
+    call SetUnitPathing(caster, false)
+    call SetUnitVertexColor(caster, 255, 255, 76, 102)
+    set Cgl_N = Cgl_N + 1
+    set Cgl_List[Cgl_N] = i
+endfunction
+
+function Cgl_Tick takes nothing returns nothing
+    local integer k = Cgl_N
+    local integer i
+    local real px
+    local real py
+    local real dmg
+    local unit c
+    local unit u
+    local boolean fin
+    loop
+        exitwhen k < 1
+        set i = Cgl_List[k]
+        set c = Cgl_Unit[i]
+        set fin = false
+        if c == null or GetUnitTypeId(c) == 0 then
+            set fin = true
+        else
+            set px = GetUnitX(c)
+            set py = GetUnitY(c)
+            set dmg = (5.00 * I2R(GetUnitAbilityLevel(c, 'A002')) + Cgl_Dist[i]) / 10.00
+            call GroupEnumUnitsInRange(Eng_Enum, px, py, 200.00, null)
+            loop
+                set u = FirstOfGroup(Eng_Enum)
+                exitwhen u == null
+                call GroupRemoveUnit(Eng_Enum, u)
+                if GetWidgetLife(u) > 0.405 and (not IsUnitType(u, UNIT_TYPE_STRUCTURE)) and IsUnitEnemy(u, GetOwningPlayer(c)) and not Eng_IsDummyType(GetUnitTypeId(u)) then
+                    call SFX_Unit("Abilities\\Spells\\Other\\Tornado\\Tornado_Target.mdl", u, "origin")
+                    call UnitDamageTarget(c, u, dmg, true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_NORMAL, WEAPON_TYPE_WHOKNOWS)
+                endif
+            endloop
+            set px = px + 45.00 * Cgl_Cos[i]
+            set py = py + 45.00 * Cgl_Sin[i]
+            set Cgl_Dist[i] = Cgl_Dist[i] + 45.00
+            if px < Eng_MinX then
+                set px = Eng_MinX
+                set fin = true
+            elseif px > Eng_MaxX then
+                set px = Eng_MaxX
+                set fin = true
+            endif
+            if py < Eng_MinY then
+                set py = Eng_MinY
+                set fin = true
+            elseif py > Eng_MaxY then
+                set py = Eng_MaxY
+                set fin = true
+            endif
+            call SetUnitX(c, px)
+            call SetUnitY(c, py)
+            call SFX_Unit("war3mapImported\\Gale.mdx", c, "chest")
+            call Eng_KillTreesAt(px, py, 150.00)
+            if Cgl_Dist[i] >= Cgl_MaxDist[i] then
+                set fin = true
+            endif
+        endif
+        if fin then
+            call Cgl_Restore(c)
+            set Cgl_Unit[i] = null
+            set Cgl_FreeN = Cgl_FreeN + 1
+            set Cgl_FreeList[Cgl_FreeN] = i
+            set Cgl_List[k] = Cgl_List[Cgl_N]
+            set Cgl_N = Cgl_N - 1
+        endif
+        set k = k - 1
+    endloop
+    set c = null
+    set u = null
+endfunction
+
 function Eng_MasterTick takes nothing returns nothing
     call Rcy_Tick()
     call Msl_Tick()
     call Hk_Tick()
     call Fbz_Tick()
+    call Cgl_Tick()
 endfunction
 
 function Engine_Init takes nothing returns nothing
@@ -12853,34 +12979,11 @@ endfunction
 //===========================================================================
 // Trigger: Cutting Glide
 //===========================================================================
-function Trig_Cutting_Glide_Func001C takes nothing returns boolean
-    if ( not ( udg_MUI_1 == 0 ) ) then
-        return false
-    endif
-    return true
-endfunction
-
+// Migrated to TIDES ENGINE dash channel - see CuttingGlide_Launch / Cgl_Tick.
+// Also fixes the shared udg_MUI_1 counter that let Melting Strike and Cutting
+// Glide corrupt each other's loop state.
 function Trig_Cutting_Glide_Actions takes nothing returns nothing
-    if ( Trig_Cutting_Glide_Func001C() ) then
-        call EnableTrigger( gg_trg_Cutting_Glide_ef )
-    else
-    endif
-    set udg_MUI_1 = ( udg_MUI_1 + 1 )
-    set udg_MUI_2 = ( udg_MUI_2 + 1 )
-    set udg_cUnit[udg_MUI_2] = GetTriggerUnit()
-    call SetUnitInvulnerable( udg_cUnit[udg_MUI_2], true )
-    call UnitAddAbilityBJ( 'A02S', udg_cUnit[udg_MUI_2] )
-    call SetUnitPathing( udg_cUnit[udg_MUI_2], false )
-    call SetUnitVertexColorBJ( udg_cUnit[udg_MUI_2], 100, 100, 30.00, 60.00 )
-    set udg_cPoint[udg_MUI_2] = GetUnitLoc(udg_cUnit[udg_MUI_2])
-    set udg_tPoint = GetSpellTargetLoc()
-    set udg_Range[udg_MUI_2] = 200.00
-    set udg_Angle[udg_MUI_2] = AngleBetweenPoints(udg_cPoint[udg_MUI_2], udg_tPoint)
-    set udg_MaxDistance[udg_MUI_2] = DistanceBetweenPoints(udg_cPoint[udg_MUI_2], udg_tPoint)
-    set udg_Speed[udg_MUI_2] = 45.00
-    set udg_Distance[udg_MUI_2] = 0.00
-    call RemoveLocation (udg_tPoint)
-        call RemoveLocation(udg_cPoint[udg_MUI_2])
+    call CuttingGlide_Launch(GetTriggerUnit(), GetSpellTargetX(), GetSpellTargetY())
 endfunction
 
 //===========================================================================
@@ -12892,114 +12995,8 @@ endfunction
 //===========================================================================
 // Trigger: Cutting Glide ef
 //===========================================================================
-function Trig_Cutting_Glide_ef_Func001Func003C takes nothing returns boolean
-    if ( not ( RectContainsUnit(GetPlayableMapRect(), udg_cUnit[udg_MUI_3]) == true ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_Cutting_Glide_ef_Func001Func007002003001 takes nothing returns boolean
-    return ( IsUnitType(GetFilterUnit(), UNIT_TYPE_STRUCTURE) == false )
-endfunction
-
-function Trig_Cutting_Glide_ef_Func001Func007002003002001 takes nothing returns boolean
-    return ( IsUnitAliveBJ(GetFilterUnit()) == true )
-endfunction
-
-function Trig_Cutting_Glide_ef_Func001Func007002003002002 takes nothing returns boolean
-    return ( IsUnitEnemy(GetFilterUnit(), GetOwningPlayer(udg_cUnit[udg_MUI_3])) == true )
-endfunction
-
-function Trig_Cutting_Glide_ef_Func001Func007002003002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Cutting_Glide_ef_Func001Func007002003002001(), Trig_Cutting_Glide_ef_Func001Func007002003002002() )
-endfunction
-
-function Trig_Cutting_Glide_ef_Func001Func007002003 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Cutting_Glide_ef_Func001Func007002003001(), Trig_Cutting_Glide_ef_Func001Func007002003002() )
-endfunction
-
-function Trig_Cutting_Glide_ef_Func001Func008A takes nothing returns nothing
-    call AddSpecialEffectTargetUnitBJ( "origin", GetEnumUnit(), "Abilities\\Spells\\Other\\Tornado\\Tornado_Target.mdl" )
-    call DestroyEffectBJ( GetLastCreatedEffectBJ() )
-    set udg_Damage = ( ( ( 5.00 * I2R(GetUnitAbilityLevelSwapped('A002', udg_cUnit[udg_MUI_3])) ) + udg_Distance[udg_MUI_3] ) / 10.00 )
-    call UnitDamageTargetBJ( udg_cUnit[udg_MUI_3], GetEnumUnit(), udg_Damage, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_NORMAL )
-endfunction
-
-function Trig_Cutting_Glide_ef_Func001Func009A takes nothing returns nothing
-    call KillDestructable( GetEnumDestructable() )
-endfunction
-
-function Trig_Cutting_Glide_ef_Func001Func010Func010C takes nothing returns boolean
-    if ( ( RectContainsUnit(GetPlayableMapRect(), udg_cUnit[udg_MUI_3]) == false ) ) then
-        return true
-    endif
-    if ( ( udg_Distance[udg_MUI_3] >= udg_MaxDistance[udg_MUI_3] ) ) then
-        return true
-    endif
-    return false
-endfunction
-
-function Trig_Cutting_Glide_ef_Func001Func010C takes nothing returns boolean
-    if ( not Trig_Cutting_Glide_ef_Func001Func010Func010C() ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_Cutting_Glide_ef_Func002C takes nothing returns boolean
-    if ( not ( udg_MUI_1 == 0 ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_Cutting_Glide_ef_Actions takes nothing returns nothing
-    set udg_MUI_3 = 1
-    loop
-        exitwhen udg_MUI_3 > udg_MUI_2
-        set udg_bPoint[udg_MUI_3] = GetUnitLoc(udg_cUnit[udg_MUI_3])
-        set udg_mPoint[udg_MUI_3] = PolarProjectionBJ(udg_bPoint[udg_MUI_3], udg_Speed[udg_MUI_3], udg_Angle[udg_MUI_3])
-        if ( Trig_Cutting_Glide_ef_Func001Func003C() ) then
-            call SetUnitPositionLoc( udg_cUnit[udg_MUI_3], udg_mPoint[udg_MUI_3] )
-        else
-        endif
-        call AddSpecialEffectTargetUnitBJ( "chest", udg_cUnit[udg_MUI_3], "war3mapImported\\Gale.mdx" )
-        call DestroyEffectBJ( GetLastCreatedEffectBJ() )
-        set udg_Distance[udg_MUI_3] = DistanceBetweenPoints(udg_mPoint[udg_MUI_3], udg_cPoint[udg_MUI_3])
-        set udg_gDamage = GetUnitsInRangeOfLocMatching(udg_Range[udg_MUI_3], udg_bPoint[udg_MUI_3], Condition(function Trig_Cutting_Glide_ef_Func001Func007002003))
-        call ForGroupBJ( udg_gDamage, function Trig_Cutting_Glide_ef_Func001Func008A )
-        call EnumDestructablesInCircleBJ( 150.00, udg_mPoint[udg_MUI_3], function Trig_Cutting_Glide_ef_Func001Func009A )
-        if ( Trig_Cutting_Glide_ef_Func001Func010C() ) then
-            call AddSpecialEffectTargetUnitBJ( "origin", udg_cUnit[udg_MUI_3], "Abilities\\Spells\\Other\\Tornado\\Tornado_Target.mdl" )
-            call DestroyEffectBJ( GetLastCreatedEffectBJ() )
-            call SetUnitInvulnerable( udg_cUnit[udg_MUI_3], false )
-            call SetUnitVertexColorBJ( udg_cUnit[udg_MUI_3], 100, 100, 100, 0 )
-            call SetUnitPathing( udg_cUnit[udg_MUI_3], true )
-            call UnitRemoveAbilityBJ( 'A02S', udg_cUnit[udg_MUI_3] )
-            call RemoveLocation (udg_cPoint[udg_MUI_3])
-            set udg_cUnit[udg_MUI_3] = null
-            set udg_MUI_1 = ( udg_MUI_1 - 1 )
-        else
-        endif
-        call RemoveLocation (udg_bPoint[udg_MUI_3])
-        call RemoveLocation (udg_mPoint[udg_MUI_3])
-        call DestroyGroup (udg_gDamage)
-        set udg_MUI_3 = udg_MUI_3 + 1
-    endloop
-    if ( Trig_Cutting_Glide_ef_Func002C() ) then
-        set udg_MUI_2 = 0
-        call DisableTrigger( GetTriggeringTrigger() )
-    else
-    endif
-endfunction
-
-//===========================================================================
+// Retired: the old glide loop now lives in the engine's Cgl dash channel.
 function InitTrig_Cutting_Glide_ef takes nothing returns nothing
-    set gg_trg_Cutting_Glide_ef = CreateTrigger(  )
-    call DisableTrigger( gg_trg_Cutting_Glide_ef )
-    call TriggerRegisterTimerEventPeriodic( gg_trg_Cutting_Glide_ef, 0.03 )
-    call TriggerAddAction( gg_trg_Cutting_Glide_ef, function Trig_Cutting_Glide_ef_Actions )
 endfunction
 
 //===========================================================================
