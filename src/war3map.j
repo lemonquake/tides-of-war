@@ -663,22 +663,6 @@ globals
     integer                 udg_AInteger               = 0
     real array              udg_AAngle
     unit array              udg_Unit
-    integer                 udg_BL_MUI1                = 0
-    integer                 udg_BL_MUI2                = 0
-    unit array              udg_BL_Caster
-    location array          udg_BL_CPoint
-    location                udg_BL_TPoint              = null
-    real array              udg_BL_Angle
-    integer array           udg_BL_Level
-    real array              udg_BL_Distance
-    real array              udg_BL_MaxDistance
-    unit array              udg_BL_Dummy
-    effect array            udg_BL_Effect
-    integer                 udg_BL_MUI3                = 0
-    location array          udg_BL_BPoint
-    location array          udg_BL_MPoint
-    real array              udg_BL_Timer
-    group array             udg_BL_Targets
     integer array           udg_Hammer_Mastery
     integer                 udg_Item                   = 0
     integer                 udg_Slot_Integer           = 0
@@ -1166,7 +1150,6 @@ globals
     trigger                 gg_trg_Water_Clone         = null
     trigger                 gg_trg_CS_CAST             = null
     trigger                 gg_trg_CS                  = null
-    trigger                 gg_trg_CS_ef               = null
     trigger                 gg_trg_Thunder_Ball        = null
     trigger                 gg_trg_Lightning_Grip_In   = null
     trigger                 gg_trg_LGC                 = null
@@ -1384,11 +1367,13 @@ globals
     real                    Eng_TickRate               = 0.025
     timer                   Eng_Timer                  = null
     hashtable               Eng_HT                     = null
+    hashtable               Wcl_HT                     = null
     group                   Eng_Enum                   = null
     integer                 Eng_OrdThunderbolt         = 0
     integer                 Eng_OrdAcidbomb            = 0
     integer                 Eng_OrdBloodlust           = 0
     integer                 Eng_OrdMagicLeash          = 0
+    integer                 Eng_OrdChainLightning      = 0
     real                    Eng_MinX                   = 0.00
     real                    Eng_MinY                   = 0.00
     real                    Eng_MaxX                   = 0.00
@@ -1443,6 +1428,8 @@ globals
     trigger                 Eaw_OnHit                  = null
     trigger                 Ash_OnTick                 = null
     trigger                 Tbn_OnTick                 = null
+    trigger                 Csh_OnTick                 = null
+    trigger                 Csh_OnEnd                  = null
     // --- Freezing Blast shard channel
     integer                 Fbz_N                      = 0
     integer array           Fbz_List
@@ -2137,6 +2124,96 @@ function ThunderBall_Launch takes unit caster, unit target returns nothing
 endfunction
 
 //===========================================================================
+// Chain Shock (A05O/A05P) - a terrain-deflecting lightning orb that travels
+// 1600 range and emits the original overlapping chain-lightning volley every
+// 0.90 seconds. A05P is retained as a compatible secondary entry point; A05O
+// now launches directly instead of casting A05P through a temporary dummy.
+//===========================================================================
+function ChainShock_Steer takes integer i returns nothing
+    local real a
+    local real step = 400.00 * Eng_TickRate
+    local real nx
+    local real ny
+    if Msl_Dist[i] <= 0.00 then
+        set a = Atan2(Msl_Vy[i], Msl_Vx[i])
+    else
+        set a = Atan2(Msl_Y[i] - Msl_DataY[i], Msl_X[i] - Msl_DataX[i])
+    endif
+    set nx = Msl_X[i] + step * Cos(a)
+    set ny = Msl_Y[i] + step * Sin(a)
+    if nx >= Eng_MinX and nx <= Eng_MaxX and ny >= Eng_MinY and ny <= Eng_MaxY and IsTerrainPathable(nx, ny, PATHING_TYPE_WALKABILITY) then
+        set a = a + 25.00 * bj_DEGTORAD
+        set step = 333.33 * Eng_TickRate
+    endif
+    set Msl_Step[i] = step
+    set Msl_Vx[i] = step * Cos(a)
+    set Msl_Vy[i] = step * Sin(a)
+endfunction
+
+function ChainShock_Pulse takes integer i returns nothing
+    local group targets = CreateGroup()
+    local player p = GetOwningPlayer(Msl_Owner[i])
+    local unit u
+    local unit d
+    call GroupEnumUnitsInRange(targets, Msl_X[i], Msl_Y[i], 600.00, null)
+    loop
+        set u = FirstOfGroup(targets)
+        exitwhen u == null
+        call GroupRemoveUnit(targets, u)
+        if GetWidgetLife(u) > 0.405 and not IsUnitType(u, UNIT_TYPE_STRUCTURE) and IsUnitEnemy(u, p) then
+            set d = Dummy_Get(p, 'h005', Msl_X[i], Msl_Y[i], bj_UNIT_FACING)
+            call UnitAddAbility(d, 'A04G')
+            call IssueTargetOrderById(d, Eng_OrdChainLightning, u)
+            call Dummy_RecycleTimed(d, 3.50, 'A04G')
+        endif
+    endloop
+    call DestroyGroup(targets)
+    set targets = null
+    set p = null
+    set u = null
+    set d = null
+endfunction
+
+function ChainShock_OnTick takes nothing returns boolean
+    local integer i = EV_MISSILE
+    set Msl_DataR[i] = Msl_DataR[i] + Eng_TickRate
+    if Msl_DataR[i] >= 0.90 then
+        set Msl_DataR[i] = Msl_DataR[i] - 0.90
+        call ChainShock_Pulse(i)
+    endif
+    call ChainShock_Steer(i)
+    return false
+endfunction
+
+function ChainShock_OnEnd takes nothing returns boolean
+    local integer i = EV_MISSILE
+    local unit caster = Msl_Owner[i]
+    if caster != null and GetUnitTypeId(caster) != 0 then
+        call SetUnitPosition(caster, Msl_X[i], Msl_Y[i])
+        call SFX_Unit("Abilities\\Weapons\\Bolt\\BoltImpact.mdl", caster, "origin")
+    else
+        call SFX_Point("Abilities\\Weapons\\Bolt\\BoltImpact.mdl", Msl_X[i], Msl_Y[i])
+    endif
+    call SetUnitFlyHeight(Msl_Dummy[i], 0.00, 0.00)
+    set caster = null
+    return false
+endfunction
+
+function ChainShock_Launch takes unit caster, real tx, real ty returns nothing
+    local real x = GetUnitX(caster)
+    local real y = GetUnitY(caster)
+    local integer i = Missile_LaunchXY(caster, x, y, tx, ty, 400.00, 1600.00, 0.00, 'h005', "Abilities\\Weapons\\FarseerMissile\\FarseerMissile.mdl", null, Csh_OnEnd)
+    set Msl_DataX[i] = x
+    set Msl_DataY[i] = y
+    call UnitAddAbility(Msl_Dummy[i], 'Arav')
+    call UnitRemoveAbility(Msl_Dummy[i], 'Arav')
+    call SetUnitScale(Msl_Dummy[i], 3.00, 3.00, 3.00)
+    call SetUnitFlyHeight(Msl_Dummy[i], 100.00, 0.00)
+    call Missile_SetOnTick(i, Csh_OnTick)
+    call ChainShock_Steer(i)
+endfunction
+
+//===========================================================================
 // Freezing Blast (ability 'A043', levels via 'A000') - ice shards rain at
 // random points around the caster's current position every 0.2s. Each shard
 // lands at its own random radius (the old version rolled one radius per cast)
@@ -2672,8 +2749,15 @@ function Eng_MasterTick takes nothing returns nothing
     call Trm_Tick()
 endfunction
 
+function WaterClone_ClearState takes nothing returns boolean
+    call FlushChildHashtable(Wcl_HT, GetHandleId(GetTriggerUnit()))
+    return false
+endfunction
+
 function Engine_Init takes nothing returns nothing
+    local trigger waterCloneDeath = CreateTrigger()
     set Eng_HT = InitHashtable()
+    set Wcl_HT = InitHashtable()
     set Eng_Enum = CreateGroup()
     set Eng_Timer = CreateTimer()
     set Eng_Rect = Rect(0.00, 0.00, 32.00, 32.00)
@@ -2685,6 +2769,7 @@ function Engine_Init takes nothing returns nothing
     set Eng_OrdAcidbomb = OrderId("acidbomb")
     set Eng_OrdBloodlust = OrderId("bloodlust")
     set Eng_OrdMagicLeash = OrderId("magicleash")
+    set Eng_OrdChainLightning = OrderId("chainlightning")
     set Trp_OnHit = CreateTrigger()
     call TriggerAddCondition(Trp_OnHit, Condition(function Torpedo_OnHit))
     set Prc_OnHit = CreateTrigger()
@@ -2699,7 +2784,14 @@ function Engine_Init takes nothing returns nothing
     call TriggerAddCondition(Ash_OnTick, Condition(function ArrowShower_OnTick))
     set Tbn_OnTick = CreateTrigger()
     call TriggerAddCondition(Tbn_OnTick, Condition(function ThunderBall_OnTick))
+    set Csh_OnTick = CreateTrigger()
+    call TriggerAddCondition(Csh_OnTick, Condition(function ChainShock_OnTick))
+    set Csh_OnEnd = CreateTrigger()
+    call TriggerAddCondition(Csh_OnEnd, Condition(function ChainShock_OnEnd))
+    call TriggerRegisterAnyUnitEventBJ(waterCloneDeath, EVENT_PLAYER_UNIT_DEATH)
+    call TriggerAddCondition(waterCloneDeath, Condition(function WaterClone_ClearState))
     call TimerStart(Eng_Timer, Eng_TickRate, true, function Eng_MasterTick)
+    set waterCloneDeath = null
 endfunction
 
 function InitGlobals takes nothing returns nothing
@@ -4167,50 +4259,6 @@ function InitGlobals takes nothing returns nothing
     loop
         exitwhen (i > 1)
         set udg_AAngle[i] = 0
-        set i = i + 1
-    endloop
-
-    set udg_BL_MUI1 = 0
-    set udg_BL_MUI2 = 0
-    set i = 0
-    loop
-        exitwhen (i > 1)
-        set udg_BL_Angle[i] = 0
-        set i = i + 1
-    endloop
-
-    set i = 0
-    loop
-        exitwhen (i > 1)
-        set udg_BL_Level[i] = 0
-        set i = i + 1
-    endloop
-
-    set i = 0
-    loop
-        exitwhen (i > 1)
-        set udg_BL_Distance[i] = 0
-        set i = i + 1
-    endloop
-
-    set i = 0
-    loop
-        exitwhen (i > 1)
-        set udg_BL_MaxDistance[i] = 0
-        set i = i + 1
-    endloop
-
-    set i = 0
-    loop
-        exitwhen (i > 1)
-        set udg_BL_Timer[i] = 0
-        set i = i + 1
-    endloop
-
-    set i = 0
-    loop
-        exitwhen (i > 1)
-        set udg_BL_Targets[i] = CreateGroup()
         set i = i + 1
     endloop
 
@@ -12038,35 +12086,22 @@ endfunction
 //===========================================================================
 // Trigger: Water Clone
 //===========================================================================
-function Trig_Water_Clone_Func002Func002C takes nothing returns boolean
-    if ( ( GetUnitTypeId(udg_GDD_DamagedUnit) == 'H015' ) ) then
-        return true
-    endif
-    if ( ( GetUnitTypeId(udg_GDD_DamagedUnit) == 'H01B' ) ) then
-        return true
-    endif
-    return false
-endfunction
-
-function Trig_Water_Clone_Func002C takes nothing returns boolean
-    if ( not ( UnitHasBuffBJ(udg_GDD_DamagedUnit, 'B01Q') == true ) ) then
-        return false
-    endif
-    if ( not Trig_Water_Clone_Func002Func002C() ) then
-        return false
-    endif
-    return true
-endfunction
-
 function Trig_Water_Clone_Conditions takes nothing returns boolean
-    if ( not Trig_Water_Clone_Func002C() ) then
-        return false
-    endif
-    return true
+    local integer t = GetUnitTypeId(udg_GDD_DamagedUnit)
+    return GetUnitAbilityLevel(udg_GDD_DamagedUnit, 'B01Q') > 0 and (t == 'H015' or t == 'H01B')
 endfunction
 
 function Trig_Water_Clone_Actions takes nothing returns nothing
-    call KillUnit( udg_GDD_DamagedUnit )
+    local unit clone = udg_GDD_DamagedUnit
+    local integer key = GetHandleId(clone)
+    if LoadInteger(Wcl_HT, key, 0) == 0 then
+        call SaveInteger(Wcl_HT, key, 0, 1)
+        call SetWidgetLife(clone, GetUnitState(clone, UNIT_STATE_MAX_LIFE))
+    else
+        call FlushChildHashtable(Wcl_HT, key)
+        call KillUnit(clone)
+    endif
+    set clone = null
 endfunction
 
 //===========================================================================
@@ -12081,13 +12116,7 @@ endfunction
 // Trigger: CS CAST
 //===========================================================================
 function Trig_CS_CAST_Actions takes nothing returns nothing
-    local unit caster = GetTriggerUnit()
-    local unit d = Dummy_Get(Player(0), 'h005', GetUnitX(caster), GetUnitY(caster), bj_UNIT_FACING)
-    call UnitAddAbility(d, 'A05P')
-    call IssuePointOrder(d, "carrionswarm", GetSpellTargetX(), GetSpellTargetY())
-    call Dummy_RecycleTimed(d, 4.00, 'A05P')
-    set caster = null
-    set d = null
+    call ChainShock_Launch(GetTriggerUnit(), GetSpellTargetX(), GetSpellTargetY())
 endfunction
 
 //===========================================================================
@@ -12099,38 +12128,8 @@ endfunction
 //===========================================================================
 // Trigger: CS
 //===========================================================================
-function Trig_CS_Func001C takes nothing returns boolean
-    if ( not ( udg_BL_MUI1 == 0 ) ) then
-        return false
-    endif
-    return true
-endfunction
-
 function Trig_CS_Actions takes nothing returns nothing
-    if ( Trig_CS_Func001C() ) then
-        call EnableTrigger( gg_trg_CS_ef )
-    else
-    endif
-    set udg_BL_MUI1 = ( udg_BL_MUI1 + 1 )
-    set udg_BL_MUI2 = ( udg_BL_MUI2 + 1 )
-    set udg_BL_Caster[udg_BL_MUI2] = GetTriggerUnit()
-    set udg_BL_CPoint[udg_BL_MUI2] = GetUnitLoc(udg_BL_Caster[udg_BL_MUI2])
-    set udg_BL_TPoint = GetSpellTargetLoc()
-    set udg_BL_Angle[udg_BL_MUI2] = AngleBetweenPoints(udg_BL_CPoint[udg_BL_MUI2], udg_BL_TPoint)
-    set udg_BL_Level[udg_BL_MUI2] = GetUnitAbilityLevelSwapped(GetSpellAbilityId(), udg_BL_Caster[udg_BL_MUI2])
-    set udg_BL_Distance[udg_BL_MUI2] = DistanceBetweenPoints(udg_BL_CPoint[udg_BL_MUI2], udg_BL_TPoint)
-    set udg_BL_MaxDistance[udg_BL_MUI2] = 1600.00
-    call CreateNUnitsAtLocFacingLocBJ( 1, 'h01I', GetOwningPlayer(GetTriggerUnit()), udg_BL_CPoint[udg_BL_MUI2], udg_BL_TPoint )
-    call UnitAddAbilityBJ( 'Arav', GetLastCreatedUnit() )
-    call UnitRemoveAbilityBJ( 'Arav', GetLastCreatedUnit() )
-    call UnitApplyTimedLifeBJ( 4.00, 'BTLF', GetLastCreatedUnit() )
-    set udg_BL_Dummy[udg_BL_MUI2] = GetLastCreatedUnit()
-    call AddSpecialEffectTargetUnitBJ( "origin", udg_BL_Dummy[udg_BL_MUI2], "Abilities\\Weapons\\FarseerMissile\\FarseerMissile.mdl" )
-    set udg_BL_Effect[udg_BL_MUI2] = GetLastCreatedEffectBJ()
-    call SetUnitScalePercent( udg_BL_Dummy[udg_BL_MUI2], 300.00, 300.00, 300.00 )
-    call SetUnitFlyHeightBJ( udg_BL_Dummy[udg_BL_MUI2], 100.00, 0.00 )
-    call RemoveLocation (udg_BL_TPoint)
-        call RemoveLocation(udg_BL_CPoint[udg_BL_MUI2])
+    call ChainShock_Launch(GetTriggerUnit(), GetSpellTargetX(), GetSpellTargetY())
 endfunction
 
 //===========================================================================
@@ -12142,112 +12141,8 @@ endfunction
 //===========================================================================
 // Trigger: CS ef
 //===========================================================================
-function Trig_CS_ef_Func001Func003C takes nothing returns boolean
-    if ( not ( IsTerrainPathableBJ(udg_BL_MPoint[udg_BL_MUI3], PATHING_TYPE_WALKABILITY) == true ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_CS_ef_Func001Func008Func001002003001 takes nothing returns boolean
-    return ( IsUnitType(GetFilterUnit(), UNIT_TYPE_STRUCTURE) == false )
-endfunction
-
-function Trig_CS_ef_Func001Func008Func001002003002001 takes nothing returns boolean
-    return ( IsUnitAliveBJ(GetFilterUnit()) == true )
-endfunction
-
-function Trig_CS_ef_Func001Func008Func001002003002002 takes nothing returns boolean
-    return ( IsUnitEnemy(GetFilterUnit(), GetOwningPlayer(udg_BL_Dummy[udg_BL_MUI3])) == true )
-endfunction
-
-function Trig_CS_ef_Func001Func008Func001002003002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_CS_ef_Func001Func008Func001002003002001(), Trig_CS_ef_Func001Func008Func001002003002002() )
-endfunction
-
-function Trig_CS_ef_Func001Func008Func001002003 takes nothing returns boolean
-    return GetBooleanAnd( Trig_CS_ef_Func001Func008Func001002003001(), Trig_CS_ef_Func001Func008Func001002003002() )
-endfunction
-
-function Trig_CS_ef_Func001Func008Func003A takes nothing returns nothing
-    call CreateNUnitsAtLoc( 1, 'h005', GetOwningPlayer(udg_BL_Dummy[udg_BL_MUI3]), udg_BL_MPoint[udg_BL_MUI3], bj_UNIT_FACING )
-    call UnitAddAbilityBJ( 'A04G', GetLastCreatedUnit() )
-    call IssueTargetOrderBJ( GetLastCreatedUnit(), "chainlightning", GetEnumUnit() )
-    call UnitApplyTimedLifeBJ( 3.50, 'BTLF', GetLastCreatedUnit() )
-endfunction
-
-function Trig_CS_ef_Func001Func008C takes nothing returns boolean
-    if ( not ( udg_BL_Timer[udg_BL_MUI3] >= 15.00 ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_CS_ef_Func001Func009C takes nothing returns boolean
-    if ( not ( udg_BL_Distance[udg_BL_MUI3] >= udg_BL_MaxDistance[udg_BL_MUI3] ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_CS_ef_Func002C takes nothing returns boolean
-    if ( not ( udg_BL_MUI1 == 0 ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_CS_ef_Actions takes nothing returns nothing
-    set udg_BL_MUI3 = 1
-    loop
-        exitwhen udg_BL_MUI3 > udg_BL_MUI2
-        set udg_BL_BPoint[udg_BL_MUI3] = GetUnitLoc(udg_BL_Dummy[udg_BL_MUI3])
-        set udg_BL_MPoint[udg_BL_MUI3] = PolarProjectionBJ(udg_BL_BPoint[udg_BL_MUI3], 12.00, udg_BL_Angle[udg_BL_MUI3])
-        if ( Trig_CS_ef_Func001Func003C() ) then
-            set udg_BL_MPoint[udg_BL_MUI3] = PolarProjectionBJ(udg_BL_BPoint[udg_BL_MUI3], 10.00, ( udg_BL_Angle[udg_BL_MUI3] + 25.00 ))
-        else
-        endif
-        call SetUnitPositionLoc( udg_BL_Dummy[udg_BL_MUI3], udg_BL_MPoint[udg_BL_MUI3] )
-        set udg_BL_Angle[udg_BL_MUI3] = AngleBetweenPoints(udg_BL_CPoint[udg_BL_MUI3], udg_BL_MPoint[udg_BL_MUI3])
-        set udg_BL_Timer[udg_BL_MUI3] = ( udg_BL_Timer[udg_BL_MUI3] + 0.50 )
-        set udg_BL_Distance[udg_BL_MUI3] = DistanceBetweenPoints(udg_BL_MPoint[udg_BL_MUI3], udg_BL_CPoint[udg_BL_MUI3])
-        if ( Trig_CS_ef_Func001Func008C() ) then
-            set udg_BL_Targets[udg_BL_MUI3] = GetUnitsInRangeOfLocMatching(600.00, udg_BL_MPoint[udg_BL_MUI3], Condition(function Trig_CS_ef_Func001Func008Func001002003))
-            set bj_wantDestroyGroup = true
-            call ForGroupBJ( udg_BL_Targets[udg_BL_MUI3], function Trig_CS_ef_Func001Func008Func003A )
-            set udg_BL_Timer[udg_BL_MUI3] = 0.00
-        else
-        endif
-        if ( Trig_CS_ef_Func001Func009C() ) then
-            call DestroyEffectBJ( udg_BL_Effect[udg_BL_MUI3] )
-            call KillUnit( udg_BL_Dummy[udg_BL_MUI3] )
-            set udg_BL_Dummy[udg_BL_MUI3] = null
-            call SetUnitPositionLoc( udg_BL_Caster[udg_BL_MUI3], udg_BL_MPoint[udg_BL_MUI3] )
-            call AddSpecialEffectTargetUnitBJ( "origin", udg_BL_Caster[udg_BL_MUI3], "Abilities\\Weapons\\Bolt\\BoltImpact.mdl" )
-            call DestroyEffectBJ( GetLastCreatedEffectBJ() )
-            call RemoveLocation (udg_BL_CPoint[udg_BL_MUI3])
-            set udg_BL_Caster[udg_BL_MUI3] = null
-            set udg_BL_MUI1 = ( udg_BL_MUI1 - 1 )
-        else
-        endif
-        call DestroyGroup (udg_BL_Targets[udg_BL_MUI3])
-        call RemoveLocation (udg_BL_BPoint[udg_BL_MUI3])
-        call RemoveLocation (udg_BL_MPoint[udg_BL_MUI3])
-        set udg_BL_MUI3 = udg_BL_MUI3 + 1
-    endloop
-    if ( Trig_CS_ef_Func002C() ) then
-        set udg_BL_MUI2 = 0
-        call DisableTrigger( GetTriggeringTrigger() )
-    else
-    endif
-endfunction
-
-//===========================================================================
+// Retired: Chain Shock now runs as MissileCore on the master tick.
 function InitTrig_CS_ef takes nothing returns nothing
-    set gg_trg_CS_ef = CreateTrigger(  )
-    call DisableTrigger( gg_trg_CS_ef )
-    call TriggerRegisterTimerEventPeriodic( gg_trg_CS_ef, 0.03 )
-    call TriggerAddAction( gg_trg_CS_ef, function Trig_CS_ef_Actions )
 endfunction
 
 //===========================================================================
