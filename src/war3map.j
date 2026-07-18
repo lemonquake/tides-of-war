@@ -15762,46 +15762,54 @@ function Trig_Revive_Func014C takes nothing returns boolean
 endfunction
 
 function Trig_Revive_Actions takes nothing returns nothing
+    local unit hero = GetTriggerUnit()
+    local player p = GetOwningPlayer(hero)
+    local real x
+    local real y
     call TriggerSleepAction( 1.00 )
-    call SetUnitFlyHeightBJ( GetTriggerUnit(), 0.00, 100000.00 )
-    call GroupRemoveUnitSimple( GetTriggerUnit(), udg_Combat_Group )
-    call SetUnitVertexColorBJ( GetTriggerUnit(), 100, 100, 100, 0.00 )
-    call SetUnitScalePercent( GetTriggerUnit(), 100.00, 100.00, 100.00 )
-    call SetUnitPathing( GetTriggerUnit(), true )
-    call ReviveHeroLoc( GetTriggerUnit(), GetRandomLocInRect(gg_rct_TEAM1), true )
-    call SetUnitManaPercentBJ( GetTriggerUnit(), 100 )
+    set x = GetRandomReal(GetRectMinX(gg_rct_TEAM1), GetRectMaxX(gg_rct_TEAM1))
+    set y = GetRandomReal(GetRectMinY(gg_rct_TEAM1), GetRectMaxY(gg_rct_TEAM1))
+    call SetUnitFlyHeight(hero, 0.00, 100000.00)
+    call GroupRemoveUnit(udg_Combat_Group, hero)
+    call SetUnitVertexColorBJ(hero, 100, 100, 100, 0.00)
+    call SetUnitScalePercent(hero, 100.00, 100.00, 100.00)
+    call SetUnitPathing(hero, true)
+    call ReviveHero(hero, x, y, true)
+    call SetUnitManaPercentBJ(hero, 100)
     if ( Trig_Revive_Func009C() ) then
-        call ReplaceUnitBJ( GetTriggerUnit(), 'H00T', bj_UNIT_STATE_METHOD_RELATIVE )
-        call SelectUnitForPlayerSingle( GetLastReplacedUnitBJ(), GetOwningPlayer(GetTriggerUnit()) )
+        call ReplaceUnitBJ(hero, 'H00T', bj_UNIT_STATE_METHOD_RELATIVE)
+        call SelectUnitForPlayerSingle(GetLastReplacedUnitBJ(), p)
     else
     endif
     if ( Trig_Revive_Func010C() ) then
-        call ReplaceUnitBJ( GetTriggerUnit(), 'H01N', bj_UNIT_STATE_METHOD_RELATIVE )
-        call SelectUnitForPlayerSingle( GetLastReplacedUnitBJ(), GetOwningPlayer(GetTriggerUnit()) )
+        call ReplaceUnitBJ(hero, 'H01N', bj_UNIT_STATE_METHOD_RELATIVE)
+        call SelectUnitForPlayerSingle(GetLastReplacedUnitBJ(), p)
     else
     endif
     if ( Trig_Revive_Func011C() ) then
-        call ReplaceUnitBJ( GetTriggerUnit(), 'H017', bj_UNIT_STATE_METHOD_RELATIVE )
-        call SelectUnitForPlayerSingle( GetLastReplacedUnitBJ(), GetOwningPlayer(GetTriggerUnit()) )
+        call ReplaceUnitBJ(hero, 'H017', bj_UNIT_STATE_METHOD_RELATIVE)
+        call SelectUnitForPlayerSingle(GetLastReplacedUnitBJ(), p)
     else
     endif
     if ( Trig_Revive_Func012C() ) then
-        call ReplaceUnitBJ( GetTriggerUnit(), 'H00O', bj_UNIT_STATE_METHOD_RELATIVE )
-        call SelectUnitForPlayerSingle( GetLastReplacedUnitBJ(), GetOwningPlayer(GetTriggerUnit()) )
+        call ReplaceUnitBJ(hero, 'H00O', bj_UNIT_STATE_METHOD_RELATIVE)
+        call SelectUnitForPlayerSingle(GetLastReplacedUnitBJ(), p)
     else
     endif
     if ( Trig_Revive_Func013C() ) then
-        call ReplaceUnitBJ( GetTriggerUnit(), 'H015', bj_UNIT_STATE_METHOD_RELATIVE )
-        call SelectUnitForPlayerSingle( GetLastReplacedUnitBJ(), GetOwningPlayer(GetTriggerUnit()) )
+        call ReplaceUnitBJ(hero, 'H015', bj_UNIT_STATE_METHOD_RELATIVE)
+        call SelectUnitForPlayerSingle(GetLastReplacedUnitBJ(), p)
     else
     endif
     if ( Trig_Revive_Func014C() ) then
-        call ReplaceUnitBJ( GetTriggerUnit(), 'H004', bj_UNIT_STATE_METHOD_RELATIVE )
-        call SelectUnitForPlayerSingle( GetLastReplacedUnitBJ(), GetOwningPlayer(GetTriggerUnit()) )
+        call ReplaceUnitBJ(hero, 'H004', bj_UNIT_STATE_METHOD_RELATIVE)
+        call SelectUnitForPlayerSingle(GetLastReplacedUnitBJ(), p)
     else
     endif
-    call SelectUnitForPlayerSingle( GetTriggerUnit(), GetOwningPlayer(GetTriggerUnit()) )
-    call PanCameraToTimedLocForPlayer( GetOwningPlayer(GetTriggerUnit()), GetUnitLoc(GetTriggerUnit()), 0.60 )
+    call SelectUnitForPlayerSingle(hero, p)
+    call PanCameraToTimedForPlayer(p, GetUnitX(hero), GetUnitY(hero), 0.60)
+    set hero = null
+    set p = null
 endfunction
 
 //===========================================================================
@@ -15922,41 +15930,49 @@ function Trig_Revive_b_Func013C takes nothing returns boolean
 endfunction
 
 function Trig_Revive_b_Actions takes nothing returns nothing
+    local unit hero = GetTriggerUnit()
+    local player p = GetOwningPlayer(hero)
+    local real x
+    local real y
     call TriggerSleepAction( 1.00 )
-    call SetUnitFlyHeightBJ( GetTriggerUnit(), 0.00, 100000.00 )
-    call GroupRemoveUnitSimple( GetTriggerUnit(), udg_Combat_Group )
-    call SetUnitVertexColorBJ( GetTriggerUnit(), 100, 100, 100, 0.00 )
-    call SetUnitScalePercent( GetTriggerUnit(), 100.00, 100.00, 100.00 )
-    call SetUnitPathing( GetTriggerUnit(), true )
-    call ReviveHeroLoc( GetTriggerUnit(), GetRandomLocInRect(gg_rct_TEAM2), true )
-    call SetUnitManaPercentBJ( GetTriggerUnit(), 100 )
+    set x = GetRandomReal(GetRectMinX(gg_rct_TEAM2), GetRectMaxX(gg_rct_TEAM2))
+    set y = GetRandomReal(GetRectMinY(gg_rct_TEAM2), GetRectMaxY(gg_rct_TEAM2))
+    call SetUnitFlyHeight(hero, 0.00, 100000.00)
+    call GroupRemoveUnit(udg_Combat_Group, hero)
+    call SetUnitVertexColorBJ(hero, 100, 100, 100, 0.00)
+    call SetUnitScalePercent(hero, 100.00, 100.00, 100.00)
+    call SetUnitPathing(hero, true)
+    call ReviveHero(hero, x, y, true)
+    call SetUnitManaPercentBJ(hero, 100)
     if ( Trig_Revive_b_Func009C() ) then
-        call ReplaceUnitBJ( GetTriggerUnit(), 'H00T', bj_UNIT_STATE_METHOD_RELATIVE )
-        call SelectUnitForPlayerSingle( GetLastReplacedUnitBJ(), GetOwningPlayer(GetTriggerUnit()) )
+        call ReplaceUnitBJ(hero, 'H00T', bj_UNIT_STATE_METHOD_RELATIVE)
+        call SelectUnitForPlayerSingle(GetLastReplacedUnitBJ(), p)
     else
     endif
     if ( Trig_Revive_b_Func010C() ) then
-        call ReplaceUnitBJ( GetTriggerUnit(), 'H01N', bj_UNIT_STATE_METHOD_RELATIVE )
-        call SelectUnitForPlayerSingle( GetLastReplacedUnitBJ(), GetOwningPlayer(GetTriggerUnit()) )
+        call ReplaceUnitBJ(hero, 'H01N', bj_UNIT_STATE_METHOD_RELATIVE)
+        call SelectUnitForPlayerSingle(GetLastReplacedUnitBJ(), p)
     else
     endif
     if ( Trig_Revive_b_Func011C() ) then
-        call ReplaceUnitBJ( GetTriggerUnit(), 'H017', bj_UNIT_STATE_METHOD_RELATIVE )
-        call SelectUnitForPlayerSingle( GetLastReplacedUnitBJ(), GetOwningPlayer(GetTriggerUnit()) )
+        call ReplaceUnitBJ(hero, 'H017', bj_UNIT_STATE_METHOD_RELATIVE)
+        call SelectUnitForPlayerSingle(GetLastReplacedUnitBJ(), p)
     else
     endif
     if ( Trig_Revive_b_Func012C() ) then
-        call ReplaceUnitBJ( GetTriggerUnit(), 'H00O', bj_UNIT_STATE_METHOD_RELATIVE )
-        call SelectUnitForPlayerSingle( GetLastReplacedUnitBJ(), GetOwningPlayer(GetTriggerUnit()) )
+        call ReplaceUnitBJ(hero, 'H00O', bj_UNIT_STATE_METHOD_RELATIVE)
+        call SelectUnitForPlayerSingle(GetLastReplacedUnitBJ(), p)
     else
     endif
     if ( Trig_Revive_b_Func013C() ) then
-        call ReplaceUnitBJ( GetTriggerUnit(), 'H015', bj_UNIT_STATE_METHOD_RELATIVE )
-        call SelectUnitForPlayerSingle( GetLastReplacedUnitBJ(), GetOwningPlayer(GetTriggerUnit()) )
+        call ReplaceUnitBJ(hero, 'H015', bj_UNIT_STATE_METHOD_RELATIVE)
+        call SelectUnitForPlayerSingle(GetLastReplacedUnitBJ(), p)
     else
     endif
-    call SelectUnitForPlayerSingle( GetTriggerUnit(), GetOwningPlayer(GetTriggerUnit()) )
-    call PanCameraToTimedLocForPlayer( GetOwningPlayer(GetTriggerUnit()), GetUnitLoc(GetTriggerUnit()), 0.60 )
+    call SelectUnitForPlayerSingle(hero, p)
+    call PanCameraToTimedForPlayer(p, GetUnitX(hero), GetUnitY(hero), 0.60)
+    set hero = null
+    set p = null
 endfunction
 
 //===========================================================================
@@ -16077,42 +16093,50 @@ function Trig_Revive_c_Func014C takes nothing returns boolean
 endfunction
 
 function Trig_Revive_c_Actions takes nothing returns nothing
+    local unit hero = GetTriggerUnit()
+    local player p = GetOwningPlayer(hero)
+    local real x
+    local real y
     call TriggerSleepAction( 1.00 )
-    call SetUnitFlyHeightBJ( GetTriggerUnit(), 0.00, 100000.00 )
-    call GroupRemoveUnitSimple( GetTriggerUnit(), udg_Combat_Group )
-    call SetUnitVertexColorBJ( GetTriggerUnit(), 100, 100, 100, 0.00 )
-    call SetUnitScalePercent( GetTriggerUnit(), 100.00, 100.00, 100.00 )
-    call SetUnitPathing( GetTriggerUnit(), true )
+    set x = GetRandomReal(GetRectMinX(gg_rct_Royal_Rumble_Respawn), GetRectMaxX(gg_rct_Royal_Rumble_Respawn))
+    set y = GetRandomReal(GetRectMinY(gg_rct_Royal_Rumble_Respawn), GetRectMaxY(gg_rct_Royal_Rumble_Respawn))
+    call SetUnitFlyHeight(hero, 0.00, 100000.00)
+    call GroupRemoveUnit(udg_Combat_Group, hero)
+    call SetUnitVertexColorBJ(hero, 100, 100, 100, 0.00)
+    call SetUnitScalePercent(hero, 100.00, 100.00, 100.00)
+    call SetUnitPathing(hero, true)
     set udg_TempInt = GetRandomInt(1, 2)
-    call ReviveHeroLoc( GetTriggerUnit(), GetRandomLocInRect(gg_rct_Royal_Rumble_Respawn), true )
-    call SetUnitManaPercentBJ( GetTriggerUnit(), 100 )
+    call ReviveHero(hero, x, y, true)
+    call SetUnitManaPercentBJ(hero, 100)
     if ( Trig_Revive_c_Func010C() ) then
-        call ReplaceUnitBJ( GetTriggerUnit(), 'H00T', bj_UNIT_STATE_METHOD_RELATIVE )
-        call SelectUnitForPlayerSingle( GetLastReplacedUnitBJ(), GetOwningPlayer(GetTriggerUnit()) )
+        call ReplaceUnitBJ(hero, 'H00T', bj_UNIT_STATE_METHOD_RELATIVE)
+        call SelectUnitForPlayerSingle(GetLastReplacedUnitBJ(), p)
     else
     endif
     if ( Trig_Revive_c_Func011C() ) then
-        call ReplaceUnitBJ( GetTriggerUnit(), 'H01N', bj_UNIT_STATE_METHOD_RELATIVE )
-        call SelectUnitForPlayerSingle( GetLastReplacedUnitBJ(), GetOwningPlayer(GetTriggerUnit()) )
+        call ReplaceUnitBJ(hero, 'H01N', bj_UNIT_STATE_METHOD_RELATIVE)
+        call SelectUnitForPlayerSingle(GetLastReplacedUnitBJ(), p)
     else
     endif
     if ( Trig_Revive_c_Func012C() ) then
-        call ReplaceUnitBJ( GetTriggerUnit(), 'H017', bj_UNIT_STATE_METHOD_RELATIVE )
-        call SelectUnitForPlayerSingle( GetLastReplacedUnitBJ(), GetOwningPlayer(GetTriggerUnit()) )
+        call ReplaceUnitBJ(hero, 'H017', bj_UNIT_STATE_METHOD_RELATIVE)
+        call SelectUnitForPlayerSingle(GetLastReplacedUnitBJ(), p)
     else
     endif
     if ( Trig_Revive_c_Func013C() ) then
-        call ReplaceUnitBJ( GetTriggerUnit(), 'H00O', bj_UNIT_STATE_METHOD_RELATIVE )
-        call SelectUnitForPlayerSingle( GetLastReplacedUnitBJ(), GetOwningPlayer(GetTriggerUnit()) )
+        call ReplaceUnitBJ(hero, 'H00O', bj_UNIT_STATE_METHOD_RELATIVE)
+        call SelectUnitForPlayerSingle(GetLastReplacedUnitBJ(), p)
     else
     endif
     if ( Trig_Revive_c_Func014C() ) then
-        call ReplaceUnitBJ( GetTriggerUnit(), 'H015', bj_UNIT_STATE_METHOD_RELATIVE )
-        call SelectUnitForPlayerSingle( GetLastReplacedUnitBJ(), GetOwningPlayer(GetTriggerUnit()) )
+        call ReplaceUnitBJ(hero, 'H015', bj_UNIT_STATE_METHOD_RELATIVE)
+        call SelectUnitForPlayerSingle(GetLastReplacedUnitBJ(), p)
     else
     endif
-    call SelectUnitForPlayerSingle( GetTriggerUnit(), GetOwningPlayer(GetTriggerUnit()) )
-    call PanCameraToTimedLocForPlayer( GetOwningPlayer(GetTriggerUnit()), GetUnitLoc(GetTriggerUnit()), 0.60 )
+    call SelectUnitForPlayerSingle(hero, p)
+    call PanCameraToTimedForPlayer(p, GetUnitX(hero), GetUnitY(hero), 0.60)
+    set hero = null
+    set p = null
 endfunction
 
 //===========================================================================
