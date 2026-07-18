@@ -1416,6 +1416,12 @@ globals
     hashtable               Eng_HT                     = null
     group                   Eng_Enum                   = null
     integer                 Eng_OrdThunderbolt         = 0
+    integer                 Eng_OrdAcidbomb            = 0
+    integer                 Eng_OrdBloodlust           = 0
+    real                    Eng_MinX                   = 0.00
+    real                    Eng_MinY                   = 0.00
+    real                    Eng_MaxX                   = 0.00
+    real                    Eng_MaxY                   = 0.00
     real                    Eng_PoolX                  = 0.00
     real                    Eng_PoolY                  = 0.00
     // --- Timed dummy recycler
@@ -1442,6 +1448,7 @@ globals
     real array              Msl_Radius
     unit array              Msl_Target
     trigger array           Msl_OnHit
+    trigger array           Msl_OnTick
     trigger array           Msl_OnEnd
     group array             Msl_Hit
     integer array           Msl_Data
@@ -1449,8 +1456,16 @@ globals
     // --- Missile event context (read these inside onHit/onEnd callbacks)
     integer                 EV_MISSILE                 = 0
     unit                    EV_UNIT                    = null
+    // --- Tree destruction helper
+    rect                    Eng_Rect                   = null
+    real                    Eng_TreeX                  = 0.00
+    real                    Eng_TreeY                  = 0.00
+    real                    Eng_TreeR                  = 0.00
     // --- Spell callback triggers
     trigger                 Trp_OnHit                  = null
+    trigger                 Prc_OnHit                  = null
+    trigger                 Prc_OnTick                 = null
+    trigger                 Sos_OnTick                 = null
     // --- HookCore (Pudge's Meat Hook v2)
     real                    HK_SPEED_OUT               = 45.00
     real                    HK_SPEED_BACK              = 55.00
@@ -1557,7 +1572,7 @@ endfunction
 // Target validation shared by all engine collision checks.
 //===========================================================================
 function Eng_IsDummyType takes integer t returns boolean
-    return t == 'h005' or t == 'h00Q' or t == 'h00R'
+    return t == 'h005' or t == 'h00Q' or t == 'h00R' or t == 'e002' or t == 'h00Y'
 endfunction
 
 function Eng_ValidTarget takes unit u, player castOwner returns boolean
@@ -1565,14 +1580,19 @@ function Eng_ValidTarget takes unit u, player castOwner returns boolean
 endfunction
 
 //===========================================================================
-// Stun utility - pooled thunderbolt dummy (replaces per-cast dummy spam).
+// Pooled dummy casting - the one-line replacement for every
+// "spawn dummy, add ability, timed life, issue order" block in the map.
 //===========================================================================
-function Stun_Bolt takes player p, unit target returns nothing
+function Dummy_CastTarget takes player p, integer abil, integer ord, unit target returns nothing
     local unit d = Dummy_Get(p, 'h005', GetUnitX(target), GetUnitY(target), 0.00)
-    call UnitAddAbility(d, 'A00V')
-    call IssueTargetOrderById(d, Eng_OrdThunderbolt, target)
-    call Dummy_RecycleTimed(d, 1.00, 'A00V')
+    call UnitAddAbility(d, abil)
+    call IssueTargetOrderById(d, ord, target)
+    call Dummy_RecycleTimed(d, 1.00, abil)
     set d = null
+endfunction
+
+function Stun_Bolt takes player p, unit target returns nothing
+    call Dummy_CastTarget(p, 'A00V', Eng_OrdThunderbolt, target)
 endfunction
 
 //===========================================================================
@@ -1602,6 +1622,27 @@ function SFX_Unit takes string model, unit u, string attach returns nothing
 endfunction
 
 //===========================================================================
+// Tree destruction - kill trees in a circle without creating locations.
+//===========================================================================
+function Eng_TreeKillEnum takes nothing returns nothing
+    local destructable d = GetEnumDestructable()
+    local real dx = GetDestructableX(d) - Eng_TreeX
+    local real dy = GetDestructableY(d) - Eng_TreeY
+    if (GetDestructableTypeId(d) == 'ZTtw' or GetDestructableTypeId(d) == 'ZTtc') and dx * dx + dy * dy <= Eng_TreeR then
+        call KillDestructable(d)
+    endif
+    set d = null
+endfunction
+
+function Eng_KillTreesAt takes real x, real y, real r returns nothing
+    set Eng_TreeX = x
+    set Eng_TreeY = y
+    set Eng_TreeR = r * r
+    call SetRect(Eng_Rect, x - r, y - r, x + r, y + r)
+    call EnumDestructablesInRect(Eng_Rect, null, function Eng_TreeKillEnum)
+endfunction
+
+//===========================================================================
 // MissileCore - every projectile in the map is one tracked instance.
 // Dense active list Msl_List[1..Msl_N]; swap-removal; recycled indices.
 // onHit condition returning true kills the missile; false = pierce on.
@@ -1615,7 +1656,7 @@ function Msl_Alloc takes nothing returns integer
     return Msl_Max
 endfunction
 
-function Missile_LaunchXY takes unit owner, real x, real y, real tx, real ty, real speed, real maxDist, real radius, string model, trigger onHit, trigger onEnd returns integer
+function Missile_LaunchXY takes unit owner, real x, real y, real tx, real ty, real speed, real maxDist, real radius, integer dummyType, string model, trigger onHit, trigger onEnd returns integer
     local integer i = Msl_Alloc()
     local real a = Atan2(ty - y, tx - x)
     set Msl_Owner[i] = owner
@@ -1629,11 +1670,16 @@ function Missile_LaunchXY takes unit owner, real x, real y, real tx, real ty, re
     set Msl_Radius[i] = radius
     set Msl_Target[i] = null
     set Msl_OnHit[i] = onHit
+    set Msl_OnTick[i] = null
     set Msl_OnEnd[i] = onEnd
     set Msl_Data[i] = 0
     set Msl_DataR[i] = 0.00
-    set Msl_Dummy[i] = Dummy_Get(GetOwningPlayer(owner), 'h005', x, y, a * bj_RADTODEG)
-    set Msl_Fx[i] = AddSpecialEffectTarget(model, Msl_Dummy[i], "origin")
+    set Msl_Dummy[i] = Dummy_Get(GetOwningPlayer(owner), dummyType, x, y, a * bj_RADTODEG)
+    if model != "" then
+        set Msl_Fx[i] = AddSpecialEffectTarget(model, Msl_Dummy[i], "origin")
+    else
+        set Msl_Fx[i] = null
+    endif
     if Msl_Hit[i] == null then
         set Msl_Hit[i] = CreateGroup()
     else
@@ -1648,14 +1694,21 @@ function Missile_SetHoming takes integer i, unit target returns nothing
     set Msl_Target[i] = target
 endfunction
 
+function Missile_SetOnTick takes integer i, trigger onTick returns nothing
+    set Msl_OnTick[i] = onTick
+endfunction
+
 function Msl_Destroy takes integer i returns nothing
-    call DestroyEffect(Msl_Fx[i])
-    set Msl_Fx[i] = null
+    if Msl_Fx[i] != null then
+        call DestroyEffect(Msl_Fx[i])
+        set Msl_Fx[i] = null
+    endif
     call Dummy_Recycle(Msl_Dummy[i])
     set Msl_Dummy[i] = null
     set Msl_Owner[i] = null
     set Msl_Target[i] = null
     set Msl_OnHit[i] = null
+    set Msl_OnTick[i] = null
     set Msl_OnEnd[i] = null
     call GroupClear(Msl_Hit[i])
     set Msl_FreeN = Msl_FreeN + 1
@@ -1680,23 +1733,44 @@ function Msl_Tick takes nothing returns nothing
         set Msl_X[i] = Msl_X[i] + Msl_Vx[i]
         set Msl_Y[i] = Msl_Y[i] + Msl_Vy[i]
         set Msl_Dist[i] = Msl_Dist[i] + Msl_Step[i]
+        // never push a unit outside world bounds - that hard-crashes the game
+        if Msl_X[i] < Eng_MinX then
+            set Msl_X[i] = Eng_MinX
+            set Msl_Dist[i] = Msl_MaxDist[i]
+        elseif Msl_X[i] > Eng_MaxX then
+            set Msl_X[i] = Eng_MaxX
+            set Msl_Dist[i] = Msl_MaxDist[i]
+        endif
+        if Msl_Y[i] < Eng_MinY then
+            set Msl_Y[i] = Eng_MinY
+            set Msl_Dist[i] = Msl_MaxDist[i]
+        elseif Msl_Y[i] > Eng_MaxY then
+            set Msl_Y[i] = Eng_MaxY
+            set Msl_Dist[i] = Msl_MaxDist[i]
+        endif
         call SetUnitX(Msl_Dummy[i], Msl_X[i])
         call SetUnitY(Msl_Dummy[i], Msl_Y[i])
-        call GroupEnumUnitsInRange(Eng_Enum, Msl_X[i], Msl_Y[i], Msl_Radius[i], null)
-        loop
-            set u = FirstOfGroup(Eng_Enum)
-            exitwhen u == null or dead
-            call GroupRemoveUnit(Eng_Enum, u)
-            if (not IsUnitInGroup(u, Msl_Hit[i])) and Eng_ValidTarget(u, GetOwningPlayer(Msl_Owner[i])) then
-                call GroupAddUnit(Msl_Hit[i], u)
-                set EV_MISSILE = i
-                set EV_UNIT = u
-                if Msl_OnHit[i] != null and TriggerEvaluate(Msl_OnHit[i]) then
-                    set dead = true
+        if Msl_OnTick[i] != null then
+            set EV_MISSILE = i
+            call TriggerEvaluate(Msl_OnTick[i])
+        endif
+        if Msl_Radius[i] > 0.00 and Msl_OnHit[i] != null then
+            call GroupEnumUnitsInRange(Eng_Enum, Msl_X[i], Msl_Y[i], Msl_Radius[i], null)
+            loop
+                set u = FirstOfGroup(Eng_Enum)
+                exitwhen u == null or dead
+                call GroupRemoveUnit(Eng_Enum, u)
+                if (not IsUnitInGroup(u, Msl_Hit[i])) and Eng_ValidTarget(u, GetOwningPlayer(Msl_Owner[i])) then
+                    call GroupAddUnit(Msl_Hit[i], u)
+                    set EV_MISSILE = i
+                    set EV_UNIT = u
+                    if TriggerEvaluate(Msl_OnHit[i]) then
+                        set dead = true
+                    endif
                 endif
-            endif
-        endloop
-        call GroupClear(Eng_Enum)
+            endloop
+            call GroupClear(Eng_Enum)
+        endif
         if (not dead) and Msl_Dist[i] >= Msl_MaxDist[i] then
             set dead = true
             if Msl_OnEnd[i] != null then
@@ -1726,7 +1800,103 @@ function Torpedo_OnHit takes nothing returns boolean
 endfunction
 
 function Torpedo_Launch takes unit caster, real tx, real ty returns nothing
-    call Missile_LaunchXY(caster, GetUnitX(caster), GetUnitY(caster), tx, ty, 1500.00, 2000.00, 175.00, "Abilities\\Spells\\Other\\CrushingWave\\CrushingWaveMissile.mdl", Trp_OnHit, null)
+    call Missile_LaunchXY(caster, GetUnitX(caster), GetUnitY(caster), tx, ty, 1500.00, 2000.00, 175.00, 'h005', "Abilities\\Spells\\Other\\CrushingWave\\CrushingWaveMissile.mdl", Trp_OnHit, null)
+endfunction
+
+//===========================================================================
+// Piercing Shot (ability 'A03F') - arrow wave that damages each enemy once,
+// drags everything it touches along its path, and fells trees. The arrow
+// dummy 'e002' IS the missile body; a shadow after-image trails every 400.
+//===========================================================================
+function PiercingShot_OnHit takes nothing returns boolean
+    if IsUnitEnemy(EV_UNIT, GetOwningPlayer(Msl_Owner[EV_MISSILE])) and not IsUnitType(EV_UNIT, UNIT_TYPE_MAGIC_IMMUNE) then
+        call UnitDamageTarget(Msl_Owner[EV_MISSILE], EV_UNIT, Msl_DataR[EV_MISSILE], true, true, ATTACK_TYPE_PIERCE, DAMAGE_TYPE_NORMAL, WEAPON_TYPE_WHOKNOWS)
+    endif
+    return false
+endfunction
+
+function PiercingShot_OnTick takes nothing returns boolean
+    local integer i = EV_MISSILE
+    local real a = Atan2(Msl_Vy[i], Msl_Vx[i])
+    local real px
+    local real py
+    local unit u
+    call GroupEnumUnitsInRange(Eng_Enum, Msl_X[i], Msl_Y[i], 100.00, null)
+    loop
+        set u = FirstOfGroup(Eng_Enum)
+        exitwhen u == null
+        call GroupRemoveUnit(Eng_Enum, u)
+        if Eng_ValidTarget(u, GetOwningPlayer(Msl_Owner[i])) and IsUnitEnemy(u, GetOwningPlayer(Msl_Owner[i])) and not IsUnitType(u, UNIT_TYPE_MAGIC_IMMUNE) then
+            set px = GetUnitX(u)
+            set py = GetUnitY(u)
+            call SFX_Point("Abilities\\Spells\\Orc\\Devour\\DevourEffectArt.mdl", px, py)
+            call SetUnitX(u, px + 40.00 * Cos(a))
+            call SetUnitY(u, py + 40.00 * Sin(a))
+            call Eng_KillTreesAt(px, py, 200.00)
+        endif
+    endloop
+    if Msl_Dist[i] >= I2R(Msl_Data[i] + 1) * 400.00 then
+        set Msl_Data[i] = Msl_Data[i] + 1
+        set u = Dummy_Get(GetOwningPlayer(Msl_Owner[i]), 'h00Y', Msl_X[i], Msl_Y[i], a * bj_RADTODEG)
+        call SetUnitVertexColor(u, 127, 127, 127, 63)
+        call Dummy_RecycleTimed(u, 1.00, 0)
+    endif
+    set u = null
+    return false
+endfunction
+
+function PiercingShot_Launch takes unit caster, real tx, real ty returns nothing
+    local integer i = Missile_LaunchXY(caster, GetUnitX(caster), GetUnitY(caster), tx, ty, 2500.00, 1900.00, 100.00, 'e002', "", Prc_OnHit, null)
+    set Msl_DataR[i] = 160.00 + I2R(GetHeroStr(caster, true) + GetHeroAgi(caster, true) + GetHeroInt(caster, true))
+    call Missile_SetOnTick(i, Prc_OnTick)
+endfunction
+
+//===========================================================================
+// Soul Strike (ability 'A032') - traveling soul wave: enemies it washes over
+// take 375 damage + acid-bomb debuff (once, buff-gated), allies are healed
+// 300 + bloodlusted (once, buff-gated). Wave visual 'hsor' pooled per tick.
+//===========================================================================
+function SoulStrike_OnTick takes nothing returns boolean
+    local integer i = EV_MISSILE
+    local player p = GetOwningPlayer(Msl_Owner[i])
+    local unit u = Dummy_Get(p, 'hsor', Msl_X[i], Msl_Y[i], Atan2(Msl_Vy[i], Msl_Vx[i]) * bj_RADTODEG)
+    call Dummy_RecycleTimed(u, 0.50, 0)
+    call SFX_Point("Abilities\\Spells\\Undead\\ReplenishHealth\\ReplenishHealthCasterOverhead.mdl", Msl_X[i], Msl_Y[i])
+    call SFX_Point("Abilities\\Spells\\Human\\Defend\\DefendCaster.mdl", Msl_X[i], Msl_Y[i])
+    call GroupEnumUnitsInRange(Eng_Enum, Msl_X[i], Msl_Y[i], 200.00, null)
+    loop
+        set u = FirstOfGroup(Eng_Enum)
+        exitwhen u == null
+        call GroupRemoveUnit(Eng_Enum, u)
+        if GetWidgetLife(u) > 0.405 and not Eng_IsDummyType(GetUnitTypeId(u)) and GetUnitTypeId(u) != 'hsor' then
+            if IsUnitEnemy(u, p) then
+                if GetUnitAbilityLevel(u, 'B01M') == 0 and GetUnitAbilityLevel(u, 'A00A') == 0 then
+                    call Dummy_CastTarget(p, 'A06K', Eng_OrdAcidbomb, u)
+                    call UnitDamageTarget(Msl_Owner[i], u, 375.00, true, false, ATTACK_TYPE_CHAOS, DAMAGE_TYPE_UNKNOWN, WEAPON_TYPE_WHOKNOWS)
+                endif
+            elseif IsUnitAlly(u, p) then
+                if GetUnitAbilityLevel(u, 'B01N') == 0 then
+                    call Dummy_CastTarget(p, 'A06L', Eng_OrdBloodlust, u)
+                    call SetWidgetLife(u, GetWidgetLife(u) + 300.00)
+                endif
+            endif
+        endif
+    endloop
+    set u = null
+    set p = null
+    return false
+endfunction
+
+function SoulStrike_Launch takes unit caster, real tx, real ty returns nothing
+    local real f = GetUnitFacing(caster) * bj_DEGTORAD
+    local real ex = tx + 800.00 * Cos(f)
+    local real ey = ty + 800.00 * Sin(f)
+    local real x = GetUnitX(caster)
+    local real y = GetUnitY(caster)
+    local real dx = ex - x
+    local real dy = ey - y
+    local integer i = Missile_LaunchXY(caster, x, y, ex, ey, 1833.00, SquareRoot(dx * dx + dy * dy) * 11.00, 0.00, 'h005', "", null, null)
+    call Missile_SetOnTick(i, Sos_OnTick)
 endfunction
 
 //===========================================================================
@@ -1857,6 +2027,21 @@ function Hk_Tick takes nothing returns nothing
                 set Hk_HeadX[i] = Hk_HeadX[i] + HK_SPEED_OUT * Cos(Hk_Ang[i])
                 set Hk_HeadY[i] = Hk_HeadY[i] + HK_SPEED_OUT * Sin(Hk_Ang[i])
                 set Hk_Dist[i] = Hk_Dist[i] + HK_SPEED_OUT
+                // clamp to world bounds and start retracting at the edge
+                if Hk_HeadX[i] < Eng_MinX then
+                    set Hk_HeadX[i] = Eng_MinX
+                    set Hk_Back[i] = true
+                elseif Hk_HeadX[i] > Eng_MaxX then
+                    set Hk_HeadX[i] = Eng_MaxX
+                    set Hk_Back[i] = true
+                endif
+                if Hk_HeadY[i] < Eng_MinY then
+                    set Hk_HeadY[i] = Eng_MinY
+                    set Hk_Back[i] = true
+                elseif Hk_HeadY[i] > Eng_MaxY then
+                    set Hk_HeadY[i] = Eng_MaxY
+                    set Hk_Back[i] = true
+                endif
                 call SetUnitX(Hk_Head[i], Hk_HeadX[i])
                 call SetUnitY(Hk_Head[i], Hk_HeadY[i])
                 call GroupEnumUnitsInRange(Eng_Enum, Hk_HeadX[i], Hk_HeadY[i], 100.00, null)
@@ -1932,9 +2117,22 @@ function Engine_Init takes nothing returns nothing
     set Eng_HT = InitHashtable()
     set Eng_Enum = CreateGroup()
     set Eng_Timer = CreateTimer()
+    set Eng_Rect = Rect(0.00, 0.00, 32.00, 32.00)
+    set Eng_MinX = GetRectMinX(bj_mapInitialPlayableArea) + 64.00
+    set Eng_MinY = GetRectMinY(bj_mapInitialPlayableArea) + 64.00
+    set Eng_MaxX = GetRectMaxX(bj_mapInitialPlayableArea) - 64.00
+    set Eng_MaxY = GetRectMaxY(bj_mapInitialPlayableArea) - 64.00
     set Eng_OrdThunderbolt = OrderId("thunderbolt")
+    set Eng_OrdAcidbomb = OrderId("acidbomb")
+    set Eng_OrdBloodlust = OrderId("bloodlust")
     set Trp_OnHit = CreateTrigger()
     call TriggerAddCondition(Trp_OnHit, Condition(function Torpedo_OnHit))
+    set Prc_OnHit = CreateTrigger()
+    call TriggerAddCondition(Prc_OnHit, Condition(function PiercingShot_OnHit))
+    set Prc_OnTick = CreateTrigger()
+    call TriggerAddCondition(Prc_OnTick, Condition(function PiercingShot_OnTick))
+    set Sos_OnTick = CreateTrigger()
+    call TriggerAddCondition(Sos_OnTick, Condition(function SoulStrike_OnTick))
     call TimerStart(Eng_Timer, Eng_TickRate, true, function Eng_MasterTick)
 endfunction
 
@@ -9236,47 +9434,27 @@ endfunction
 //===========================================================================
 // Trigger: Divine Light
 //===========================================================================
-function Trig_Divine_Light_Func002001003001 takes nothing returns boolean
-    return ( IsUnitAliveBJ(GetFilterUnit()) == true )
-endfunction
-
-function Trig_Divine_Light_Func002001003002 takes nothing returns boolean
-    return ( IsUnitAlly(GetFilterUnit(), GetOwningPlayer(GetTriggerUnit())) == true )
-endfunction
-
-function Trig_Divine_Light_Func002001003 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Divine_Light_Func002001003001(), Trig_Divine_Light_Func002001003002() )
-endfunction
-
-function Trig_Divine_Light_Func002A takes nothing returns nothing
-    call AddSpecialEffectTargetUnitBJ( "origin", GetEnumUnit(), "Abilities\\Spells\\Human\\Resurrect\\ResurrectTarget.mdl" )
-    call DestroyEffectBJ( GetLastCreatedEffectBJ() )
-    call SetUnitLifeBJ( GetEnumUnit(), ( GetUnitStateSwap(UNIT_STATE_LIFE, GetEnumUnit()) + 275.00 ) )
-endfunction
-
-function Trig_Divine_Light_Func004001003001 takes nothing returns boolean
-    return ( IsUnitAliveBJ(GetFilterUnit()) == true )
-endfunction
-
-function Trig_Divine_Light_Func004001003002 takes nothing returns boolean
-    return ( IsUnitEnemy(GetFilterUnit(), GetOwningPlayer(GetTriggerUnit())) == true )
-endfunction
-
-function Trig_Divine_Light_Func004001003 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Divine_Light_Func004001003001(), Trig_Divine_Light_Func004001003002() )
-endfunction
-
-function Trig_Divine_Light_Func004A takes nothing returns nothing
-    call AddSpecialEffectTargetUnitBJ( "origin", GetEnumUnit(), "Abilities\\Spells\\Undead\\RaiseSkeletonWarrior\\RaiseSkeleton.mdl" )
-    call DestroyEffectBJ( GetLastCreatedEffectBJ() )
-    call UnitDamageTargetBJ( GetTriggerUnit(), GetEnumUnit(), 275.00, ATTACK_TYPE_CHAOS, DAMAGE_TYPE_FIRE )
-endfunction
-
+// Rewritten on TIDES ENGINE: the old version leaked two locations per cast.
 function Trig_Divine_Light_Actions takes nothing returns nothing
-    set bj_wantDestroyGroup = true
-    call ForGroupBJ( GetUnitsInRangeOfLocMatching(620.00, GetUnitLoc(GetTriggerUnit()), Condition(function Trig_Divine_Light_Func002001003)), function Trig_Divine_Light_Func002A )
-    set bj_wantDestroyGroup = true
-    call ForGroupBJ( GetUnitsInRangeOfLocMatching(620.00, GetUnitLoc(GetTriggerUnit()), Condition(function Trig_Divine_Light_Func004001003)), function Trig_Divine_Light_Func004A )
+    local unit caster = GetTriggerUnit()
+    local unit u
+    call GroupEnumUnitsInRange(Eng_Enum, GetUnitX(caster), GetUnitY(caster), 620.00, null)
+    loop
+        set u = FirstOfGroup(Eng_Enum)
+        exitwhen u == null
+        call GroupRemoveUnit(Eng_Enum, u)
+        if GetWidgetLife(u) > 0.405 and not Eng_IsDummyType(GetUnitTypeId(u)) then
+            if IsUnitAlly(u, GetOwningPlayer(caster)) then
+                call SFX_Unit("Abilities\\Spells\\Human\\Resurrect\\ResurrectTarget.mdl", u, "origin")
+                call SetWidgetLife(u, GetWidgetLife(u) + 275.00)
+            elseif IsUnitEnemy(u, GetOwningPlayer(caster)) then
+                call SFX_Unit("Abilities\\Spells\\Undead\\RaiseSkeletonWarrior\\RaiseSkeleton.mdl", u, "origin")
+                call Damage_Pure(caster, u, 275.00)
+            endif
+        endif
+    endloop
+    set caster = null
+    set u = null
 endfunction
 
 //===========================================================================
@@ -9368,43 +9546,9 @@ endfunction
 //===========================================================================
 // Trigger: Soul Strike2
 //===========================================================================
-function Trig_Soul_Strike2_Func001C takes nothing returns boolean
-    if ( not ( udg_DYN2_INDEX_LISTENER == 0 ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_Soul_Strike2_Func002C takes nothing returns boolean
-    if ( not ( udg_DYN2_RECYCLE_SIZE > 0 ) ) then
-        return false
-    endif
-    return true
-endfunction
-
+// Migrated to TIDES ENGINE MissileCore - see SoulStrike_Launch.
 function Trig_Soul_Strike2_Actions takes nothing returns nothing
-    if ( Trig_Soul_Strike2_Func001C() ) then
-        call EnableTrigger( gg_trg_Soul_Strike_Loop )
-    else
-    endif
-    if ( Trig_Soul_Strike2_Func002C() ) then
-        set udg_DYN2_RECYCLE_SIZE = ( udg_DYN2_RECYCLE_SIZE - 1 )
-        set udg_DYN2_CURRENT_INDEX = udg_DYN2_RECYCLE_CONTAINER[udg_DYN2_RECYCLE_SIZE]
-    else
-        set udg_DYN2_CURRENT_INDEX = udg_DYN2_INDEX_SIZE
-        set udg_DYN2_INDEX_SIZE = ( udg_DYN2_INDEX_SIZE + 1 )
-    endif
-    set udg_TempLoc = GetUnitLoc(GetTriggerUnit())
-    set udg_TempLoc2 = PolarProjectionBJ(GetSpellTargetLoc(), 800.00, GetUnitFacing(GetTriggerUnit()))
-    set udg_DYN2_EXAMPLE_ANGLE[udg_DYN2_CURRENT_INDEX] = AngleBetweenPoints(udg_TempLoc, udg_TempLoc2)
-    set udg_DYN2_EXAMPLE_DISTANCE[udg_DYN2_CURRENT_INDEX] = DistanceBetweenPoints(udg_TempLoc, udg_TempLoc2)
-    set udg_DYN2_EXAMPLE_UNIT[udg_DYN2_CURRENT_INDEX] = GetTriggerUnit()
-    set udg_DYN2_EXAMPLE_POINT[udg_DYN2_CURRENT_INDEX] = GetUnitLoc(GetTriggerUnit())
-    call RemoveLocation(udg_TempLoc)
-    call RemoveLocation(udg_TempLoc2)
-    set udg_DYN2_INDEX_CONTAINER[udg_DYN2_INDEX_LISTENER] = udg_DYN2_CURRENT_INDEX
-    set udg_DYN2_INDEX_LISTENER = ( udg_DYN2_INDEX_LISTENER + 1 )
-        call RemoveLocation(udg_DYN2_EXAMPLE_POINT[udg_DYN2_CURRENT_INDEX])
+    call SoulStrike_Launch(GetTriggerUnit(), GetSpellTargetX(), GetSpellTargetY())
 endfunction
 
 //===========================================================================
@@ -9416,119 +9560,8 @@ endfunction
 //===========================================================================
 // Trigger: Soul Strike Loop
 //===========================================================================
-function Trig_Soul_Strike_Loop_Func001Func002Func013Func001Func001C takes nothing returns boolean
-    if ( not ( UnitHasBuffBJ(GetEnumUnit(), 'B01M') == false ) ) then
-        return false
-    endif
-    if ( not ( GetUnitAbilityLevelSwapped('A00A', GetEnumUnit()) == 0 ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_Soul_Strike_Loop_Func001Func002Func013Func001C takes nothing returns boolean
-    if ( not ( IsPlayerEnemy(GetOwningPlayer(GetEnumUnit()), GetOwningPlayer(udg_DYN2_EXAMPLE_UNIT[udg_DYN2_CURRENT_INDEX])) == true ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_Soul_Strike_Loop_Func001Func002Func013Func002Func001C takes nothing returns boolean
-    if ( not ( UnitHasBuffBJ(GetEnumUnit(), 'B01N') == false ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_Soul_Strike_Loop_Func001Func002Func013Func002C takes nothing returns boolean
-    if ( not ( IsPlayerAlly(GetOwningPlayer(GetEnumUnit()), GetOwningPlayer(udg_DYN2_EXAMPLE_UNIT[udg_DYN2_CURRENT_INDEX])) == true ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_Soul_Strike_Loop_Func001Func002Func013A takes nothing returns nothing
-    if ( Trig_Soul_Strike_Loop_Func001Func002Func013Func001C() ) then
-        if ( Trig_Soul_Strike_Loop_Func001Func002Func013Func001Func001C() ) then
-            call CreateNUnitsAtLoc( 1, 'h005', GetOwningPlayer(udg_DYN2_EXAMPLE_UNIT[udg_DYN2_CURRENT_INDEX]), GetUnitLoc(GetEnumUnit()), bj_UNIT_FACING )
-            call UnitAddAbilityBJ( 'A06K', GetLastCreatedUnit() )
-            call IssueTargetOrderBJ( GetLastCreatedUnit(), "acidbomb", GetEnumUnit() )
-            call UnitApplyTimedLifeBJ( 1.00, 'BTLF', GetLastCreatedUnit() )
-            call UnitDamageTargetBJ( udg_DYN2_EXAMPLE_UNIT[udg_DYN2_CURRENT_INDEX], GetEnumUnit(), 375.00, ATTACK_TYPE_CHAOS, DAMAGE_TYPE_UNKNOWN )
-        else
-        endif
-    else
-    endif
-    if ( Trig_Soul_Strike_Loop_Func001Func002Func013Func002C() ) then
-        if ( Trig_Soul_Strike_Loop_Func001Func002Func013Func002Func001C() ) then
-            call CreateNUnitsAtLoc( 1, 'h005', GetOwningPlayer(udg_DYN2_EXAMPLE_UNIT[udg_DYN2_CURRENT_INDEX]), GetUnitLoc(GetEnumUnit()), bj_UNIT_FACING )
-            call UnitAddAbilityBJ( 'A06L', GetLastCreatedUnit() )
-            call IssueTargetOrderBJ( GetLastCreatedUnit(), "bloodlust", GetEnumUnit() )
-            call UnitApplyTimedLifeBJ( 1.00, 'BTLF', GetLastCreatedUnit() )
-            call SetUnitLifeBJ( GetEnumUnit(), ( GetUnitStateSwap(UNIT_STATE_LIFE, GetEnumUnit()) + 300.00 ) )
-        else
-        endif
-    else
-    endif
-endfunction
-
-function Trig_Soul_Strike_Loop_Func001Func002Func021C takes nothing returns boolean
-    if ( not ( udg_DYN2_INDEX_LISTENER == 0 ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_Soul_Strike_Loop_Func001Func002C takes nothing returns boolean
-    if ( not ( udg_DYN2_EXAMPLE_DISTANCE[udg_DYN2_CURRENT_INDEX] > 0.00 ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_Soul_Strike_Loop_Actions takes nothing returns nothing
-    set udg_DYN2_EXAMPLE_LOOP = 0
-    loop
-        exitwhen udg_DYN2_EXAMPLE_LOOP > ( udg_DYN2_INDEX_LISTENER - 1 )
-        set udg_DYN2_CURRENT_INDEX = udg_DYN2_INDEX_CONTAINER[udg_DYN2_EXAMPLE_LOOP]
-        if ( Trig_Soul_Strike_Loop_Func001Func002C() ) then
-            set udg_TempLoc = PolarProjectionBJ(udg_DYN2_EXAMPLE_POINT[udg_DYN2_CURRENT_INDEX], 55.00, udg_DYN2_EXAMPLE_ANGLE[udg_DYN2_CURRENT_INDEX])
-            set udg_TempLoc2 = udg_DYN2_EXAMPLE_POINT[udg_DYN2_CURRENT_INDEX]
-            call RemoveLocation(udg_TempLoc2)
-            call CreateNUnitsAtLoc( 1, 'hsor', GetOwningPlayer(udg_DYN2_EXAMPLE_UNIT[udg_DYN2_CURRENT_INDEX]), udg_TempLoc, bj_UNIT_FACING )
-            call UnitApplyTimedLifeBJ( 0.50, 'BTLF', GetLastCreatedUnit() )
-            call AddSpecialEffectLocBJ( udg_TempLoc, "Abilities\\Spells\\Undead\\ReplenishHealth\\ReplenishHealthCasterOverhead.mdl" )
-            call DestroyEffectBJ( GetLastCreatedEffectBJ() )
-            call AddSpecialEffectLocBJ( udg_TempLoc, "Abilities\\Spells\\Human\\Defend\\DefendCaster.mdl" )
-            call DestroyEffectBJ( GetLastCreatedEffectBJ() )
-            set bj_wantDestroyGroup=true
-            call ForGroupBJ( GetUnitsInRangeOfLocAll(200.00, udg_TempLoc), function Trig_Soul_Strike_Loop_Func001Func002Func013A )
-            set udg_DYN2_EXAMPLE_POINT[udg_DYN2_CURRENT_INDEX] = udg_TempLoc
-            set udg_DYN2_EXAMPLE_DISTANCE[udg_DYN2_CURRENT_INDEX] = ( udg_DYN2_EXAMPLE_DISTANCE[udg_DYN2_CURRENT_INDEX] - 5.00 )
-        else
-            set udg_TempLoc = udg_DYN2_EXAMPLE_POINT[udg_DYN2_CURRENT_INDEX]
-            call RemoveLocation(udg_TempLoc)
-            set udg_DYN2_INDEX_LISTENER = ( udg_DYN2_INDEX_LISTENER - 1 )
-            set udg_DYN2_INDEX_CONTAINER[udg_DYN2_EXAMPLE_LOOP] = udg_DYN2_INDEX_CONTAINER[udg_DYN2_INDEX_LISTENER]
-            set udg_DYN2_RECYCLE_CONTAINER[udg_DYN2_RECYCLE_SIZE] = udg_DYN2_CURRENT_INDEX
-            set udg_DYN2_RECYCLE_SIZE = ( udg_DYN2_RECYCLE_SIZE + 1 )
-            set udg_DYN2_EXAMPLE_LOOP = ( udg_DYN2_EXAMPLE_LOOP - 1 )
-            if ( Trig_Soul_Strike_Loop_Func001Func002Func021C() ) then
-                call DisableTrigger( gg_trg_Soul_Strike_Loop )
-                return
-            else
-            endif
-        endif
-        set udg_DYN2_EXAMPLE_LOOP = udg_DYN2_EXAMPLE_LOOP + 1
-    endloop
-endfunction
-
-//===========================================================================
+// Retired: the old DYN2 soul-wave loop now lives in MissileCore.
 function InitTrig_Soul_Strike_Loop takes nothing returns nothing
-    set gg_trg_Soul_Strike_Loop = CreateTrigger(  )
-    call DisableTrigger( gg_trg_Soul_Strike_Loop )
-    call TriggerRegisterTimerEventPeriodic( gg_trg_Soul_Strike_Loop, 0.03 )
-    call TriggerAddAction( gg_trg_Soul_Strike_Loop, function Trig_Soul_Strike_Loop_Actions )
 endfunction
 
 //===========================================================================
@@ -10345,46 +10378,9 @@ endfunction
 //===========================================================================
 // Trigger: Piercing Shot
 //===========================================================================
-function Trig_Piercing_Shot_Func001C takes nothing returns boolean
-    if ( not ( udg_IAHas[udg_IALastRecycled] == true ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_Piercing_Shot_Func014C takes nothing returns boolean
-    if ( not ( IsTriggerEnabled(gg_trg_Piercing_Shot_Ef) == false ) ) then
-        return false
-    endif
-    return true
-endfunction
-
+// Migrated to TIDES ENGINE MissileCore - see PiercingShot_Launch.
 function Trig_Piercing_Shot_Actions takes nothing returns nothing
-    if ( Trig_Piercing_Shot_Func001C() ) then
-        set udg_IAMax = ( udg_IAMax + 1 )
-        set udg_IAIndex = udg_IAMax
-    else
-        set udg_IAIndex = udg_IALastRecycled
-        set udg_IALastRecycled = udg_IARecycledList[udg_IALastRecycled]
-    endif
-    set udg_IACaster[udg_IAIndex] = GetTriggerUnit()
-    set udg_IATargetPoint[udg_IAIndex] = GetSpellTargetLoc()
-    set udg_IACasterPoint[udg_IAIndex] = GetUnitLoc(udg_IACaster[udg_IAIndex])
-    set udg_IAMaxDistance[udg_IAIndex] = 1900.00
-    set udg_IADistance[udg_IAIndex] = 0.00
-    set udg_IADamage[udg_IAIndex] = ( 160.00 + ( I2R(GetHeroStatBJ(bj_HEROSTAT_STR, udg_IACaster[udg_IAIndex], true)) + ( I2R(GetHeroStatBJ(bj_HEROSTAT_AGI, udg_IACaster[udg_IAIndex], true)) + I2R(GetHeroStatBJ(bj_HEROSTAT_INT, udg_IACaster[udg_IAIndex], true)) ) ) )
-    set udg_IAHas[udg_IAIndex] = true
-    set udg_IACount = ( udg_IACount + 1 )
-    set udg_IAAngle[udg_IAIndex] = AngleBetweenPoints(udg_IACasterPoint[udg_IAIndex], udg_IATargetPoint[udg_IAIndex])
-    call CreateNUnitsAtLoc( 1, 'e002', GetTriggerPlayer(), udg_IACasterPoint[udg_IAIndex], udg_IAAngle[udg_IAIndex] )
-    set udg_IAArrow[udg_IAIndex] = GetLastCreatedUnit()
-    set udg_IADMGGroup[udg_IAIndex] = CreateGroup()
-    if ( Trig_Piercing_Shot_Func014C() ) then
-        call EnableTrigger( gg_trg_Piercing_Shot_Ef )
-    else
-    endif
-        call RemoveLocation(udg_IATargetPoint[udg_IAIndex])
-            call RemoveLocation(udg_IACasterPoint[udg_IAIndex])
+    call PiercingShot_Launch(GetTriggerUnit(), GetSpellTargetX(), GetSpellTargetY())
 endfunction
 
 //===========================================================================
@@ -10396,188 +10392,9 @@ endfunction
 //===========================================================================
 // Trigger: Piercing Shot Ef
 //===========================================================================
-function Trig_Piercing_Shot_Ef_Func001Func001Func002Func010C takes nothing returns boolean
-    if ( not ( udg_IACount == 0 ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_Piercing_Shot_Ef_Func001Func001Func002Func015001003001 takes nothing returns boolean
-    return ( IsUnitType(GetFilterUnit(), UNIT_TYPE_STRUCTURE) == false )
-endfunction
-
-function Trig_Piercing_Shot_Ef_Func001Func001Func002Func015001003002001 takes nothing returns boolean
-    return ( IsUnitType(GetFilterUnit(), UNIT_TYPE_MAGIC_IMMUNE) == false )
-endfunction
-
-function Trig_Piercing_Shot_Ef_Func001Func001Func002Func015001003002002001001 takes nothing returns boolean
-    return ( IsUnitAliveBJ(GetFilterUnit()) == true )
-endfunction
-
-function Trig_Piercing_Shot_Ef_Func001Func001Func002Func015001003002002001002 takes nothing returns boolean
-    return ( IsUnitInGroup(GetFilterUnit(), udg_IADMGGroup[udg_IAInteger]) == false )
-endfunction
-
-function Trig_Piercing_Shot_Ef_Func001Func001Func002Func015001003002002001 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Piercing_Shot_Ef_Func001Func001Func002Func015001003002002001001(), Trig_Piercing_Shot_Ef_Func001Func001Func002Func015001003002002001002() )
-endfunction
-
-function Trig_Piercing_Shot_Ef_Func001Func001Func002Func015001003002002002 takes nothing returns boolean
-    return ( IsUnitEnemy(GetFilterUnit(), GetOwningPlayer(udg_IACaster[udg_IAInteger])) == true )
-endfunction
-
-function Trig_Piercing_Shot_Ef_Func001Func001Func002Func015001003002002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Piercing_Shot_Ef_Func001Func001Func002Func015001003002002001(), Trig_Piercing_Shot_Ef_Func001Func001Func002Func015001003002002002() )
-endfunction
-
-function Trig_Piercing_Shot_Ef_Func001Func001Func002Func015001003002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Piercing_Shot_Ef_Func001Func001Func002Func015001003002001(), Trig_Piercing_Shot_Ef_Func001Func001Func002Func015001003002002() )
-endfunction
-
-function Trig_Piercing_Shot_Ef_Func001Func001Func002Func015001003 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Piercing_Shot_Ef_Func001Func001Func002Func015001003001(), Trig_Piercing_Shot_Ef_Func001Func001Func002Func015001003002() )
-endfunction
-
-function Trig_Piercing_Shot_Ef_Func001Func001Func002Func015A takes nothing returns nothing
-    call GroupAddUnitSimple( GetEnumUnit(), udg_IADMGGroup[udg_IAInteger] )
-    call UnitDamageTargetBJ( udg_IACaster[udg_IAInteger], GetEnumUnit(), udg_IADamage[udg_IAInteger], ATTACK_TYPE_PIERCE, DAMAGE_TYPE_NORMAL )
-endfunction
-
-function Trig_Piercing_Shot_Ef_Func001Func001Func002Func016C takes nothing returns boolean
-    if ( not ( ModuloReal(udg_IADistance[udg_IAInteger], 400.00) == 0.00 ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_Piercing_Shot_Ef_Func001Func001Func002Func018001003001 takes nothing returns boolean
-    return ( IsUnitType(GetFilterUnit(), UNIT_TYPE_STRUCTURE) == false )
-endfunction
-
-function Trig_Piercing_Shot_Ef_Func001Func001Func002Func018001003002001 takes nothing returns boolean
-    return ( IsUnitType(GetFilterUnit(), UNIT_TYPE_MAGIC_IMMUNE) == false )
-endfunction
-
-function Trig_Piercing_Shot_Ef_Func001Func001Func002Func018001003002002001 takes nothing returns boolean
-    return ( IsUnitAliveBJ(GetFilterUnit()) == true )
-endfunction
-
-function Trig_Piercing_Shot_Ef_Func001Func001Func002Func018001003002002002 takes nothing returns boolean
-    return ( IsUnitEnemy(GetFilterUnit(), GetOwningPlayer(udg_IACaster[udg_IAInteger])) == true )
-endfunction
-
-function Trig_Piercing_Shot_Ef_Func001Func001Func002Func018001003002002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Piercing_Shot_Ef_Func001Func001Func002Func018001003002002001(), Trig_Piercing_Shot_Ef_Func001Func001Func002Func018001003002002002() )
-endfunction
-
-function Trig_Piercing_Shot_Ef_Func001Func001Func002Func018001003002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Piercing_Shot_Ef_Func001Func001Func002Func018001003002001(), Trig_Piercing_Shot_Ef_Func001Func001Func002Func018001003002002() )
-endfunction
-
-function Trig_Piercing_Shot_Ef_Func001Func001Func002Func018001003 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Piercing_Shot_Ef_Func001Func001Func002Func018001003001(), Trig_Piercing_Shot_Ef_Func001Func001Func002Func018001003002() )
-endfunction
-
-function Trig_Piercing_Shot_Ef_Func001Func001Func002Func018Func003Func001Func002C takes nothing returns boolean
-    if ( ( GetDestructableTypeId(GetEnumDestructable()) == 'ZTtw' ) ) then
-        return true
-    endif
-    if ( ( GetDestructableTypeId(GetEnumDestructable()) == 'ZTtc' ) ) then
-        return true
-    endif
-    return false
-endfunction
-
-function Trig_Piercing_Shot_Ef_Func001Func001Func002Func018Func003Func001C takes nothing returns boolean
-    if ( not Trig_Piercing_Shot_Ef_Func001Func001Func002Func018Func003Func001Func002C() ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_Piercing_Shot_Ef_Func001Func001Func002Func018Func003A takes nothing returns nothing
-    if ( Trig_Piercing_Shot_Ef_Func001Func001Func002Func018Func003Func001C() ) then
-        call KillDestructable( GetEnumDestructable() )
-    else
-    endif
-endfunction
-
-function Trig_Piercing_Shot_Ef_Func001Func001Func002Func018A takes nothing returns nothing
-    set udg_TempLoc2 = GetUnitLoc(GetEnumUnit())
-    set udg_TempLoc3 = PolarProjectionBJ(udg_TempLoc2, 40.00, AngleBetweenPoints(udg_IACasterPoint[udg_IAInteger], udg_TempLoc2))
-    call EnumDestructablesInCircleBJ( 200.00, GetUnitLoc(GetEnumUnit()), function Trig_Piercing_Shot_Ef_Func001Func001Func002Func018Func003A )
-    call SetUnitPositionLoc( GetEnumUnit(), udg_TempLoc3 )
-    call AddSpecialEffectLocBJ( udg_TempLoc2, "Abilities\\Spells\\Orc\\Devour\\DevourEffectArt.mdl" )
-    call DestroyEffectBJ( GetLastCreatedEffectBJ() )
-    call RemoveLocation (udg_TempLoc2)
-    call RemoveLocation (udg_TempLoc3)
-endfunction
-
-function Trig_Piercing_Shot_Ef_Func001Func001Func002C takes nothing returns boolean
-    if ( not ( udg_IADistance[udg_IAInteger] < udg_IAMaxDistance[udg_IAInteger] ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_Piercing_Shot_Ef_Func001Func001C takes nothing returns boolean
-    if ( not ( udg_IAHas[udg_IAInteger] == true ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_Piercing_Shot_Ef_Actions takes nothing returns nothing
-    set udg_IAInteger = 0
-    loop
-        exitwhen udg_IAInteger > udg_IAMax
-        if ( Trig_Piercing_Shot_Ef_Func001Func001C() ) then
-            if ( Trig_Piercing_Shot_Ef_Func001Func001Func002C() ) then
-                set udg_IADistance[udg_IAInteger] = ( udg_IADistance[udg_IAInteger] + 75.00 )
-                set udg_TempLoc = PolarProjectionBJ(udg_IACasterPoint[udg_IAInteger], udg_IADistance[udg_IAInteger], udg_IAAngle[udg_IAInteger])
-                call SetUnitPositionLoc( udg_IAArrow[udg_IAInteger], udg_TempLoc )
-                set bj_wantDestroyGroup = true
-                call ForGroupBJ( GetUnitsInRangeOfLocMatching(100.00, udg_TempLoc, Condition(function Trig_Piercing_Shot_Ef_Func001Func001Func002Func015001003)), function Trig_Piercing_Shot_Ef_Func001Func001Func002Func015A )
-                if ( Trig_Piercing_Shot_Ef_Func001Func001Func002Func016C() ) then
-                    call CreateNUnitsAtLoc( 1, 'h00Y', GetOwningPlayer(udg_IACaster[udg_IAInteger]), udg_TempLoc, udg_IAAngle[udg_IAInteger] )
-                    call SetUnitVertexColorBJ( GetLastCreatedUnit(), 50.00, 50.00, 50.00, 75.00 )
-                    call UnitApplyTimedLifeBJ( 1.00, 'BTLF', GetLastCreatedUnit() )
-                else
-                endif
-                set bj_wantDestroyGroup = true
-                call ForGroupBJ( GetUnitsInRangeOfLocMatching(100.00, udg_TempLoc, Condition(function Trig_Piercing_Shot_Ef_Func001Func001Func002Func018001003)), function Trig_Piercing_Shot_Ef_Func001Func001Func002Func018A )
-                call RemoveLocation (udg_TempLoc)
-            else
-                call ExplodeUnitBJ( udg_IAArrow[udg_IAInteger] )
-                call GroupClear( udg_IADMGGroup[udg_IAInteger] )
-                call DestroyGroup (udg_IADMGGroup[udg_IAInteger])
-                call RemoveLocation (udg_IATargetPoint[udg_IAInteger])
-                call RemoveLocation (udg_IACasterPoint[udg_IAInteger])
-                set udg_IACount = ( udg_IACount - 1 )
-                set udg_IAHas[udg_IAInteger] = false
-                set udg_IARecycledList[udg_IAInteger] = udg_IALastRecycled
-                set udg_IALastRecycled = udg_IAInteger
-                if ( Trig_Piercing_Shot_Ef_Func001Func001Func002Func010C() ) then
-                    set udg_IARecycledList[udg_IAInteger] = 0
-                    set udg_IALastRecycled = 0
-                    set udg_IAMax = 0
-                    call DisableTrigger( GetTriggeringTrigger() )
-                else
-                endif
-            endif
-        else
-        endif
-        set udg_IAInteger = udg_IAInteger + 1
-    endloop
-endfunction
-
-//===========================================================================
+// Retired: the old arrow loop (leaked its trail dummies and locations on
+// every tick) now lives in MissileCore with an onTick drag callback.
 function InitTrig_Piercing_Shot_Ef takes nothing returns nothing
-    set gg_trg_Piercing_Shot_Ef = CreateTrigger(  )
-    call DisableTrigger( gg_trg_Piercing_Shot_Ef )
-    call TriggerRegisterTimerEventPeriodic( gg_trg_Piercing_Shot_Ef, 0.03 )
-    call TriggerAddAction( gg_trg_Piercing_Shot_Ef, function Trig_Piercing_Shot_Ef_Actions )
 endfunction
 
 //===========================================================================
