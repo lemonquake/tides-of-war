@@ -11,7 +11,7 @@
 1. Load the project skill `.agents/skills/warcraft3-jass-optimization/SKILL.md` — its six rules are law (native XY coords, null all locals, group/force hygiene, div-by-zero guards).
 2. After **every** edit to `src/war3map.j`:
    `python .agents/skills/warcraft3-jass-optimization/scripts/validate_jass_syntax.py src/war3map.j`
-   It checks block balance, declared-before-use, duplicate functions, and **fails on any leak regression** vs `scripts/leak_baseline.txt` (current baseline: location=37, everything else 0). It caught a real un-nulled local of mine — trust it.
+   It checks block balance, declared-before-use, duplicate functions, and **fails on any leak regression** vs `scripts/leak_baseline.txt` (current baseline: location=27, everything else 0). It caught a real un-nulled local of mine — trust it.
 3. Build: copy `base_map.w3x` → `dist/Tides_of_War_Compiled.w3x`, then `MPQEditor.exe add "dist\Tides_of_War_Compiled.w3x" "src\war3map.j" "war3map.j"` (or run `build.bat nopause`, which gates on the validator).
 4. Commit per batch with a message naming what migrated and the leak delta. Author identity used so far: `-c user.name="Lemon" -c user.email="lemonquake@gmail.com"`, co-author trailer for Claude.
 5. **Update the leak baseline** (`scripts/leak_baseline.txt`) only downward, when you've genuinely removed leaks.
@@ -57,8 +57,8 @@ Hook ('A03B'), Torpedo ('A02K'), Piercing Shot ('A03F'), Soul Strike ('A032'), E
 
 ## 3. What to do NEXT (in order)
 
-### 3a. Burn down the 37 remaining location-leak functions (fast wins)
-The validator baseline is 37. Full hit-list (name @ line, as of HEAD — lines drift, re-run the lister):
+### 3a. Burn down the 27 remaining location-leak functions (fast wins)
+The validator baseline is 27. Full hit-list (name @ line, as of HEAD — lines drift, re-run the lister):
 ```
 python -c "<see git log batch 5 era or re-derive>"   # or just re-run: the one-liner lives in the session notes
 ```
@@ -76,6 +76,8 @@ Completed in leak-scrub batch 9: the TEAM1, TEAM2, and free-for-all revive paths
 Completed in leak-scrub batch 10: Behavior1/3 and the P2/P4/P6/P7/P8 area-count decisions now use native coordinates. One shared `Eng_CountUnitsAt` replaces five leaking GUI count expressions; Behavior3 uses pooled stun dummies. Location warnings: 53 → 46.
 
 Completed in leak-scrub batch 11: initialization camera centering, mine detonation, base redirects, BM/BOMB debug spawners, and camera tracking now use native coordinates. Mine damage uses an isolated destroyed group because damage events may re-enter shared enumeration. Location warnings: 46 → 37.
+
+Completed in leak-scrub batch 12: game intro/mode transmissions, initial camera setup, duel return, repick placement, and revival item recovery now use native coordinates. `Game_TransmissionInitial` owns and cleans the one location required by Blizzard's transmission API plus its temporary audience force. Location warnings: 37 → 27.
 False positives to allowlist mentally: `config`, `InitCustomPlayerSlots`, `CreateNeutralPassiveBuildings` (substring matches).
 After each burn-down, lower `leak_baseline.txt`.
 

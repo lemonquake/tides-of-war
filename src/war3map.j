@@ -13608,13 +13608,28 @@ endfunction
 //===========================================================================
 // Trigger: Game
 //===========================================================================
+function Game_TransmissionInitial takes player audience, integer speakerType, string speakerName, string message, real duration returns nothing
+    local force f = CreateForce()
+    local location loc = Location((GetRectMinX(gg_rct_InitialView) + GetRectMaxX(gg_rct_InitialView)) * 0.50, (GetRectMinY(gg_rct_InitialView) + GetRectMaxY(gg_rct_InitialView)) * 0.50)
+    call ForceAddPlayer(f, audience)
+    call TransmissionFromUnitTypeWithNameBJ(f, Player(0), speakerType, speakerName, loc, null, message, bj_TIMETYPE_ADD, duration, false)
+    call RemoveLocation(loc)
+    call DestroyForce(f)
+    set f = null
+    set loc = null
+endfunction
+
 function Trig_Game_Func009001001 takes nothing returns boolean
     return ( GetFilterPlayer() != Player(0) )
 endfunction
 
 function Trig_Game_Func009A takes nothing returns nothing
-    call CinematicModeBJ( true, GetForceOfPlayer(GetEnumPlayer()) )
-    call TransmissionFromUnitTypeWithNameBJ( GetForceOfPlayer(GetEnumPlayer()), Player(0), 'Hblm', "TRIGSTR_2854", GetRectCenter(gg_rct_InitialView), null, "TRIGSTR_2855", bj_TIMETYPE_ADD, 0.00, false )
+    local force f = CreateForce()
+    call ForceAddPlayer(f, GetEnumPlayer())
+    call CinematicModeBJ(true, f)
+    call DestroyForce(f)
+    call Game_TransmissionInitial(GetEnumPlayer(), 'Hblm', "TRIGSTR_2854", "TRIGSTR_2855", 0.00)
+    set f = null
 endfunction
 
 function Trig_Game_Func011A takes nothing returns nothing
@@ -13622,7 +13637,7 @@ function Trig_Game_Func011A takes nothing returns nothing
     set udg_Kill_Limit[udg_Kill_P] = 50
     call SetPlayerFlagBJ( PLAYER_STATE_GIVES_BOUNTY, true, GetEnumPlayer() )
     call SetPlayerStateBJ( GetEnumPlayer(), PLAYER_STATE_RESOURCE_GOLD, 700 )
-    call PanCameraToTimedForPlayer(GetEnumPlayer(), GetRectCenterX(gg_rct_InitialView), GetRectCenterY(gg_rct_InitialView), 0)
+    call PanCameraToTimedForPlayer(GetEnumPlayer(), (GetRectMinX(gg_rct_InitialView) + GetRectMaxX(gg_rct_InitialView)) * 0.50, (GetRectMinY(gg_rct_InitialView) + GetRectMaxY(gg_rct_InitialView)) * 0.50, 0)
     call CreateFogModifierRectBJ( true, GetEnumPlayer(), FOG_OF_WAR_VISIBLE, gg_rct_InitialView )
 endfunction
 
@@ -13793,7 +13808,7 @@ endfunction
 
 function Trig_Normal_Mode_Set1_Actions takes nothing returns nothing
     set udg_KILL_LIM = 20
-    call TransmissionFromUnitTypeWithNameBJ( GetForceOfPlayer(GetEnumPlayer()), Player(0), 'Hblm', "TRIGSTR_2870", GetRectCenter(gg_rct_InitialView), null, ( "Kill Limit is set to " + ( I2S(udg_Kill_Limit[udg_Kill_P]) + "!" ) ), bj_TIMETYPE_ADD, 5.00, false )
+    call Game_TransmissionInitial(GetEnumPlayer(), 'Hblm', "TRIGSTR_2870", ( "Kill Limit is set to " + ( I2S(udg_Kill_Limit[udg_Kill_P]) + "!" ) ), 5.00)
 endfunction
 
 //===========================================================================
@@ -13816,7 +13831,7 @@ endfunction
 
 function Trig_Normal_Mode_Set1b_Actions takes nothing returns nothing
     set udg_KILL_LIM = 50
-    call TransmissionFromUnitTypeWithNameBJ( GetForceOfPlayer(GetEnumPlayer()), Player(0), 'Hblm', "TRIGSTR_2871", GetRectCenter(gg_rct_InitialView), null, ( "Kill Limit is set to " + ( I2S(udg_Kill_Limit[udg_Kill_P]) + "!" ) ), bj_TIMETYPE_ADD, 5.00, false )
+    call Game_TransmissionInitial(GetEnumPlayer(), 'Hblm', "TRIGSTR_2871", ( "Kill Limit is set to " + ( I2S(udg_Kill_Limit[udg_Kill_P]) + "!" ) ), 5.00)
 endfunction
 
 //===========================================================================
@@ -13839,7 +13854,7 @@ endfunction
 
 function Trig_Normal_Mode_Set1c_Actions takes nothing returns nothing
     set udg_KILL_LIM = 99
-    call TransmissionFromUnitTypeWithNameBJ( GetForceOfPlayer(GetEnumPlayer()), Player(0), 'Hblm', "TRIGSTR_2872", GetRectCenter(gg_rct_InitialView), null, ( "Kill Limit is set to " + ( I2S(udg_Kill_Limit[udg_Kill_P]) + "!" ) ), bj_TIMETYPE_ADD, 5.00, false )
+    call Game_TransmissionInitial(GetEnumPlayer(), 'Hblm', "TRIGSTR_2872", ( "Kill Limit is set to " + ( I2S(udg_Kill_Limit[udg_Kill_P]) + "!" ) ), 5.00)
 endfunction
 
 //===========================================================================
@@ -14205,7 +14220,7 @@ function Trig_Normal_Mode_Con2_Conditions takes nothing returns boolean
 endfunction
 
 function Trig_Normal_Mode_Con2_Actions takes nothing returns nothing
-    call TransmissionFromUnitTypeWithNameBJ( GetForceOfPlayer(GetEnumPlayer()), Player(0), 'Hblm', "TRIGSTR_2876", GetRectCenter(gg_rct_InitialView), null, ( "Starting Level is set to " + ( I2S(udg_Level_Set) + "!" ) ), bj_TIMETYPE_ADD, 5.00, false )
+    call Game_TransmissionInitial(GetEnumPlayer(), 'Hblm', "TRIGSTR_2876", ( "Starting Level is set to " + ( I2S(udg_Level_Set) + "!" ) ), 5.00)
     call DialogDisplayBJ( false, udg_DIALOG3, Player(0) )
     call DialogSetMessageBJ( udg_DIALOG4, ( "Normal Mode - " + ( I2S(udg_Kill_Limit[udg_Kill_P]) + ( " - " + I2S(udg_Level_Set) ) ) ) )
     call DialogAddButtonBJ( udg_DIALOG4, "TRIGSTR_2877" )
@@ -14499,7 +14514,7 @@ endfunction
 
 function Trig_Duel_Finish_Func010Func003A takes nothing returns nothing
     call SelectUnitForPlayerSingle( GetEnumUnit(), GetEnumPlayer() )
-    call PanCameraToTimedLocForPlayer( GetEnumPlayer(), GetUnitLoc(GetEnumUnit()), 0.00 )
+    call PanCameraToTimedForPlayer(GetEnumPlayer(), GetUnitX(GetEnumUnit()), GetUnitY(GetEnumUnit()), 0.00)
 endfunction
 
 function Trig_Duel_Finish_Func010A takes nothing returns nothing
@@ -16258,33 +16273,33 @@ function Trig_Repick1_Func002A takes nothing returns nothing
     call UnitRemoveItemSwapped( UnitItemInSlotBJ(udg_Hero_Repicked, 1), udg_Hero_Repicked )
     set udg_Hero_Item[1] = GetLastRemovedItem()
     call SetItemPlayerBJ( GetLastRemovedItem(), GetTriggerPlayer(), false )
-    call SetItemPositionLoc( udg_Hero_Item[1], GetRectCenter(gg_rct_Item_Dump) )
+    call SetItemPosition(udg_Hero_Item[1], (GetRectMinX(gg_rct_Item_Dump) + GetRectMaxX(gg_rct_Item_Dump)) * 0.50, (GetRectMinY(gg_rct_Item_Dump) + GetRectMaxY(gg_rct_Item_Dump)) * 0.50)
     call UnitRemoveItemSwapped( UnitItemInSlotBJ(udg_Hero_Repicked, 2), udg_Hero_Repicked )
     set udg_Hero_Item[2] = GetLastRemovedItem()
     call SetItemPlayerBJ( GetLastRemovedItem(), GetTriggerPlayer(), false )
-    call SetItemPositionLoc( udg_Hero_Item[2], GetRectCenter(gg_rct_Item_Dump) )
+    call SetItemPosition(udg_Hero_Item[2], (GetRectMinX(gg_rct_Item_Dump) + GetRectMaxX(gg_rct_Item_Dump)) * 0.50, (GetRectMinY(gg_rct_Item_Dump) + GetRectMaxY(gg_rct_Item_Dump)) * 0.50)
     call UnitRemoveItemSwapped( UnitItemInSlotBJ(udg_Hero_Repicked, 3), udg_Hero_Repicked )
     set udg_Hero_Item[3] = GetLastRemovedItem()
     call SetItemPlayerBJ( GetLastRemovedItem(), GetTriggerPlayer(), false )
-    call SetItemPositionLoc( udg_Hero_Item[3], GetRectCenter(gg_rct_Item_Dump) )
+    call SetItemPosition(udg_Hero_Item[3], (GetRectMinX(gg_rct_Item_Dump) + GetRectMaxX(gg_rct_Item_Dump)) * 0.50, (GetRectMinY(gg_rct_Item_Dump) + GetRectMaxY(gg_rct_Item_Dump)) * 0.50)
     call UnitRemoveItemSwapped( UnitItemInSlotBJ(udg_Hero_Repicked, 4), udg_Hero_Repicked )
     set udg_Hero_Item[4] = GetLastRemovedItem()
     call SetItemPlayerBJ( GetLastRemovedItem(), GetTriggerPlayer(), false )
-    call SetItemPositionLoc( udg_Hero_Item[4], GetRectCenter(gg_rct_Item_Dump) )
+    call SetItemPosition(udg_Hero_Item[4], (GetRectMinX(gg_rct_Item_Dump) + GetRectMaxX(gg_rct_Item_Dump)) * 0.50, (GetRectMinY(gg_rct_Item_Dump) + GetRectMaxY(gg_rct_Item_Dump)) * 0.50)
     call UnitRemoveItemSwapped( UnitItemInSlotBJ(udg_Hero_Repicked, 5), udg_Hero_Repicked )
     set udg_Hero_Item[5] = GetLastRemovedItem()
     call SetItemPlayerBJ( GetLastRemovedItem(), GetTriggerPlayer(), false )
-    call SetItemPositionLoc( udg_Hero_Item[5], GetRectCenter(gg_rct_Item_Dump) )
+    call SetItemPosition(udg_Hero_Item[5], (GetRectMinX(gg_rct_Item_Dump) + GetRectMaxX(gg_rct_Item_Dump)) * 0.50, (GetRectMinY(gg_rct_Item_Dump) + GetRectMaxY(gg_rct_Item_Dump)) * 0.50)
     call UnitRemoveItemSwapped( UnitItemInSlotBJ(udg_Hero_Repicked, 6), udg_Hero_Repicked )
     set udg_Hero_Item[6] = GetLastRemovedItem()
     call SetItemPlayerBJ( GetLastRemovedItem(), GetTriggerPlayer(), false )
-    call SetItemPositionLoc( udg_Hero_Item[6], GetRectCenter(gg_rct_Item_Dump) )
+    call SetItemPosition(udg_Hero_Item[6], (GetRectMinX(gg_rct_Item_Dump) + GetRectMaxX(gg_rct_Item_Dump)) * 0.50, (GetRectMinY(gg_rct_Item_Dump) + GetRectMaxY(gg_rct_Item_Dump)) * 0.50)
     call DisplayTimedTextToForce( bj_FORCE_ALL_PLAYERS, 15.00, ( udg_Players_Name[GetConvertedPlayerId(GetTriggerPlayer())] + " has repicked!" ) )
-    call PanCameraToTimedForPlayer(GetTriggerPlayer(), GetRectCenterX(gg_rct_repick1), GetRectCenterY(gg_rct_repick1), 0)
+    call PanCameraToTimedForPlayer(GetTriggerPlayer(), (GetRectMinX(gg_rct_repick1) + GetRectMaxX(gg_rct_repick1)) * 0.50, (GetRectMinY(gg_rct_repick1) + GetRectMaxY(gg_rct_repick1)) * 0.50, 0)
     call RemoveUnit( udg_Hero_Repicked )
-    call CreateNUnitsAtLoc( 1, 'n004', GetTriggerPlayer(), GetRandomLocInRect(gg_rct_repick1), bj_UNIT_FACING )
-    call CreateNUnitsAtLoc( 1, 'n004', GetTriggerPlayer(), GetRandomLocInRect(gg_rct_repick1_Copy_2), bj_UNIT_FACING )
-    call CreateNUnitsAtLoc( 1, 'n004', GetTriggerPlayer(), GetRandomLocInRect(gg_rct_repick1_Copy), bj_UNIT_FACING )
+    call CreateUnit(GetTriggerPlayer(), 'n004', GetRandomReal(GetRectMinX(gg_rct_repick1), GetRectMaxX(gg_rct_repick1)), GetRandomReal(GetRectMinY(gg_rct_repick1), GetRectMaxY(gg_rct_repick1)), bj_UNIT_FACING)
+    call CreateUnit(GetTriggerPlayer(), 'n004', GetRandomReal(GetRectMinX(gg_rct_repick1_Copy_2), GetRectMaxX(gg_rct_repick1_Copy_2)), GetRandomReal(GetRectMinY(gg_rct_repick1_Copy_2), GetRectMaxY(gg_rct_repick1_Copy_2)), bj_UNIT_FACING)
+    call CreateUnit(GetTriggerPlayer(), 'n004', GetRandomReal(GetRectMinX(gg_rct_repick1_Copy), GetRectMaxX(gg_rct_repick1_Copy)), GetRandomReal(GetRectMinY(gg_rct_repick1_Copy), GetRectMaxY(gg_rct_repick1_Copy)), bj_UNIT_FACING)
     call SetPlayerUnitAvailableBJ( GetUnitTypeId(udg_Hero_Repicked), true, GetTriggerPlayer() )
 endfunction
 
@@ -18196,7 +18211,7 @@ endfunction
 
 function Trig_On_Revival_Func001Func001Func002A takes nothing returns nothing
     if ( Trig_On_Revival_Func001Func001Func002Func001C() ) then
-        call SetItemPositionLoc( GetEnumItem(), GetUnitLoc(udg_UDexUnits[udg_UDex]) )
+        call SetItemPosition(GetEnumItem(), GetUnitX(udg_UDexUnits[udg_UDex]), GetUnitY(udg_UDexUnits[udg_UDex]))
         call UnitAddItemSwapped( GetEnumItem(), udg_UDexUnits[udg_UDex] )
     else
     endif
@@ -18218,7 +18233,7 @@ endfunction
 
 function Trig_On_Revival_Func001Func002Func002A takes nothing returns nothing
     if ( Trig_On_Revival_Func001Func002Func002Func001C() ) then
-        call SetItemPositionLoc( GetEnumItem(), GetUnitLoc(udg_UDexUnits[udg_UDex]) )
+        call SetItemPosition(GetEnumItem(), GetUnitX(udg_UDexUnits[udg_UDex]), GetUnitY(udg_UDexUnits[udg_UDex]))
         call UnitAddItemSwapped( GetEnumItem(), udg_UDexUnits[udg_UDex] )
     else
     endif
