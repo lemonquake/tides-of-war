@@ -566,6 +566,89 @@ ABILITY_TEXT = {
 }
 
 
+# =========================================================================
+# Fast-paced arena rebalance (goal batch 24)
+# =========================================================================
+# Every hero-carried active ability gets its cooldown pulled down for arena
+# pace. The user's hard rule: ultimates never dip below 10 seconds, basic
+# abilities never below 4 seconds. Abilities the batch redesigns get explicit
+# cooldowns instead of the formula.
+
+HERO_IDS = [
+    "H006", "H00D", "H003", "H00A", "H004", "H00N", "H002", "H007", "H001",
+    "EEES", "H00H", "H00J", "N005", "H00S", "H00O", "H00T", "H00W", "H00X",
+    "H013", "H015", "H017", "H019", "H01C", "H01E", "H01J", "H01K", "H01N",
+    "H01P",
+]
+
+# Non-ability entries that can appear in a hero's ability list.
+NON_SPELL_ABILITIES = {"AInv"}
+
+EXPLICIT_COOLDOWNS = {
+    "A008": 6.0,   # Grudge Bolt
+    "A02D": 9.0,   # Wave of Terror
+    "A00B": 12.0,  # Nether Swap (ultimate, >= 10)
+    "A03J": 12.0,  # Slaughterhouse (ultimate, >= 10)
+}
+
+ULT_SCALE, ULT_FLOOR, ULT_CAP = 0.5, 10.0, 45.0
+BASIC_SCALE, BASIC_FLOOR, BASIC_CAP = 0.6, 4.0, 18.0
+
+
+def collect_hero_ability_tiers(
+    unit_records: "list[SimpleObjectRecord]",
+) -> tuple[set[str], set[str]]:
+    """Return (basics, ultimates) drawn from every hero's ability list.
+
+    The map's GUI convention lists the ultimate as the last real ability of
+    `uabi`; everything before it is a basic slot.
+    """
+    basics: set[str] = set()
+    ults: set[str] = set()
+    for record in unit_records:
+        if record.rawcode not in HERO_IDS:
+            continue
+        for mod in record.modifications:
+            if mod.field_id == b"uabi" and mod.value_type == 3:
+                spells = [
+                    code
+                    for code in mod.value.decode("utf-8").split(",")
+                    if code and code not in NON_SPELL_ABILITIES
+                ]
+                if spells:
+                    ults.add(spells[-1])
+                    basics.update(spells[:-1])
+    # A hero pairing (H004/H00N) shares abilities; ultimate wins ties.
+    basics -= ults
+    return basics, ults
+
+
+def rebalance_cooldowns(
+    records: list[ObjectRecord], basics: set[str], ults: set[str]
+) -> int:
+    changes = 0
+    for record in records:
+        code = record.rawcode
+        if code in EXPLICIT_COOLDOWNS or (code not in basics and code not in ults):
+            continue
+        is_ult = code in ults
+        for mod in record.modifications:
+            if mod.field_id != b"acdn" or mod.value_type not in (1, 2):
+                continue
+            old = struct.unpack("<f", mod.value)[0]
+            if old <= 0.0:
+                continue
+            if is_ult:
+                new = max(ULT_FLOOR, min(ULT_CAP, old * ULT_SCALE))
+            else:
+                new = max(BASIC_FLOOR, min(BASIC_CAP, old * BASIC_SCALE))
+            new = round(new * 2.0) / 2.0
+            if abs(new - old) > 0.01:
+                mod.value = struct.pack("<f", new)
+                changes += 1
+    return changes
+
+
 def string_mod(field_id: bytes, value: str, level: int = 0) -> Modification:
     return Modification(
         field_id, 3, level, 0, value.encode("utf-8"), b"\x00\x00\x00\x00"
@@ -582,6 +665,272 @@ def real_mod(field_id: bytes, value: float, level: int = 1) -> Modification:
     return Modification(
         field_id, 1, level, 0, struct.pack("<f", value), b"\x00\x00\x00\x00"
     )
+
+
+def encode_value(value_type: int, value) -> bytes:
+    if value_type == 3:
+        return str(value).encode("utf-8")
+    if value_type == 0:
+        return struct.pack("<i", int(value))
+    return struct.pack("<f", float(value))
+
+
+def upsert_field(
+    record: ObjectRecord, field_id: bytes, value_type: int, level: int, value
+) -> int:
+    encoded = encode_value(value_type, value)
+    for mod in record.modifications:
+        if mod.field_id == field_id and mod.level == level:
+            if mod.value_type == value_type and mod.value == encoded:
+                return 0
+            mod.value_type = value_type
+            mod.value = encoded
+            return 1
+    record.modifications.append(
+        Modification(field_id, value_type, level, 0, encoded, b"\x00\x00\x00\x00")
+    )
+    return 1
+
+
+# (field, value_type, level, value) applied on top of the existing records.
+# value_type: 0=int, 1=real, 3=string. Level 0 = static field.
+BTN = "ReplaceableTextures\\CommandButtons\\"
+
+VENGE_PUDGE_FIELD_PATCHES = {
+    # --- Vengeful Spirit ---------------------------------------------------
+    "A008": [
+        (b"anam", 3, 0, "Grudge Bolt"),
+        (b"aart", 3, 0, BTN + "BTNSpiritOfVengeance.blp"),
+        (b"arar", 3, 0, BTN + "BTNSpiritOfVengeance.blp"),
+        (b"amat", 3, 0, ""),
+        (b"amsp", 0, 0, 10000),
+        (b"ahky", 3, 0, "Q"),
+        (b"arhk", 3, 0, "Q"),
+        (b"abpx", 0, 0, 0),
+        (b"abpy", 0, 0, 2),
+        (b"aani", 3, 0, "attack"),
+    ]
+    + [(b"Htb1", 1, lv, 0.0) for lv in (1, 2, 3, 4)]
+    + [(b"adur", 1, lv, 0.01) for lv in (1, 2, 3, 4)]
+    + [(b"ahdu", 1, lv, 0.01) for lv in (1, 2, 3, 4)]
+    + [(b"acdn", 1, lv, EXPLICIT_COOLDOWNS["A008"]) for lv in (1, 2, 3, 4)]
+    + [(b"aran", 1, lv, 750.0) for lv in (1, 2, 3, 4)]
+    + [(b"atp1", 3, lv, "Grudge Bolt [|cffffcc00Q|r]") for lv in (1, 2, 3, 4)]
+    + [
+        (
+            b"aub1",
+            3,
+            lv,
+            "Hurls a vengeful spirit that hunts its target for |cffffcc00100 + "
+            "260% Agility|r magic damage and stuns on impact. The grudge "
+            "lingers: an echo wisp remains at the wound and strikes the victim "
+            "again a moment later for half damage.",
+        )
+        for lv in (1, 2, 3, 4)
+    ],
+    "A00C": [
+        (b"anam", 3, 0, "Unpaid Blood"),
+        (b"ahky", 3, 0, "E"),
+        (b"arhk", 3, 0, "E"),
+        (b"abpx", 0, 0, 2),
+        (b"abpy", 0, 0, 2),
+    ]
+    + [
+        (
+            b"atar",
+            3,
+            lv,
+            "air,allies,friend,ground,invulnerable,self,vulnerable",
+        )
+        for lv in (1, 2, 3, 4)
+    ]
+    + [(b"Uau1", 1, lv, 0.08) for lv in (1, 2, 3, 4)]
+    + [(b"Uau2", 1, lv, 0.0) for lv in (1, 2, 3, 4)]
+    + [(b"atp1", 3, lv, "Unpaid Blood [|cffffcc00E|r] - |cff9456e7Aura|r") for lv in (1, 2, 3, 4)]
+    + [
+        (
+            b"aub1",
+            3,
+            lv,
+            "Vengeance never forgets. Nearby allied heroes move |cffffcc008%|r "
+            "faster, and |cffffcc0025%|r of every point of damage they suffer "
+            "is stored as Vengeance (up to 200 + 12x Agility). Venge's next "
+            "strike detonates every stored point as bonus pure damage.",
+        )
+        for lv in (1, 2, 3, 4)
+    ],
+    # --- Butcher -----------------------------------------------------------
+    "A03B": [
+        (b"ahky", 3, 0, "Q"),
+        (b"arhk", 3, 0, "Q"),
+        (b"abpx", 0, 0, 0),
+        (b"arpx", 0, 0, 0),
+        (b"abpy", 0, 0, 2),
+    ],
+    "A03L": [
+        (b"anam", 3, 0, "Rot"),
+        (b"ahky", 3, 0, "W"),
+        (b"auhk", 3, 0, "W"),
+        (b"arhk", 3, 0, "W"),
+        (b"abpx", 0, 0, 1),
+        (b"arpx", 0, 0, 1),
+        (b"abpy", 0, 0, 2),
+    ]
+    + [(b"Eim1", 1, lv, 0.0) for lv in (1, 2, 3, 4)]
+    + [(b"aare", 1, lv, 250.0) for lv in (1, 2, 3, 4)]
+    + [(b"atp1", 3, lv, "Rot [|cffffcc00W|r] - |cff9456e7Toggle|r") for lv in (1, 2, 3, 4)]
+    + [(b"aut1", 3, lv, "Stop Rotting [|cffffcc00W|r]") for lv in (1, 2, 3, 4)]
+    + [
+        (
+            b"aub1",
+            3,
+            lv,
+            "Pudge's putrid flesh boils off in a noxious cloud, dealing "
+            "|cffffcc0090 + 35% of his Strength|r per second to enemies within "
+            "250 and slowing them. Enemies rotting for more than |cffffcc005 "
+            "seconds|r begin to fester, taking |cffff5050 10% increased damage "
+            "from every source|r while the wounds remain open.",
+        )
+        for lv in (1, 2, 3, 4)
+    ],
+    "A03J": [
+        (b"anam", 3, 0, "Slaughterhouse"),
+        (b"ahky", 3, 0, "R"),
+        (b"arhk", 3, 0, "R"),
+        (b"abpx", 0, 0, 3),
+        (b"arpx", 0, 0, 3),
+        (b"abpy", 0, 0, 2),
+    ]
+    + [(b"Htb1", 1, lv, 0.0) for lv in (1, 2, 3)]
+    + [(b"adur", 1, lv, 1.0) for lv in (1, 2, 3)]
+    + [(b"ahdu", 1, lv, 1.0) for lv in (1, 2, 3)]
+    + [(b"acdn", 1, lv, EXPLICIT_COOLDOWNS["A03J"]) for lv in (1, 2, 3)]
+    + [(b"aran", 1, lv, 450.0) for lv in (1, 2, 3)]
+    + [(b"atp1", 3, lv, "Slaughterhouse [|cffffcc00R|r]") for lv in (1, 2, 3)]
+    + [
+        (
+            b"aub1",
+            3,
+            lv,
+            "Pudge impales his victim on a great chain, drags it onto the "
+            "slaughter block at his side and butchers it alive: |cffffcc008 "
+            "strikes|r over 3.2 seconds, each rending |cffffcc0065 + 50% "
+            "Strength + 2.5% of maximum life|r as pure damage and feeding "
+            "Pudge the same amount of life. The victim festers, taking 10% "
+            "increased damage. If it dies on the block, Pudge gains "
+            "|cffff50505 permanent Strength|r and the corpse detonates in "
+            "gore.",
+        )
+        for lv in (1, 2, 3)
+    ],
+    # Rot's companion slow aura follows the new 250 radius.
+    "A03D": [(b"aare", 1, 1, 250.0)],
+}
+
+
+def build_wave_of_terror() -> ObjectRecord:
+    """A02D rebuilt from Channel: a point-target spectral wave (JASS does the
+    work). The old record was a Howl of Terror variant on a mind-control-free
+    base; a clean Channel base gives a proper point cast."""
+    tooltip = (
+        "Venge screams a spectral shockwave that tears |cffffcc001300|r units "
+        "forward, dealing |cffffcc0075 + 220% Agility|r magic damage to every "
+        "enemy in its path, shredding armor and slowing them for 3 seconds."
+    )
+    return ObjectRecord(
+        b"ANcl",
+        b"A02D",
+        [
+            string_mod(b"anam", "Wave of Terror"),
+            int_mod(b"aher", 0),
+            int_mod(b"alev", 1),
+            int_mod(b"abpx", 1),
+            int_mod(b"abpy", 2),
+            string_mod(b"aart", BTN + "BTNHowlOfTerror.blp"),
+            string_mod(b"arar", BTN + "BTNHowlOfTerror.blp"),
+            string_mod(b"ahky", "W"),
+            string_mod(b"arhk", "W"),
+            string_mod(b"aani", "spell"),
+            string_mod(b"atp1", "Wave of Terror [|cffffcc00W|r]", 1),
+            string_mod(b"aub1", tooltip, 1),
+            real_mod(b"Ncl1", 0.0, 1),
+            int_mod(b"Ncl2", 2, 1),
+            int_mod(b"Ncl3", 1, 1),
+            real_mod(b"Ncl4", 0.0, 1),
+            int_mod(b"Ncl5", 0, 1),
+            string_mod(b"Ncl6", "shockwave", 1),
+            real_mod(b"acdn", EXPLICIT_COOLDOWNS["A02D"], 1),
+            int_mod(b"amcs", 90, 1),
+            real_mod(b"aran", 1300.0, 1),
+        ],
+    )
+
+
+def build_nether_swap() -> ObjectRecord:
+    """A00B rebuilt from Storm Bolt: an instant, unit-target soul swap that can
+    grab allies and enemies alike; all mechanics live in JASS."""
+    tooltip = (
+        "Rips two souls through the nether, instantly trading places with any "
+        "hero - friend or foe. A swapped enemy takes |cffffcc00100 + 300% "
+        "Agility|r pure damage and is soul-tethered for 3.5 seconds: straying "
+        "beyond |cffffcc00650|r range drags it screaming back to Venge."
+    )
+    mods = [
+        string_mod(b"anam", "Nether Swap"),
+        int_mod(b"aher", 0),
+        int_mod(b"alev", 1),
+        int_mod(b"abpx", 3),
+        int_mod(b"abpy", 2),
+        string_mod(b"aart", BTN + "BTNSpiritWalkerAdeptTraining.blp"),
+        string_mod(b"arar", BTN + "BTNSpiritWalkerAdeptTraining.blp"),
+        string_mod(b"ahky", "R"),
+        string_mod(b"arhk", "R"),
+        string_mod(b"aani", "spell"),
+        string_mod(b"amat", ""),
+        int_mod(b"amsp", 10000),
+        string_mod(b"atp1", "Nether Swap [|cffffcc00R|r]", 1),
+        string_mod(b"aub1", tooltip, 1),
+        real_mod(b"Htb1", 0.0, 1),
+        real_mod(b"adur", 0.01, 1),
+        real_mod(b"ahdu", 0.01, 1),
+        real_mod(b"acdn", EXPLICIT_COOLDOWNS["A00B"], 1),
+        int_mod(b"amcs", 100, 1),
+        real_mod(b"aran", 1100.0, 1),
+        string_mod(
+            b"atar",
+            "air,allies,enemies,friend,ground,hero,mechanical,neutral,organic",
+            1,
+        ),
+    ]
+    return ObjectRecord(b"AHtb", b"A00B", mods)
+
+
+REBUILT_ABILITIES = {"A02D": build_wave_of_terror, "A00B": build_nether_swap}
+
+
+def rebuild_hero_abilities(
+    original: list[ObjectRecord], custom: list[ObjectRecord]
+) -> int:
+    changes = 0
+    for rawcode, builder in REBUILT_ABILITIES.items():
+        for table in (original, custom):
+            before = len(table)
+            table[:] = [rec for rec in table if rec.rawcode != rawcode]
+            changes += before - len(table)
+        custom.append(builder())
+        changes += 1
+    return changes
+
+
+def apply_field_patches(records: list[ObjectRecord]) -> int:
+    changes = 0
+    for record in records:
+        patches = VENGE_PUDGE_FIELD_PATCHES.get(record.rawcode)
+        if not patches:
+            continue
+        for field_id, value_type, level, value in patches:
+            changes += upsert_field(record, field_id, value_type, level, value)
+    return changes
 
 
 def ensure_citadel_ability(records: list[ObjectRecord]) -> bool:
@@ -649,6 +998,57 @@ DUMMY_UNIT_VISUALS = {
 }
 
 
+# Unit-level surgery for the goal batch: Venge becomes a real Agility hero
+# and both overhauled heroes present their new kits.
+UNIT_FIELD_PATCHES = {
+    "H003": [
+        (b"upra", 3, "AGI"),
+        (b"uagi", 0, 26),
+        (b"uagp", 1, 2.9),
+        (b"ustr", 0, 18),
+        (b"ustp", 1, 2.1),
+        (b"uint", 0, 15),
+        (b"uinp", 1, 1.7),
+        (
+            b"utub",
+            3,
+            "The Unfinished Death. A spirit of pure grudge who trades places "
+            "with the living and repays every drop of allied blood with "
+            "interest.|n|n|cffF79E46Skills|r: Grudge Bolt, Wave of Terror, "
+            "Unpaid Blood, and |cff9456E7Nether Swap|r.|n"
+            "|cffF2754ARange|r: 400",
+        ),
+    ],
+    "H00S": [
+        (
+            b"utub",
+            3,
+            "A butcher of the arena. Hooks his prey across the map, rots it "
+            "alive, and drags it onto the slaughter block.|n|n"
+            "|cffF79E46Skills|r: Meat Hook, Rot, and "
+            "|cff9456E7Slaughterhouse|r.|n"
+            "|cffF2754ARange|r: 128 (Melee)",
+        ),
+    ],
+}
+
+
+def upsert_simple_field(
+    record: SimpleObjectRecord, field_id: bytes, value_type: int, value
+) -> int:
+    encoded = encode_value(value_type, value)
+    for mod in record.modifications:
+        if mod.field_id == field_id and mod.value_type == value_type:
+            if mod.value == encoded:
+                return 0
+            mod.value = encoded
+            return 1
+    record.modifications.append(
+        SimpleModification(field_id, value_type, encoded, b"\x00\x00\x00\x00")
+    )
+    return 1
+
+
 def patch_units(input_path: Path, output_path: Path) -> int:
     data = input_path.read_bytes()
     version, offset = read_i32(data, 0)
@@ -658,6 +1058,11 @@ def patch_units(input_path: Path, output_path: Path) -> int:
         raise ValueError(f"Unit parser stopped at {offset}, file has {len(data)} bytes")
 
     changes = 0
+    for record in original + custom:
+        unit_patches = UNIT_FIELD_PATCHES.get(record.rawcode)
+        if unit_patches:
+            for field_id, value_type, value in unit_patches:
+                changes += upsert_simple_field(record, field_id, value_type, value)
     for record in original + custom:
         visuals = DUMMY_UNIT_VISUALS.get(record.rawcode)
         if visuals is not None:
@@ -822,7 +1227,22 @@ def main() -> int:
 
     added_citadel = ensure_citadel_ability(custom)
     changes = patch_records(original) + patch_records(custom)
-    if changes == 0 and not added_citadel:
+
+    rebuilt = rebuild_hero_abilities(original, custom)
+    field_changes = apply_field_patches(original) + apply_field_patches(custom)
+
+    rebalanced = 0
+    if args.unit_input is not None:
+        unit_data = args.unit_input.read_bytes()
+        unit_version, unit_offset = read_i32(unit_data, 0)
+        unit_original, unit_offset = read_simple_table(unit_data, unit_offset)
+        unit_custom, unit_offset = read_simple_table(unit_data, unit_offset)
+        basics, ults = collect_hero_ability_tiers(unit_original + unit_custom)
+        # The rebuilt kit abilities keep their explicit cooldowns.
+        rebalanced = rebalance_cooldowns(original, basics, ults)
+        rebalanced += rebalance_cooldowns(custom, basics, ults)
+
+    if changes == 0 and not added_citadel and rebuilt == 0 and field_changes == 0:
         raise ValueError("No hero-overhaul ability fields were patched")
 
     output = write_i32(version) + write_table(original) + write_table(custom)
@@ -830,7 +1250,9 @@ def main() -> int:
     args.output.write_bytes(output)
     print(
         f"Patched {changes} hero-overhaul ability text fields"
-        f"{' and added A07I Citadel of War' if added_citadel else ''} "
+        f"{' and added A07I Citadel of War' if added_citadel else ''}, "
+        f"rebuilt {rebuilt} kit records, applied {field_changes} kit fields, "
+        f"rebalanced {rebalanced} cooldown entries "
         f"({len(data)} -> {len(output)} bytes)"
     )
     if (args.unit_input is None) != (args.unit_output is None):

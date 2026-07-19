@@ -1,0 +1,6 @@
+build/
+dist/
+.codex_audit_*
+__pycache__/
+*.pyc
+.claude/
