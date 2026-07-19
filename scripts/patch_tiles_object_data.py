@@ -825,6 +825,58 @@ VENGE_PUDGE_FIELD_PATCHES = {
     ],
     # Rot's companion slow aura follows the new 250 radius.
     "A03D": [(b"aare", 1, 1, 250.0)],
+    # --- Demon Witch: Finger of Death v2 --------------------------------
+    "A014": [
+        (
+            b"aub1",
+            3,
+            lv,
+            "Lion condemns a 600-radius field around the victim: every enemy "
+            "inside is lashed by its own death-finger arc for "
+            "|cffffcc00700 + 3x Intelligence + 50% of Lion's total stats|r as "
+            "|cffff5050pure damage|r and slowed by 25% for 2 seconds.",
+        )
+        for lv in (1, 2, 3)
+    ],
+    # --- Lone Hydra: Abyssal Hold + sinking Drowned Garden --------------
+    "A02Z": [
+        (b"anam", 3, 0, "Abyssal Hold"),
+        (
+            b"aub1",
+            3,
+            1,
+            "The Hydra roots itself and seizes every enemy soul within "
+            "|cffffcc001000|r range: victims take |cffffcc00200 + 30% "
+            "Intelligence|r pure damage and are held frozen for 5 seconds - "
+            "chained to the Hydra by crackling drain-arcs, iced over, and "
+            "sapped of 15 mana per second while frost pulses hammer them.",
+        ),
+    ],
+    "A00N": [
+        (
+            b"aub1",
+            3,
+            lv,
+            "The ground itself drowns: a 600-radius pit sinks beneath the "
+            "battlefield while tentacles erupt from the deep. For 6 seconds "
+            "no enemy inside can escape past the churning rim.",
+        )
+        for lv in (1, 2, 3, 4)
+    ],
+    # --- Naga Thunderlord: Lightning Grip storm dressing ----------------
+    "A04J": [
+        (
+            b"aub1",
+            3,
+            lv,
+            "Tears open a 5-second gravity storm: a massive ball of lightning "
+            "anchors the well while three arcs race around its 500-radius "
+            "rim. Caught enemies are gripped by drain-tethers, dragged toward "
+            "the core, shocked for |cffffcc00100 pure damage|r per second and "
+            "slowed until the storm collapses.",
+        )
+        for lv in (1, 2)
+    ],
 }
 
 
@@ -905,7 +957,38 @@ def build_nether_swap() -> ObjectRecord:
     return ObjectRecord(b"AHtb", b"A00B", mods)
 
 
-REBUILT_ABILITIES = {"A02D": build_wave_of_terror, "A00B": build_nether_swap}
+def build_nether_chill() -> ObjectRecord:
+    """A07J: hidden dummy-cast slow (25% move / 10% attack for 2 seconds)
+    used by Finger of Death v2. Cast through Dummy_CastTarget with the
+    'slow' order."""
+    return ObjectRecord(
+        b"Aslo",
+        b"A07J",
+        [
+            string_mod(b"anam", "Nether Chill (engine)"),
+            int_mod(b"aher", 0),
+            int_mod(b"alev", 1),
+            real_mod(b"Slo1", 0.25, 1),
+            real_mod(b"Slo2", 0.10, 1),
+            real_mod(b"adur", 2.0, 1),
+            real_mod(b"ahdu", 2.0, 1),
+            real_mod(b"acdn", 0.0, 1),
+            int_mod(b"amcs", 0, 1),
+            real_mod(b"aran", 900.0, 1),
+            string_mod(
+                b"atar",
+                "air,enemies,ground,mechanical,neutral,organic",
+                1,
+            ),
+        ],
+    )
+
+
+REBUILT_ABILITIES = {
+    "A02D": build_wave_of_terror,
+    "A00B": build_nether_swap,
+    "A07J": build_nether_chill,
+}
 
 
 def rebuild_hero_abilities(

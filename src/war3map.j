@@ -1678,17 +1678,70 @@ globals
     real array              Hyu_Time
     group array             Hyu_HeldUnits
     real array              Hyu_Damage
-    // --- Magic Missile (Chain bouncing missile)
-    integer                 Mms_N                        = 0
-    unit array              Mms_Caster
-    unit array              Mms_CurrentTarget
-    real array              Mms_X
-    real array              Mms_Y
-    integer array           Mms_BouncesLeft
-    real array              Mms_Damage
-    integer array           Mms_Level
-    group array             Mms_HitGroup
-    unit array              Mms_Proxy
+    // --- Goal batch 24: engine clock, chain-id namespace, timed lightning
+    real                    Eng_Now                      = 0.00
+    integer                 Eng_ChainSeq                 = 0
+    integer                 Eng_OrdSlow                  = 0
+    hashtable               Fx_HT                        = null
+    integer                 Ltg_N                        = 0
+    lightning array         Ltg_Bolt
+    real array              Ltg_Time
+    // --- Vengeful Spirit: Grudge Bolt homing spirit + echo wisps
+    trigger                 Gvb_OnHitTrig                = null
+    integer                 Gvb_N                        = 0
+    unit array              Gvb_Caster
+    unit array              Gvb_Target
+    unit array              Gvb_Wisp
+    real array              Gvb_X
+    real array              Gvb_Y
+    real array              Gvb_Time
+    real array              Gvb_Dmg
+    // --- Vengeful Spirit: Wave of Terror
+    trigger                 Wvt_OnHitTrig                = null
+    trigger                 Vng_WaveTrig                 = null
+    // --- Vengeful Spirit: Unpaid Blood vengeance pool
+    integer                 Vng_HeroN                    = 0
+    unit array              Vng_Hero
+    real array              Vng_Charge
+    boolean                 Vng_Guard                    = false
+    // --- Vengeful Spirit: Nether Swap soul tethers
+    integer                 Nsw_N                        = 0
+    unit array              Nsw_Caster
+    unit array              Nsw_Target
+    real array              Nsw_Time
+    lightning array         Nsw_Bolt
+    // --- Butcher: Rot channel + Festering Wounds amplification
+    integer                 Rot_N                        = 0
+    unit array              Rot_Caster
+    real                    Rot_Acc                      = 0.00
+    integer                 Amp_N                        = 0
+    unit array              Amp_Unit
+    real array              Amp_Expire
+    effect array            Amp_Fx
+    boolean                 Amp_Guard                    = false
+    // --- Butcher: Slaughterhouse
+    integer                 Sla_N                        = 0
+    unit array              Sla_Caster
+    unit array              Sla_Victim
+    integer array           Sla_Phase
+    integer array           Sla_Chain
+    integer array           Sla_Links
+    real array              Sla_Time
+    real array              Sla_TickTime
+    effect array            Sla_Fx
+    // --- Lightning Grip spectacle (extends the Lgr_ channel)
+    unit array              Lgr_Orb1
+    unit array              Lgr_Orb2
+    unit array              Lgr_Orb3
+    lightning array         Lgr_Arc1
+    lightning array         Lgr_Arc2
+    lightning array         Lgr_Arc3
+    real array              Lgr_Spin
+    real array              Lgr_PulseAcc
+    // --- Lone Hydra: Abyssal Hold spectacle (extends the Hyu_ channel)
+    integer array           Hyu_Chain
+    integer array           Hyu_Count
+    real array              Hyu_PulseAcc
 endglobals
 
 function Tow_ClampX takes real x returns real
@@ -1808,6 +1861,7 @@ function Dummy_Recycle takes unit u returns nothing
         call SaveInteger(Eng_HT, t, 9000000 + b, n)
         call SaveUnitHandle(Eng_HT, t, (b + 1) * 100000 + n, u)
         call SetUnitScale(u, 1.00, 1.00, 1.00)
+        call SetUnitVertexColor(u, 255, 255, 255, 255)
         call SetUnitFlyHeight(u, GetUnitDefaultFlyHeight(u), 0.00)
         call SetUnitPathing(u, false)
         call PauseUnit(u, true)
@@ -1931,6 +1985,36 @@ endfunction
 
 function SFX_Unit takes string model, unit u, string attach returns nothing
     call DestroyEffect(AddSpecialEffectTarget(model, u, attach))
+endfunction
+
+//===========================================================================
+// Timed lightning - fire-and-forget bolts (tethers, grips, finger beams).
+// Every bolt registered here is destroyed automatically when its time runs
+// out, so spectacle code can spray lightning without leaking handles.
+//===========================================================================
+function Ltg_Add takes lightning bolt, real duration returns nothing
+    if bolt == null then
+        return
+    endif
+    set Ltg_N = Ltg_N + 1
+    set Ltg_Bolt[Ltg_N] = bolt
+    set Ltg_Time[Ltg_N] = duration
+endfunction
+
+function Ltg_Tick takes nothing returns nothing
+    local integer i = Ltg_N
+    loop
+        exitwhen i < 1
+        set Ltg_Time[i] = Ltg_Time[i] - Eng_TickRate
+        if Ltg_Time[i] <= 0.00 then
+            call DestroyLightning(Ltg_Bolt[i])
+            set Ltg_Bolt[i] = Ltg_Bolt[Ltg_N]
+            set Ltg_Time[i] = Ltg_Time[Ltg_N]
+            set Ltg_Bolt[Ltg_N] = null
+            set Ltg_N = Ltg_N - 1
+        endif
+        set i = i - 1
+    endloop
 endfunction
 
 //===========================================================================
@@ -2898,8 +2982,12 @@ function ChainShock_OnEnd takes nothing returns boolean
     local integer i = EV_MISSILE
     local unit caster = Msl_Owner[i]
     if caster != null and GetUnitTypeId(caster) != 0 then
+        // The ball stops - and the caster rips out of it in a thunder flash.
         call SetUnitPosition(caster, Msl_X[i], Msl_Y[i])
         call SFX_Unit("Abilities\\Weapons\\Bolt\\BoltImpact.mdl", caster, "origin")
+        call SFX_Point("Abilities\\Spells\\Orc\\LightningBolt\\LightningBoltMissile.mdl", Msl_X[i], Msl_Y[i])
+        call SFX_Point("Abilities\\Spells\\Human\\ThunderClap\\ThunderClapCaster.mdl", Msl_X[i], Msl_Y[i])
+        call SFX_Unit("Abilities\\Spells\\Orc\\Purge\\PurgeBuffTarget.mdl", caster, "chest")
     else
         call SFX_Point("Abilities\\Weapons\\Bolt\\BoltImpact.mdl", Msl_X[i], Msl_Y[i])
     endif
@@ -2932,8 +3020,19 @@ endfunction
 function LightningGrip_Expire takes integer i returns nothing
     local group targets = Lgr_Targets[i]
     if Lgr_Beacon[i] != null then
+        call SFX_Point("Abilities\\Spells\\Orc\\LightningBolt\\LightningBoltMissile.mdl", Lgr_X[i], Lgr_Y[i])
         call UnitRemoveAbility(Lgr_Beacon[i], 'A06N')
         call Dummy_Recycle(Lgr_Beacon[i])
+    endif
+    if Lgr_Arc1[i] != null then
+        call DestroyLightning(Lgr_Arc1[i])
+        call DestroyLightning(Lgr_Arc2[i])
+        call DestroyLightning(Lgr_Arc3[i])
+    endif
+    if Lgr_Orb1[i] != null then
+        call Dummy_Recycle(Lgr_Orb1[i])
+        call Dummy_Recycle(Lgr_Orb2[i])
+        call Dummy_Recycle(Lgr_Orb3[i])
     endif
     if targets != null then
         call DestroyGroup(targets)
@@ -2946,13 +3045,29 @@ function LightningGrip_Expire takes integer i returns nothing
     set Lgr_Time[i] = Lgr_Time[Lgr_N]
     set Lgr_DamageAcc[i] = Lgr_DamageAcc[Lgr_N]
     set Lgr_Stop[i] = Lgr_Stop[Lgr_N]
+    set Lgr_Orb1[i] = Lgr_Orb1[Lgr_N]
+    set Lgr_Orb2[i] = Lgr_Orb2[Lgr_N]
+    set Lgr_Orb3[i] = Lgr_Orb3[Lgr_N]
+    set Lgr_Arc1[i] = Lgr_Arc1[Lgr_N]
+    set Lgr_Arc2[i] = Lgr_Arc2[Lgr_N]
+    set Lgr_Arc3[i] = Lgr_Arc3[Lgr_N]
+    set Lgr_Spin[i] = Lgr_Spin[Lgr_N]
+    set Lgr_PulseAcc[i] = Lgr_PulseAcc[Lgr_N]
     set Lgr_Caster[Lgr_N] = null
     set Lgr_Beacon[Lgr_N] = null
     set Lgr_Targets[Lgr_N] = null
+    set Lgr_Orb1[Lgr_N] = null
+    set Lgr_Orb2[Lgr_N] = null
+    set Lgr_Orb3[Lgr_N] = null
+    set Lgr_Arc1[Lgr_N] = null
+    set Lgr_Arc2[Lgr_N] = null
+    set Lgr_Arc3[Lgr_N] = null
     set Lgr_X[Lgr_N] = 0.00
     set Lgr_Y[Lgr_N] = 0.00
     set Lgr_Time[Lgr_N] = 0.00
     set Lgr_DamageAcc[Lgr_N] = 0.00
+    set Lgr_Spin[Lgr_N] = 0.00
+    set Lgr_PulseAcc[Lgr_N] = 0.00
     set Lgr_Stop[Lgr_N] = false
     set Lgr_N = Lgr_N - 1
     set targets = null
@@ -2987,12 +3102,38 @@ function LightningGrip_Update takes integer i returns nothing
     local real factor
     local real nx
     local real ny
+    local real ox
+    local real oy
     local boolean damagePulse = false
+    local boolean tetherPulse = false
     set Lgr_DamageAcc[i] = Lgr_DamageAcc[i] + Eng_TickRate
     if Lgr_DamageAcc[i] >= 0.10 then
         set Lgr_DamageAcc[i] = Lgr_DamageAcc[i] - 0.10
         set damagePulse = true
     endif
+    set Lgr_PulseAcc[i] = Lgr_PulseAcc[i] + Eng_TickRate
+    if Lgr_PulseAcc[i] >= 0.50 then
+        set Lgr_PulseAcc[i] = Lgr_PulseAcc[i] - 0.50
+        set tetherPulse = true
+    endif
+    // The storm wall: three lightning orbs race around the well while arcs
+    // from the central ball sweep the whole circle.
+    set Lgr_Spin[i] = Lgr_Spin[i] + 3.40
+    set ox = Lgr_X[i] + 430.00 * Cos(Lgr_Spin[i] * bj_DEGTORAD)
+    set oy = Lgr_Y[i] + 430.00 * Sin(Lgr_Spin[i] * bj_DEGTORAD)
+    call SetUnitX(Lgr_Orb1[i], Tow_ClampX(ox))
+    call SetUnitY(Lgr_Orb1[i], Tow_ClampY(oy))
+    call MoveLightningEx(Lgr_Arc1[i], false, Lgr_X[i], Lgr_Y[i], 140.00, ox, oy, 70.00)
+    set ox = Lgr_X[i] + 430.00 * Cos((Lgr_Spin[i] + 120.00) * bj_DEGTORAD)
+    set oy = Lgr_Y[i] + 430.00 * Sin((Lgr_Spin[i] + 120.00) * bj_DEGTORAD)
+    call SetUnitX(Lgr_Orb2[i], Tow_ClampX(ox))
+    call SetUnitY(Lgr_Orb2[i], Tow_ClampY(oy))
+    call MoveLightningEx(Lgr_Arc2[i], false, Lgr_X[i], Lgr_Y[i], 140.00, ox, oy, 70.00)
+    set ox = Lgr_X[i] + 430.00 * Cos((Lgr_Spin[i] + 240.00) * bj_DEGTORAD)
+    set oy = Lgr_Y[i] + 430.00 * Sin((Lgr_Spin[i] + 240.00) * bj_DEGTORAD)
+    call SetUnitX(Lgr_Orb3[i], Tow_ClampX(ox))
+    call SetUnitY(Lgr_Orb3[i], Tow_ClampY(oy))
+    call MoveLightningEx(Lgr_Arc3[i], false, Lgr_X[i], Lgr_Y[i], 140.00, ox, oy, 70.00)
     call GroupClear(targets)
     call GroupEnumUnitsInRange(targets, Lgr_X[i], Lgr_Y[i], 500.00, null)
     loop
@@ -3006,6 +3147,12 @@ function LightningGrip_Update takes integer i returns nothing
             set dx = Lgr_X[i] - ux
             set dy = Lgr_Y[i] - uy
             set distSq = dx * dx + dy * dy
+            if tetherPulse then
+                // Grip tether: a mana-drain arc clamps down on every caught
+                // enemy and a shock crawls over its body.
+                call Ltg_Add(AddLightningEx("DRAM", false, Lgr_X[i], Lgr_Y[i], 140.00, ux, uy, 40.00), 0.45)
+                call SFX_Unit("Abilities\\Spells\\Orc\\Purge\\PurgeBuffTarget.mdl", u, "chest")
+            endif
             if distSq >= 1089.00 then
                 set factor = 166.67 * Eng_TickRate / RMaxBJ(SquareRoot(distSq), 0.01)
                 set nx = ux + dx * factor
@@ -3052,10 +3199,18 @@ endfunction
 function LightningGrip_Launch takes unit caster, real tx, real ty returns nothing
     local player p = GetOwningPlayer(caster)
     local unit beacon
+    local unit orb
     call LightningGrip_StopCaster(caster)
     set beacon = Dummy_Get(p, 'h01A', tx, ty, bj_UNIT_FACING)
     call UnitRemoveAbility(beacon, 'A06M')
     call UnitAddAbility(beacon, 'A06N')
+    // The heart of the storm: a huge lightning ball that stays for the whole
+    // five seconds, crowned by a strike and a thunder ring on arrival.
+    call Dummy_AttachFx(beacon, "Abilities\\Weapons\\FarseerMissile\\FarseerMissile.mdl")
+    call SetUnitScale(beacon, 4.20, 4.20, 4.20)
+    call SetUnitFlyHeight(beacon, 90.00, 0.00)
+    call SFX_Point("Abilities\\Spells\\Orc\\LightningBolt\\LightningBoltMissile.mdl", tx, ty)
+    call SFX_Point("Abilities\\Spells\\Human\\ThunderClap\\ThunderClapCaster.mdl", tx, ty)
     set Lgr_N = Lgr_N + 1
     set Lgr_Caster[Lgr_N] = caster
     set Lgr_Beacon[Lgr_N] = beacon
@@ -3065,8 +3220,29 @@ function LightningGrip_Launch takes unit caster, real tx, real ty returns nothin
     set Lgr_Time[Lgr_N] = 5.00
     set Lgr_DamageAcc[Lgr_N] = 0.00
     set Lgr_Stop[Lgr_N] = false
+    set Lgr_Spin[Lgr_N] = GetRandomReal(0.00, 360.00)
+    set Lgr_PulseAcc[Lgr_N] = 0.40
+    set orb = Dummy_Get(p, 'h005', tx + 430.00, ty, 0.00)
+    call Dummy_AttachFx(orb, "Abilities\\Weapons\\FarseerMissile\\FarseerMissile.mdl")
+    call SetUnitScale(orb, 1.60, 1.60, 1.60)
+    call SetUnitFlyHeight(orb, 70.00, 0.00)
+    set Lgr_Orb1[Lgr_N] = orb
+    set orb = Dummy_Get(p, 'h005', tx - 215.00, ty + 372.00, 0.00)
+    call Dummy_AttachFx(orb, "Abilities\\Weapons\\FarseerMissile\\FarseerMissile.mdl")
+    call SetUnitScale(orb, 1.60, 1.60, 1.60)
+    call SetUnitFlyHeight(orb, 70.00, 0.00)
+    set Lgr_Orb2[Lgr_N] = orb
+    set orb = Dummy_Get(p, 'h005', tx - 215.00, ty - 372.00, 0.00)
+    call Dummy_AttachFx(orb, "Abilities\\Weapons\\FarseerMissile\\FarseerMissile.mdl")
+    call SetUnitScale(orb, 1.60, 1.60, 1.60)
+    call SetUnitFlyHeight(orb, 70.00, 0.00)
+    set Lgr_Orb3[Lgr_N] = orb
+    set Lgr_Arc1[Lgr_N] = AddLightningEx("CLPB", false, tx, ty, 140.00, tx + 430.00, ty, 70.00)
+    set Lgr_Arc2[Lgr_N] = AddLightningEx("CLPB", false, tx, ty, 140.00, tx - 215.00, ty + 372.00, 70.00)
+    set Lgr_Arc3[Lgr_N] = AddLightningEx("CLPB", false, tx, ty, 140.00, tx - 215.00, ty - 372.00, 70.00)
     set p = null
     set beacon = null
+    set orb = null
 endfunction
 
 //===========================================================================
@@ -6280,9 +6456,16 @@ function HydraSummons_Launch takes unit caster, real tx, real ty returns nothing
     local unit t2
     local player p = GetOwningPlayer(caster)
     
-    call TerrainDeformCrater(x, y, 600.00, -120.00, 6000, false)
+    // The garden SINKS: positive depth digs the crater downward (the old
+    // negative value raised an idiotic hill instead of a drowning pit).
+    call TerrainDeformCrater(x, y, 600.00, 120.00, 6000, false)
     call SFX_Point("Abilities\\Spells\\Other\\WaterElemental\\WaterElementalExplode.mdl", x, y)
     call SFX_Point("Abilities\\Spells\\Other\\ElementalFrenzy\\WaterWrath.mdl", x, y)
+    call SFX_Point("Abilities\\Spells\\Naga\\NagaDeath\\NagaDeath.mdl", x, y)
+    call SFX_Point("Abilities\\Spells\\Other\\CrushingWave\\CrushingWaveDamage.mdl", x + 300.00, y)
+    call SFX_Point("Abilities\\Spells\\Other\\CrushingWave\\CrushingWaveDamage.mdl", x - 300.00, y)
+    call SFX_Point("Abilities\\Spells\\Other\\CrushingWave\\CrushingWaveDamage.mdl", x, y + 300.00)
+    call SFX_Point("Abilities\\Spells\\Other\\CrushingWave\\CrushingWaveDamage.mdl", x, y - 300.00)
     
     set t1 = CreateUnit(p, 'h00M', x - 80.00, y, 0.00)
     set t2 = CreateUnit(p, 'h00M', x + 80.00, y, 180.00)
@@ -6307,7 +6490,16 @@ function Hyg_Tick takes nothing returns nothing
     loop
         exitwhen i < 1
         set Hyg_Time[i] = Hyg_Time[i] - Eng_TickRate
-        
+
+        // Once a second the drowning pit churns: waves crash along the rim
+        // and the whirlpool heart spouts.
+        if Hyg_Time[i] - I2R(R2I(Hyg_Time[i])) < Eng_TickRate then
+            set angle = GetRandomReal(0.00, 6.28)
+            call SFX_Point("Abilities\\Spells\\Other\\CrushingWave\\CrushingWaveDamage.mdl", Tow_ClampX(Hyg_X[i] + 560.00 * Cos(angle)), Tow_ClampY(Hyg_Y[i] + 560.00 * Sin(angle)))
+            call SFX_Point("Abilities\\Spells\\Other\\CrushingWave\\CrushingWaveDamage.mdl", Tow_ClampX(Hyg_X[i] - 560.00 * Cos(angle)), Tow_ClampY(Hyg_Y[i] - 560.00 * Sin(angle)))
+            call SFX_Point("Abilities\\Spells\\Other\\WaterElemental\\WaterElementalExplode.mdl", Hyg_X[i], Hyg_Y[i])
+        endif
+
         call GroupEnumUnitsInRange(Eng_Enum, Hyg_X[i], Hyg_Y[i], 600.00, null)
         loop
             set u = FirstOfGroup(Eng_Enum)
@@ -6338,6 +6530,10 @@ function Hyg_Tick takes nothing returns nothing
     endloop
 endfunction
 
+// Abyssal Hold - the Hydra roots itself and RIPS every enemy soul in 1000
+// range into its grasp: each victim is held frozen, chained to the Hydra by
+// a crackling mana-drain arc, tinted glacier-blue and hammered by frost
+// pulses that siphon mana back to the beast until the hold breaks.
 function HydraUlt_Launch takes unit caster returns nothing
     local integer lvl = GetUnitAbilityLevel(caster, 'A02Z')
     local real baseDmg = 200.00 * I2R(lvl)
@@ -6345,12 +6541,25 @@ function HydraUlt_Launch takes unit caster returns nothing
     local real totalDmg = baseDmg + intBonus
     local group held = CreateGroup()
     local unit u
-    
+    local integer chain
+    local integer n = 0
+    local real cx = GetUnitX(caster)
+    local real cy = GetUnitY(caster)
+
+    set Eng_ChainSeq = Eng_ChainSeq + 1
+    set chain = Eng_ChainSeq
+
     call UnitAddAbility(caster, 'A00A')
     call PauseUnit(caster, true)
+    // Telegraph: the abyss opens under the Hydra.
     call SFX_Unit("Abilities\\Spells\\Other\\ElementalFrenzy\\WaterWrath.mdl", caster, "origin")
-    
-    call GroupEnumUnitsInRange(Eng_Enum, GetUnitX(caster), GetUnitY(caster), 1000.00, null)
+    call SFX_Point("Abilities\\Spells\\Undead\\FrostNova\\FrostNovaTarget.mdl", cx, cy)
+    call SFX_Point("Abilities\\Spells\\Other\\FrostBolt\\FrostBoltMissile.mdl", cx, cy)
+    call SFX_Point("Abilities\\Spells\\Other\\WaterElemental\\WaterElementalExplode.mdl", cx, cy)
+    call SaveEffectHandle(Fx_HT, -chain, 5000, AddSpecialEffectTarget("Abilities\\Spells\\Undead\\FrostArmor\\FrostArmorTarget.mdl", caster, "origin"))
+    call SaveEffectHandle(Fx_HT, -chain, 5001, AddSpecialEffectTarget("Abilities\\Spells\\Other\\ElementalFrenzy\\WaterWrath.mdl", caster, "overhead"))
+
+    call GroupEnumUnitsInRange(Eng_Enum, cx, cy, 1000.00, null)
     loop
         set u = FirstOfGroup(Eng_Enum)
         exitwhen u == null
@@ -6359,18 +6568,28 @@ function HydraUlt_Launch takes unit caster returns nothing
             call GroupAddUnit(held, u)
             call PauseUnit(u, true)
             call SetUnitPathing(u, false)
+            call SetUnitVertexColor(u, 120, 165, 255, 255)
             call SFX_Unit("Abilities\\Spells\\Other\\CrushingWave\\CrushingWaveDamage.mdl", u, "origin")
+            call SFX_Unit("Abilities\\Spells\\Undead\\FrostNova\\FrostNovaTarget.mdl", u, "origin")
             call Damage_Pure(caster, u, totalDmg)
+            // Grip arc + permanent ice shroud for the whole hold.
+            call SaveUnitHandle(Fx_HT, -chain, n, u)
+            call SaveLightningHandle(Fx_HT, -chain, 1000 + n, AddLightningEx("DRAM", false, cx, cy, 120.00, GetUnitX(u), GetUnitY(u), 40.00))
+            call SaveEffectHandle(Fx_HT, -chain, 2000 + n, AddSpecialEffectTarget("Abilities\\Spells\\Undead\\FreezingBreath\\FreezingBreathTargetArt.mdl", u, "chest"))
+            set n = n + 1
         endif
     endloop
     call GroupClear(Eng_Enum)
-    
+
     set Hyu_N = Hyu_N + 1
     set Hyu_Caster[Hyu_N] = caster
     set Hyu_Time[Hyu_N] = 5.00
     set Hyu_HeldUnits[Hyu_N] = held
     set Hyu_Damage[Hyu_N] = totalDmg
-    
+    set Hyu_Chain[Hyu_N] = chain
+    set Hyu_Count[Hyu_N] = n
+    set Hyu_PulseAcc[Hyu_N] = 0.00
+
     set held = null
     set u = null
 endfunction
@@ -6379,37 +6598,86 @@ function Hyu_Tick takes nothing returns nothing
     local integer i = Hyu_N
     local unit caster
     local unit u
+    local integer n
+    local integer chain
+    local boolean pulse
+    local real cx
+    local real cy
     loop
         exitwhen i < 1
         set caster = Hyu_Caster[i]
         set Hyu_Time[i] = Hyu_Time[i] - Eng_TickRate
-        
+        set chain = Hyu_Chain[i]
+
         if Hyu_Time[i] <= 0.00 or caster == null or GetWidgetLife(caster) <= 0.405 then
             if caster != null and GetWidgetLife(caster) > 0.405 then
                 call PauseUnit(caster, false)
                 call UnitRemoveAbility(caster, 'A00A')
             endif
+            // Tear down every tether, shroud and tint before releasing.
+            set n = 0
+            loop
+                exitwhen n >= Hyu_Count[i]
+                call DestroyLightning(LoadLightningHandle(Fx_HT, -chain, 1000 + n))
+                call DestroyEffect(LoadEffectHandle(Fx_HT, -chain, 2000 + n))
+                set n = n + 1
+            endloop
+            call DestroyEffect(LoadEffectHandle(Fx_HT, -chain, 5000))
+            call DestroyEffect(LoadEffectHandle(Fx_HT, -chain, 5001))
+            call FlushChildHashtable(Fx_HT, -chain)
             loop
                 set u = FirstOfGroup(Hyu_HeldUnits[i])
                 exitwhen u == null
                 call GroupRemoveUnit(Hyu_HeldUnits[i], u)
+                if GetUnitTypeId(u) != 0 then
+                    call SetUnitVertexColor(u, 255, 255, 255, 255)
+                endif
                 if GetWidgetLife(u) > 0.405 then
                     call PauseUnit(u, false)
                     call SetUnitPathing(u, true)
+                    call SFX_Unit("Abilities\\Spells\\Undead\\FrostNova\\FrostNovaTarget.mdl", u, "origin")
                 endif
             endloop
             call DestroyGroup(Hyu_HeldUnits[i])
-            
+
             set Hyu_Caster[i] = Hyu_Caster[Hyu_N]
             set Hyu_Time[i] = Hyu_Time[Hyu_N]
             set Hyu_HeldUnits[i] = Hyu_HeldUnits[Hyu_N]
             set Hyu_Damage[i] = Hyu_Damage[Hyu_N]
-            
+            set Hyu_Chain[i] = Hyu_Chain[Hyu_N]
+            set Hyu_Count[i] = Hyu_Count[Hyu_N]
+            set Hyu_PulseAcc[i] = Hyu_PulseAcc[Hyu_N]
+
             set Hyu_Caster[Hyu_N] = null
             set Hyu_HeldUnits[Hyu_N] = null
             set Hyu_N = Hyu_N - 1
+        else
+            // Live hold: keep every arc locked on its victim and pulse ice.
+            set cx = GetUnitX(caster)
+            set cy = GetUnitY(caster)
+            set pulse = false
+            set Hyu_PulseAcc[i] = Hyu_PulseAcc[i] + Eng_TickRate
+            if Hyu_PulseAcc[i] >= 1.00 then
+                set Hyu_PulseAcc[i] = Hyu_PulseAcc[i] - 1.00
+                set pulse = true
+                call SFX_Point("Abilities\\Spells\\Human\\Blizzard\\BlizzardTarget.mdl", cx, cy)
+            endif
+            set n = 0
+            loop
+                exitwhen n >= Hyu_Count[i]
+                set u = LoadUnitHandle(Fx_HT, -chain, n)
+                if u != null and GetUnitTypeId(u) != 0 and GetWidgetLife(u) > 0.405 then
+                    call MoveLightningEx(LoadLightningHandle(Fx_HT, -chain, 1000 + n), false, cx, cy, 120.00, GetUnitX(u), GetUnitY(u), 40.00)
+                    if pulse then
+                        call SFX_Unit("Abilities\\Spells\\Undead\\FrostNova\\FrostNovaTarget.mdl", u, "chest")
+                        call SetUnitState(u, UNIT_STATE_MANA, RMaxBJ(0.00, GetUnitState(u, UNIT_STATE_MANA) - 15.00))
+                        call SetUnitState(caster, UNIT_STATE_MANA, GetUnitState(caster, UNIT_STATE_MANA) + 15.00)
+                    endif
+                endif
+                set n = n + 1
+            endloop
         endif
-        
+
         set caster = null
         set u = null
         set i = i - 1
@@ -6417,138 +6685,723 @@ function Hyu_Tick takes nothing returns nothing
 endfunction
 
 //===========================================================================
-// Magic Missile - chain bouncing missile
+// GOAL BATCH 24 - Blood Arena wave.
+// Festering Wounds (shared +10% damage amplification), Butcher's Rot rework
+// and Slaughterhouse ultimate, the complete Vengeful Spirit kit, and the
+// global blood layer. Everything below runs on the master tick, pooled
+// dummies, timed lightning and isolated per-instance hashtable children.
 //===========================================================================
-function MagicMissile_Launch takes unit caster, unit target returns nothing
-    local integer lvl = GetUnitAbilityLevel(caster, 'A008')
-    local real dmg = 250.00 + 2.00 * I2R(GetHeroAgi(caster, true))
-    local group g = CreateGroup()
-    local unit stn
-    
-    if target == null or GetWidgetLife(target) <= 0.405 then
-        call DestroyGroup(g)
-        set g = null
-        return
-    endif
-    
-    call GroupAddUnit(g, target)
-    call Damage_Pure(caster, target, dmg)
-    call SFX_Unit("Abilities\\Weapons\\DragonHawkMissile\\DragonHawkMissile.mdl", target, "chest")
-    
-    set stn = Dummy_Get(GetOwningPlayer(caster), 'h005', GetUnitX(target), GetUnitY(target), 0.00)
-    call UnitAddAbility(stn, 'A03Z')
-    call SetUnitAbilityLevel(stn, 'A03Z', lvl)
-    call IssueTargetOrderById(stn, Eng_OrdThunderbolt, target)
-    call Dummy_RecycleTimed(stn, 1.00, 'A03Z')
-    
-    set Mms_N = Mms_N + 1
-    set Mms_Caster[Mms_N] = caster
-    set Mms_CurrentTarget[Mms_N] = target
-    set Mms_X[Mms_N] = GetUnitX(target)
-    set Mms_Y[Mms_N] = GetUnitY(target)
-    set Mms_BouncesLeft[Mms_N] = 4
-    set Mms_Damage[Mms_N] = dmg
-    set Mms_Level[Mms_N] = lvl
-    set Mms_HitGroup[Mms_N] = g
-    
-    set g = null
-    set stn = null
-endfunction
 
-function Mms_Tick takes nothing returns nothing
-    local integer i = Mms_N
-    local unit caster
-    local unit curr
-    local unit nextTarget
-    local unit u
-    local unit stn
-    local real closestDist
-    local real d
+//---------------------------------------------------------------------------
+// Festering Wounds - open wounds take 10% increased damage from ANY source.
+// Applied by Rot after 5 seconds of exposure and by every Slaughterhouse
+// strike. The echo is pure damage credited to the original source.
+//---------------------------------------------------------------------------
+function Amp_Apply takes unit victim returns nothing
+    local integer i = Amp_N
     loop
         exitwhen i < 1
-        set caster = Mms_Caster[i]
-        set curr = Mms_CurrentTarget[i]
-        set nextTarget = null
-        
-        if Mms_BouncesLeft[i] <= 0 or curr == null or GetWidgetLife(curr) <= 0.405 then
-            call DestroyGroup(Mms_HitGroup[i])
-            set Mms_Caster[i] = Mms_Caster[Mms_N]
-            set Mms_CurrentTarget[i] = Mms_CurrentTarget[Mms_N]
-            set Mms_X[i] = Mms_X[Mms_N]
-            set Mms_Y[i] = Mms_Y[Mms_N]
-            set Mms_BouncesLeft[i] = Mms_BouncesLeft[Mms_N]
-            set Mms_Damage[i] = Mms_Damage[Mms_N]
-            set Mms_Level[i] = Mms_Level[Mms_N]
-            set Mms_HitGroup[i] = Mms_HitGroup[Mms_N]
-            
-            set Mms_Caster[Mms_N] = null
-            set Mms_CurrentTarget[Mms_N] = null
-            set Mms_HitGroup[Mms_N] = null
-            set Mms_N = Mms_N - 1
+        if Amp_Unit[i] == victim then
+            set Amp_Expire[i] = Eng_Now + 4.00
+            return
+        endif
+        set i = i - 1
+    endloop
+    set Amp_N = Amp_N + 1
+    set Amp_Unit[Amp_N] = victim
+    set Amp_Expire[Amp_N] = Eng_Now + 4.00
+    set Amp_Fx[Amp_N] = AddSpecialEffectTarget("Abilities\\Spells\\Undead\\Curse\\CurseTarget.mdl", victim, "overhead")
+    call SFX_Unit("Objects\\Spawnmodels\\Human\\HumanBlood\\HumanBloodLarge0.mdl", victim, "chest")
+endfunction
+
+function Amp_Tick takes nothing returns nothing
+    local integer i = Amp_N
+    loop
+        exitwhen i < 1
+        if Amp_Unit[i] == null or GetUnitTypeId(Amp_Unit[i]) == 0 or GetWidgetLife(Amp_Unit[i]) <= 0.405 or Eng_Now > Amp_Expire[i] then
+            call DestroyEffect(Amp_Fx[i])
+            set Amp_Unit[i] = Amp_Unit[Amp_N]
+            set Amp_Expire[i] = Amp_Expire[Amp_N]
+            set Amp_Fx[i] = Amp_Fx[Amp_N]
+            set Amp_Unit[Amp_N] = null
+            set Amp_Fx[Amp_N] = null
+            set Amp_N = Amp_N - 1
+        endif
+        set i = i - 1
+    endloop
+endfunction
+
+function Amp_DamageEvent takes nothing returns boolean
+    local integer i = Amp_N
+    if Amp_Guard or udg_GDD_Damage <= 0.00 or udg_GDD_DamageSource == null then
+        return false
+    endif
+    loop
+        exitwhen i < 1
+        if Amp_Unit[i] == udg_GDD_DamagedUnit then
+            set Amp_Guard = true
+            call Damage_Pure(udg_GDD_DamageSource, udg_GDD_DamagedUnit, udg_GDD_Damage * 0.10)
+            set Amp_Guard = false
+            return false
+        endif
+        set i = i - 1
+    endloop
+    return false
+endfunction
+
+//---------------------------------------------------------------------------
+// Rot (A03L rework) - the toggle only switches the channel on and off; all
+// damage is dealt here: (90 + 35% of Pudge's Strength) per second in 250
+// range, tracked per victim. 5+ continuous seconds of rot = Festering
+// Wounds. Exposure decays after one second out of the cloud.
+// Fx_HT per-victim children: 0 = exposure, 1 = last-seen clock.
+//---------------------------------------------------------------------------
+function Rot_Enable takes unit caster returns nothing
+    local integer i = Rot_N
+    loop
+        exitwhen i < 1
+        if Rot_Caster[i] == caster then
+            return
+        endif
+        set i = i - 1
+    endloop
+    set Rot_N = Rot_N + 1
+    set Rot_Caster[Rot_N] = caster
+    call SFX_Unit("Abilities\\Spells\\Undead\\PlagueCloud\\PlagueCloudCaster.mdl", caster, "origin")
+endfunction
+
+function Rot_Disable takes unit caster returns nothing
+    local integer i = Rot_N
+    loop
+        exitwhen i < 1
+        if Rot_Caster[i] == caster then
+            set Rot_Caster[i] = Rot_Caster[Rot_N]
+            set Rot_Caster[Rot_N] = null
+            set Rot_N = Rot_N - 1
+            return
+        endif
+        set i = i - 1
+    endloop
+endfunction
+
+function Rot_Tick takes nothing returns nothing
+    local integer i
+    local integer h
+    local unit caster
+    local unit u
+    local real pulseDmg
+    local real exposure
+    set Rot_Acc = Rot_Acc + Eng_TickRate
+    if Rot_Acc < 0.25 then
+        return
+    endif
+    set Rot_Acc = Rot_Acc - 0.25
+    set i = Rot_N
+    loop
+        exitwhen i < 1
+        set caster = Rot_Caster[i]
+        if caster == null or GetUnitTypeId(caster) == 0 or GetWidgetLife(caster) <= 0.405 then
+            set Rot_Caster[i] = Rot_Caster[Rot_N]
+            set Rot_Caster[Rot_N] = null
+            set Rot_N = Rot_N - 1
         else
-            set closestDist = 800.00 * 800.00
-            call GroupEnumUnitsInRange(Eng_Enum, GetUnitX(curr), GetUnitY(curr), 800.00, null)
+            set pulseDmg = (90.00 + 0.35 * I2R(GetHeroStr(caster, true))) * 0.25
+            if Eng_Now - I2R(R2I(Eng_Now)) < 0.25 then
+                call SFX_Unit("Abilities\\Spells\\Undead\\PlagueCloud\\PlagueCloudCaster.mdl", caster, "origin")
+            endif
+            call GroupEnumUnitsInRange(Eng_Enum, GetUnitX(caster), GetUnitY(caster), 250.00, null)
             loop
                 set u = FirstOfGroup(Eng_Enum)
                 exitwhen u == null
                 call GroupRemoveUnit(Eng_Enum, u)
-                if Eng_ValidTarget(u, GetOwningPlayer(caster)) and u != curr and not IsUnitInGroup(u, Mms_HitGroup[i]) and GetUnitAbilityLevel(u, 'A00A') < 1 then
-                    set d = (GetUnitX(u) - GetUnitX(curr)) * (GetUnitX(u) - GetUnitX(curr)) + (GetUnitY(u) - GetUnitY(curr)) * (GetUnitY(u) - GetUnitY(curr))
-                    if d < closestDist then
-                        set closestDist = d
-                        set nextTarget = u
+                if Eng_ValidTarget(u, GetOwningPlayer(caster)) and IsUnitEnemy(u, GetOwningPlayer(caster)) then
+                    set h = GetHandleId(u)
+                    if Eng_Now - LoadReal(Fx_HT, h, 1) > 1.00 then
+                        call SaveReal(Fx_HT, h, 0, 0.00)
+                    endif
+                    set exposure = LoadReal(Fx_HT, h, 0) + 0.25
+                    call SaveReal(Fx_HT, h, 0, exposure)
+                    call SaveReal(Fx_HT, h, 1, Eng_Now)
+                    call Damage_Magic(caster, u, pulseDmg)
+                    if exposure - I2R(R2I(exposure)) < 0.25 then
+                        call SFX_Unit("Abilities\\Spells\\Undead\\UnholyFrenzy\\UnholyFrenzyTarget.mdl", u, "chest")
+                    endif
+                    if exposure >= 5.00 then
+                        call Amp_Apply(u)
                     endif
                 endif
             endloop
             call GroupClear(Eng_Enum)
-            
-            if nextTarget == null then
-                set closestDist = 800.00 * 800.00
-                call GroupEnumUnitsInRange(Eng_Enum, GetUnitX(curr), GetUnitY(curr), 800.00, null)
-                loop
-                    set u = FirstOfGroup(Eng_Enum)
-                    exitwhen u == null
-                    call GroupRemoveUnit(Eng_Enum, u)
-                    if Eng_ValidTarget(u, GetOwningPlayer(caster)) and u != curr and GetUnitAbilityLevel(u, 'A00A') < 1 then
-                        set d = (GetUnitX(u) - GetUnitX(curr)) * (GetUnitX(u) - GetUnitX(curr)) + (GetUnitY(u) - GetUnitY(curr)) * (GetUnitY(u) - GetUnitY(curr))
-                        if d < closestDist then
-                            set closestDist = d
-                            set nextTarget = u
-                        endif
-                    endif
-                endloop
-                call GroupClear(Eng_Enum)
-            endif
-            
-            if nextTarget != null then
-                call SFX_Point("Abilities\\Weapons\\DragonHawkMissile\\DragonHawkMissile.mdl", GetUnitX(nextTarget), GetUnitY(nextTarget))
-                call Damage_Pure(caster, nextTarget, Mms_Damage[i])
-                call GroupAddUnit(Mms_HitGroup[i], nextTarget)
-                
-                set stn = Dummy_Get(GetOwningPlayer(caster), 'h005', GetUnitX(nextTarget), GetUnitY(nextTarget), 0.00)
-                call UnitAddAbility(stn, 'A03Z')
-                call SetUnitAbilityLevel(stn, 'A03Z', Mms_Level[i])
-                call IssueTargetOrderById(stn, Eng_OrdThunderbolt, nextTarget)
-                call Dummy_RecycleTimed(stn, 1.00, 'A03Z')
-                
-                set Mms_CurrentTarget[i] = nextTarget
-                set Mms_BouncesLeft[i] = Mms_BouncesLeft[i] - 1
+        endif
+        set i = i - 1
+    endloop
+    set caster = null
+    set u = null
+endfunction
+
+//---------------------------------------------------------------------------
+// Slaughterhouse (A03J rework) - Pudge impales the victim on a real h00R
+// chain, drags it onto the block at his side and butchers it: 8 strikes over
+// 3.2 seconds, each 65 + 50% Strength + 2.5% max life as pure damage, healing
+// Pudge for the damage dealt. Death on the block: +5 permanent Strength and a
+// corpse detonation. Fx_HT parent -chain children 0..Links-1 = chain links.
+//---------------------------------------------------------------------------
+function Sla_Cleanup takes integer i, boolean release returns nothing
+    local integer chain = Sla_Chain[i]
+    local integer n = 0
+    local unit victim = Sla_Victim[i]
+    loop
+        exitwhen n >= Sla_Links[i]
+        call Dummy_Recycle(LoadUnitHandle(Fx_HT, -chain, n))
+        set n = n + 1
+    endloop
+    call FlushChildHashtable(Fx_HT, -chain)
+    if Sla_Fx[i] != null then
+        call DestroyEffect(Sla_Fx[i])
+    endif
+    if Sla_Caster[i] != null and GetUnitTypeId(Sla_Caster[i]) != 0 then
+        call ResetUnitAnimation(Sla_Caster[i])
+    endif
+    if release and victim != null and GetUnitTypeId(victim) != 0 then
+        call PauseUnit(victim, false)
+        call SetUnitPathing(victim, true)
+    endif
+    set Sla_Caster[i] = Sla_Caster[Sla_N]
+    set Sla_Victim[i] = Sla_Victim[Sla_N]
+    set Sla_Phase[i] = Sla_Phase[Sla_N]
+    set Sla_Chain[i] = Sla_Chain[Sla_N]
+    set Sla_Links[i] = Sla_Links[Sla_N]
+    set Sla_Time[i] = Sla_Time[Sla_N]
+    set Sla_TickTime[i] = Sla_TickTime[Sla_N]
+    set Sla_Fx[i] = Sla_Fx[Sla_N]
+    set Sla_Caster[Sla_N] = null
+    set Sla_Victim[Sla_N] = null
+    set Sla_Fx[Sla_N] = null
+    set Sla_Links[Sla_N] = 0
+    set Sla_N = Sla_N - 1
+    set victim = null
+endfunction
+
+function Sla_LayChain takes integer i returns nothing
+    local integer chain = Sla_Chain[i]
+    local real cx = GetUnitX(Sla_Caster[i])
+    local real cy = GetUnitY(Sla_Caster[i])
+    local real vx = GetUnitX(Sla_Victim[i])
+    local real vy = GetUnitY(Sla_Victim[i])
+    local real dist = SquareRoot((vx - cx) * (vx - cx) + (vy - cy) * (vy - cy))
+    local real ang = Atan2(vy - cy, vx - cx) * bj_RADTODEG
+    local integer desired = R2I(dist / 72.00) + 1
+    local integer n = 0
+    local real t
+    local unit link
+    if desired > 40 then
+        set desired = 40
+    endif
+    loop
+        exitwhen n >= desired
+        set t = (I2R(n) + 0.50) / I2R(desired)
+        if n < Sla_Links[i] then
+            set link = LoadUnitHandle(Fx_HT, -chain, n)
+            call SetUnitX(link, Tow_ClampX(cx + (vx - cx) * t))
+            call SetUnitY(link, Tow_ClampY(cy + (vy - cy) * t))
+            call SetUnitFacing(link, ang)
+        else
+            set link = Dummy_Get(GetOwningPlayer(Sla_Caster[i]), 'h00R', Tow_ClampX(cx + (vx - cx) * t), Tow_ClampY(cy + (vy - cy) * t), ang)
+            call SetUnitFlyHeight(link, 45.00, 0.00)
+            call SaveUnitHandle(Fx_HT, -chain, n, link)
+        endif
+        set n = n + 1
+    endloop
+    loop
+        exitwhen n >= Sla_Links[i]
+        call Dummy_Recycle(LoadUnitHandle(Fx_HT, -chain, n))
+        call RemoveSavedHandle(Fx_HT, -chain, n)
+        set n = n + 1
+    endloop
+    set Sla_Links[i] = desired
+    set link = null
+endfunction
+
+function Sla_Finale takes integer i returns nothing
+    local unit caster = Sla_Caster[i]
+    local unit u
+    local real vx = GetUnitX(Sla_Victim[i])
+    local real vy = GetUnitY(Sla_Victim[i])
+    local real burst = 120.00 + 0.60 * I2R(GetHeroStr(caster, true))
+    call ModifyHeroStat(bj_HEROSTAT_STR, caster, bj_MODIFYMETHOD_ADD, 5)
+    call CreateTextTagUnitBJ("|cffff3030+5 Strength!|r", caster, 0.00, 11.00, 100.00, 100.00, 100.00, 0)
+    call SetTextTagVelocityBJ(GetLastCreatedTextTag(), 110.00, 90.00)
+    call SetTextTagPermanentBJ(GetLastCreatedTextTag(), false)
+    call SetTextTagLifespanBJ(GetLastCreatedTextTag(), 3.00)
+    call SetTextTagFadepointBJ(GetLastCreatedTextTag(), 0.65)
+    call SFX_Point("Objects\\Spawnmodels\\Human\\HumanLargeDeathExplode\\HumanLargeDeathExplode.mdl", vx, vy)
+    call SFX_Point("Objects\\Spawnmodels\\Orc\\Orcblood\\BattrollBlood.mdl", vx + 70.00, vy)
+    call SFX_Point("Objects\\Spawnmodels\\Orc\\Orcblood\\BattrollBlood.mdl", vx - 70.00, vy + 50.00)
+    call GroupEnumUnitsInRange(Eng_Enum, vx, vy, 450.00, null)
+    loop
+        set u = FirstOfGroup(Eng_Enum)
+        exitwhen u == null
+        call GroupRemoveUnit(Eng_Enum, u)
+        if Eng_ValidTarget(u, GetOwningPlayer(caster)) and IsUnitEnemy(u, GetOwningPlayer(caster)) then
+            call Damage_Pure(caster, u, burst)
+            call SFX_Unit("Objects\\Spawnmodels\\Human\\HumanBlood\\HumanBloodLarge0.mdl", u, "chest")
+        endif
+    endloop
+    call GroupClear(Eng_Enum)
+    set caster = null
+    set u = null
+endfunction
+
+function Sla_Tick takes nothing returns nothing
+    local integer i = Sla_N
+    local unit caster
+    local unit victim
+    local real dist
+    local real dx
+    local real dy
+    local real f
+    local real strikeDmg
+    loop
+        exitwhen i < 1
+        set caster = Sla_Caster[i]
+        set victim = Sla_Victim[i]
+        if caster == null or GetUnitTypeId(caster) == 0 or GetWidgetLife(caster) <= 0.405 then
+            call Sla_Cleanup(i, true)
+        elseif victim == null or GetUnitTypeId(victim) == 0 then
+            call Sla_Cleanup(i, false)
+        elseif Sla_Phase[i] == 1 then
+            if GetWidgetLife(victim) <= 0.405 then
+                call Sla_Cleanup(i, false)
             else
-                set Mms_BouncesLeft[i] = 0
+                set dx = GetUnitX(caster) - GetUnitX(victim)
+                set dy = GetUnitY(caster) - GetUnitY(victim)
+                set dist = SquareRoot(dx * dx + dy * dy)
+                if dist <= 150.00 then
+                    set Sla_Phase[i] = 2
+                    set Sla_Time[i] = 3.20
+                    set Sla_TickTime[i] = 0.10
+                    call SFX_Unit("Objects\\Spawnmodels\\Undead\\ImpaleTargetDust\\ImpaleTargetDust.mdl", victim, "origin")
+                    call SFX_Unit("Objects\\Spawnmodels\\Human\\HumanBlood\\HumanBloodLarge0.mdl", victim, "chest")
+                else
+                    set f = 27.50 / RMaxBJ(dist, 0.01)
+                    call SetUnitX(victim, Tow_ClampX(GetUnitX(victim) + dx * f))
+                    call SetUnitY(victim, Tow_ClampY(GetUnitY(victim) + dy * f))
+                    call Sla_LayChain(i)
+                    set Sla_Time[i] = Sla_Time[i] - Eng_TickRate
+                    if Sla_Time[i] <= 0.00 then
+                        set Sla_Phase[i] = 2
+                        set Sla_Time[i] = 3.20
+                        set Sla_TickTime[i] = 0.10
+                    endif
+                endif
+            endif
+        else
+            if GetWidgetLife(victim) <= 0.405 then
+                call Sla_Finale(i)
+                call Sla_Cleanup(i, false)
+            else
+                set f = GetUnitFacing(caster) * bj_DEGTORAD
+                call SetUnitX(victim, Tow_ClampX(GetUnitX(caster) + 110.00 * Cos(f)))
+                call SetUnitY(victim, Tow_ClampY(GetUnitY(caster) + 110.00 * Sin(f)))
+                call Sla_LayChain(i)
+                set Sla_TickTime[i] = Sla_TickTime[i] - Eng_TickRate
+                if Sla_TickTime[i] <= 0.00 then
+                    set Sla_TickTime[i] = Sla_TickTime[i] + 0.40
+                    set strikeDmg = 65.00 + 0.50 * I2R(GetHeroStr(caster, true)) + 0.025 * GetUnitState(victim, UNIT_STATE_MAX_LIFE)
+                    call Damage_Pure(caster, victim, strikeDmg)
+                    call SetWidgetLife(caster, RMinBJ(GetUnitState(caster, UNIT_STATE_MAX_LIFE), GetWidgetLife(caster) + strikeDmg))
+                    call SetUnitAnimation(caster, "attack")
+                    call SFX_Unit("Objects\\Spawnmodels\\Human\\HumanBlood\\HumanBloodLarge0.mdl", victim, "chest")
+                    call SFX_Unit("Objects\\Spawnmodels\\Orc\\Orcblood\\BattrollBlood.mdl", victim, "origin")
+                    call SFX_Unit("Abilities\\Spells\\Undead\\VampiricAura\\VampiricAuraTarget.mdl", caster, "origin")
+                    call Amp_Apply(victim)
+                endif
+                set Sla_Time[i] = Sla_Time[i] - Eng_TickRate
+                if Sla_Time[i] <= 0.00 then
+                    call Sla_Cleanup(i, true)
+                endif
             endif
         endif
-        
         set caster = null
-        set curr = null
-        set nextTarget = null
-        set u = null
-        set stn = null
+        set victim = null
         set i = i - 1
     endloop
 endfunction
 
+function Slaughterhouse_Launch takes unit caster, unit victim returns nothing
+    local integer i = Sla_N
+    if victim == null or GetUnitTypeId(victim) == 0 or GetWidgetLife(victim) <= 0.405 then
+        return
+    endif
+    if GetUnitAbilityLevel(victim, 'A00A') > 0 or IsUnitType(victim, UNIT_TYPE_STRUCTURE) then
+        call Damage_Pure(caster, victim, 150.00 + 0.50 * I2R(GetHeroStr(caster, true)))
+        call SFX_Unit("Objects\\Spawnmodels\\Human\\HumanBlood\\HumanBloodLarge0.mdl", victim, "chest")
+        return
+    endif
+    loop
+        exitwhen i < 1
+        if Sla_Caster[i] == caster then
+            call Sla_Cleanup(i, true)
+        endif
+        set i = i - 1
+    endloop
+    set Eng_ChainSeq = Eng_ChainSeq + 1
+    set Sla_N = Sla_N + 1
+    set Sla_Caster[Sla_N] = caster
+    set Sla_Victim[Sla_N] = victim
+    set Sla_Phase[Sla_N] = 1
+    set Sla_Chain[Sla_N] = Eng_ChainSeq
+    set Sla_Links[Sla_N] = 0
+    set Sla_Time[Sla_N] = 1.60
+    set Sla_TickTime[Sla_N] = 0.00
+    set Sla_Fx[Sla_N] = AddSpecialEffectTarget("Abilities\\Spells\\Human\\ThunderBolt\\ThunderBoltTarget.mdl", victim, "overhead")
+    call PauseUnit(victim, true)
+    call SetUnitPathing(victim, false)
+    call SetUnitFacing(caster, Atan2(GetUnitY(victim) - GetUnitY(caster), GetUnitX(victim) - GetUnitX(caster)) * bj_RADTODEG)
+    call SFX_Unit("Abilities\\Spells\\Other\\HowlOfTerror\\HowlCaster.mdl", caster, "origin")
+    call SFX_Unit("Objects\\Spawnmodels\\Human\\HumanBlood\\HumanBloodLarge0.mdl", victim, "chest")
+    call Sla_LayChain(Sla_N)
+endfunction
+
+//---------------------------------------------------------------------------
+// Unpaid Blood (A00C rework) - allied heroes near a Vengeful Spirit bank 25%
+// of all damage they suffer as Vengeance (cap 200 + 12x Agility). The
+// Spirit's next damaging strike detonates the whole pool as pure damage.
+//---------------------------------------------------------------------------
+function Vng_Touch takes unit u returns nothing
+    local integer i = Vng_HeroN
+    if u == null or GetUnitTypeId(u) != 'H003' then
+        return
+    endif
+    loop
+        exitwhen i < 1
+        if Vng_Hero[i] == u then
+            return
+        endif
+        set i = i - 1
+    endloop
+    set Vng_HeroN = Vng_HeroN + 1
+    set Vng_Hero[Vng_HeroN] = u
+    set Vng_Charge[Vng_HeroN] = 0.00
+endfunction
+
+function Vng_DamageEvent takes nothing returns boolean
+    local unit v = udg_GDD_DamagedUnit
+    local unit s = udg_GDD_DamageSource
+    local integer i
+    local real cap
+    local real dx
+    local real dy
+    if Vng_Guard or Amp_Guard or udg_GDD_Damage <= 0.00 then
+        return false
+    endif
+    call Vng_Touch(v)
+    call Vng_Touch(s)
+    set i = Vng_HeroN
+    loop
+        exitwhen i < 1
+        if Vng_Hero[i] == null or GetUnitTypeId(Vng_Hero[i]) == 0 then
+            set Vng_Hero[i] = Vng_Hero[Vng_HeroN]
+            set Vng_Charge[i] = Vng_Charge[Vng_HeroN]
+            set Vng_Hero[Vng_HeroN] = null
+            set Vng_HeroN = Vng_HeroN - 1
+        elseif s == Vng_Hero[i] and Vng_Charge[i] >= 35.00 and GetWidgetLife(s) > 0.405 and v != null and IsUnitEnemy(v, GetOwningPlayer(s)) then
+            set Vng_Guard = true
+            call Damage_Pure(s, v, Vng_Charge[i])
+            set Vng_Guard = false
+            call SFX_Unit("Abilities\\Spells\\Undead\\DeathCoil\\DeathCoilSpecialArt.mdl", v, "chest")
+            call SFX_Unit("Abilities\\Spells\\Items\\AIil\\AIilTarget.mdl", v, "origin")
+            call Ltg_Add(AddLightningEx("SPLK", false, GetUnitX(s), GetUnitY(s), 60.00, GetUnitX(v), GetUnitY(v), 60.00), 0.50)
+            set Vng_Charge[i] = 0.00
+        elseif v != null and GetWidgetLife(Vng_Hero[i]) > 0.405 and IsUnitType(v, UNIT_TYPE_HERO) and IsUnitAlly(v, GetOwningPlayer(Vng_Hero[i])) and not Eng_IsDummyType(GetUnitTypeId(v)) then
+            set dx = GetUnitX(v) - GetUnitX(Vng_Hero[i])
+            set dy = GetUnitY(v) - GetUnitY(Vng_Hero[i])
+            if dx * dx + dy * dy <= 810000.00 then
+                set cap = 200.00 + 12.00 * I2R(GetHeroAgi(Vng_Hero[i], true))
+                set Vng_Charge[i] = RMinBJ(cap, Vng_Charge[i] + 0.25 * udg_GDD_Damage)
+            endif
+        endif
+        set i = i - 1
+    endloop
+    set v = null
+    set s = null
+    return false
+endfunction
+
+//---------------------------------------------------------------------------
+// Grudge Bolt (A008 rework) - a homing vengeful spirit that stuns and deals
+// 100 + 260% Agility PURE damage. The grudge lingers: an echo wisp stays at
+// the wound and strikes again for half damage a moment later.
+//---------------------------------------------------------------------------
+function Gvb_OnHit takes nothing returns boolean
+    local unit caster
+    local unit wisp
+    local real dmg
+    if EV_UNIT != Msl_Target[EV_MISSILE] then
+        return false
+    endif
+    set caster = Msl_Owner[EV_MISSILE]
+    set dmg = 100.00 + 2.60 * I2R(GetHeroAgi(caster, true))
+    call Damage_Pure(caster, EV_UNIT, dmg)
+    call Stun_Bolt(GetOwningPlayer(caster), EV_UNIT)
+    call SFX_Unit("Abilities\\Weapons\\AvengerMissile\\AvengerMissile.mdl", EV_UNIT, "chest")
+    call SFX_Unit("Abilities\\Spells\\Undead\\DeathCoil\\DeathCoilSpecialArt.mdl", EV_UNIT, "origin")
+    set wisp = Dummy_Get(GetOwningPlayer(caster), 'h005', Msl_X[EV_MISSILE], Msl_Y[EV_MISSILE], 0.00)
+    call Dummy_AttachFx(wisp, "units\\nightelf\\Wisp\\Wisp.mdl")
+    call SetUnitFlyHeight(wisp, 80.00, 0.00)
+    call SetUnitVertexColor(wisp, 200, 120, 255, 255)
+    set Gvb_N = Gvb_N + 1
+    set Gvb_Caster[Gvb_N] = caster
+    set Gvb_Target[Gvb_N] = EV_UNIT
+    set Gvb_Wisp[Gvb_N] = wisp
+    set Gvb_X[Gvb_N] = Msl_X[EV_MISSILE]
+    set Gvb_Y[Gvb_N] = Msl_Y[EV_MISSILE]
+    set Gvb_Time[Gvb_N] = 0.90
+    set Gvb_Dmg[Gvb_N] = dmg * 0.50
+    call Vng_Touch(caster)
+    set caster = null
+    set wisp = null
+    return true
+endfunction
+
+function Gvb_Tick takes nothing returns nothing
+    local integer i = Gvb_N
+    local unit target
+    local unit caster
+    local real dx
+    local real dy
+    loop
+        exitwhen i < 1
+        set Gvb_Time[i] = Gvb_Time[i] - Eng_TickRate
+        if Gvb_Time[i] <= 0.00 then
+            set target = Gvb_Target[i]
+            set caster = Gvb_Caster[i]
+            if target != null and GetUnitTypeId(target) != 0 and GetWidgetLife(target) > 0.405 then
+                set dx = GetUnitX(target) - Gvb_X[i]
+                set dy = GetUnitY(target) - Gvb_Y[i]
+                if dx * dx + dy * dy <= 810000.00 then
+                    call UnitAddAbility(Gvb_Wisp[i], 'A00G')
+                    call IssueTargetOrderById(Gvb_Wisp[i], Eng_OrdChainLightning, target)
+                    call SFX_Unit("Abilities\\Weapons\\AvengerMissile\\AvengerMissile.mdl", target, "chest")
+                    if caster != null and GetUnitTypeId(caster) != 0 then
+                        call Damage_Pure(caster, target, Gvb_Dmg[i])
+                    endif
+                endif
+            endif
+            call Dummy_RecycleTimed(Gvb_Wisp[i], 0.60, 'A00G')
+            set Gvb_Caster[i] = Gvb_Caster[Gvb_N]
+            set Gvb_Target[i] = Gvb_Target[Gvb_N]
+            set Gvb_Wisp[i] = Gvb_Wisp[Gvb_N]
+            set Gvb_X[i] = Gvb_X[Gvb_N]
+            set Gvb_Y[i] = Gvb_Y[Gvb_N]
+            set Gvb_Time[i] = Gvb_Time[Gvb_N]
+            set Gvb_Dmg[i] = Gvb_Dmg[Gvb_N]
+            set Gvb_Caster[Gvb_N] = null
+            set Gvb_Target[Gvb_N] = null
+            set Gvb_Wisp[Gvb_N] = null
+            set Gvb_N = Gvb_N - 1
+        endif
+        set target = null
+        set caster = null
+        set i = i - 1
+    endloop
+endfunction
+
+function GrudgeBolt_Launch takes unit caster, unit target returns nothing
+    local integer m
+    if target == null or GetUnitTypeId(target) == 0 or GetWidgetLife(target) <= 0.405 then
+        return
+    endif
+    set m = Missile_LaunchXY(caster, GetUnitX(caster), GetUnitY(caster), GetUnitX(target), GetUnitY(target), 1350.00, 2500.00, 90.00, 'h005', "Abilities\\Weapons\\AvengerMissile\\AvengerMissile.mdl", Gvb_OnHitTrig, null)
+    call Missile_SetHoming(m, target)
+    call SetUnitScale(Msl_Dummy[m], 1.35, 1.35, 1.35)
+    call SetUnitFlyHeight(Msl_Dummy[m], 70.00, 0.00)
+    call Vng_Touch(caster)
+endfunction
+
+//---------------------------------------------------------------------------
+// Wave of Terror (A02D rebuilt on Channel) - a violet spectral shockwave
+// that pierces 1300 units, dealing 75 + 220% Agility magic damage and
+// slapping the engine's acid debuff (armor shred + slow) on everything hit.
+//---------------------------------------------------------------------------
+function WaveOfTerror_OnHit takes nothing returns boolean
+    local unit caster = Msl_Owner[EV_MISSILE]
+    if IsUnitEnemy(EV_UNIT, GetOwningPlayer(caster)) then
+        call Damage_Magic(caster, EV_UNIT, 75.00 + 2.20 * I2R(GetHeroAgi(caster, true)))
+        call Dummy_CastTarget(GetOwningPlayer(caster), 'A06K', Eng_OrdAcidbomb, EV_UNIT)
+        call SFX_Unit("Abilities\\Spells\\Items\\AIil\\AIilTarget.mdl", EV_UNIT, "chest")
+    endif
+    set caster = null
+    return false
+endfunction
+
+function WaveOfTerror_Launch takes unit caster, real tx, real ty returns nothing
+    local real cx = GetUnitX(caster)
+    local real cy = GetUnitY(caster)
+    local integer m
+    if (tx - cx) * (tx - cx) + (ty - cy) * (ty - cy) < 1.00 then
+        set tx = cx + Cos(GetUnitFacing(caster) * bj_DEGTORAD)
+        set ty = cy + Sin(GetUnitFacing(caster) * bj_DEGTORAD)
+    endif
+    set m = Missile_LaunchXY(caster, cx, cy, tx, ty, 1050.00, 1300.00, 170.00, 'h005', "Abilities\\Spells\\Orc\\Shockwave\\ShockwaveMissile.mdl", Wvt_OnHitTrig, null)
+    call SetUnitScale(Msl_Dummy[m], 2.00, 2.00, 2.00)
+    call SetUnitVertexColor(Msl_Dummy[m], 170, 70, 235, 255)
+    call SFX_Unit("Abilities\\Spells\\Other\\HowlOfTerror\\HowlCaster.mdl", caster, "origin")
+    call Vng_Touch(caster)
+endfunction
+
+function Trig_WaveOfTerror_Actions takes nothing returns nothing
+    call WaveOfTerror_Launch(GetTriggerUnit(), GetSpellTargetX(), GetSpellTargetY())
+endfunction
+
+//---------------------------------------------------------------------------
+// Nether Swap (A00B rebuilt) - instantly trades places with any hero. An
+// enemy victim takes 100 + 300% Agility pure damage and is soul-tethered
+// for 3.5 seconds: straying beyond 650 drags it back toward Venge.
+//---------------------------------------------------------------------------
+function NetherSwap_Launch takes unit caster, unit target returns nothing
+    local real cx
+    local real cy
+    local real tx
+    local real ty
+    local player p
+    if caster == null or target == null or target == caster or GetUnitTypeId(target) == 0 then
+        return
+    endif
+    if GetUnitAbilityLevel(target, 'A00A') > 0 then
+        call SFX_Unit("Abilities\\Spells\\Items\\AIil\\AIilTarget.mdl", caster, "origin")
+        return
+    endif
+    set p = GetOwningPlayer(caster)
+    set cx = GetUnitX(caster)
+    set cy = GetUnitY(caster)
+    set tx = GetUnitX(target)
+    set ty = GetUnitY(target)
+    call SFX_Point("Abilities\\Spells\\NightElf\\Blink\\BlinkCaster.mdl", cx, cy)
+    call SFX_Point("Abilities\\Spells\\NightElf\\Blink\\BlinkCaster.mdl", tx, ty)
+    call SetUnitX(caster, Tow_ClampX(tx))
+    call SetUnitY(caster, Tow_ClampY(ty))
+    call SetUnitX(target, Tow_ClampX(cx))
+    call SetUnitY(target, Tow_ClampY(cy))
+    call SFX_Unit("Abilities\\Spells\\Undead\\DeathCoil\\DeathCoilSpecialArt.mdl", caster, "origin")
+    call SFX_Unit("Abilities\\Spells\\Undead\\DeathCoil\\DeathCoilSpecialArt.mdl", target, "origin")
+    call Ltg_Add(AddLightningEx("SPLK", false, cx, cy, 60.00, tx, ty, 60.00), 0.60)
+    call Ltg_Add(AddLightningEx("AFOD", false, tx, ty, 60.00, cx, cy, 60.00), 0.60)
+    if IsUnitEnemy(target, p) then
+        call Damage_Pure(caster, target, 100.00 + 3.00 * I2R(GetHeroAgi(caster, true)))
+        call SFX_Unit("Abilities\\Spells\\Items\\AIil\\AIilTarget.mdl", target, "chest")
+        set Nsw_N = Nsw_N + 1
+        set Nsw_Caster[Nsw_N] = caster
+        set Nsw_Target[Nsw_N] = target
+        set Nsw_Time[Nsw_N] = 3.50
+        set Nsw_Bolt[Nsw_N] = AddLightningEx("DRAM", false, tx, ty, 60.00, cx, cy, 60.00)
+    endif
+    call Vng_Touch(caster)
+    set p = null
+endfunction
+
+function Nsw_Tick takes nothing returns nothing
+    local integer i = Nsw_N
+    local unit caster
+    local unit target
+    local real dx
+    local real dy
+    local real dist
+    local real f
+    local real nx
+    local real ny
+    loop
+        exitwhen i < 1
+        set caster = Nsw_Caster[i]
+        set target = Nsw_Target[i]
+        set Nsw_Time[i] = Nsw_Time[i] - Eng_TickRate
+        if Nsw_Time[i] <= 0.00 or caster == null or GetUnitTypeId(caster) == 0 or GetWidgetLife(caster) <= 0.405 or target == null or GetUnitTypeId(target) == 0 or GetWidgetLife(target) <= 0.405 then
+            call DestroyLightning(Nsw_Bolt[i])
+            set Nsw_Caster[i] = Nsw_Caster[Nsw_N]
+            set Nsw_Target[i] = Nsw_Target[Nsw_N]
+            set Nsw_Time[i] = Nsw_Time[Nsw_N]
+            set Nsw_Bolt[i] = Nsw_Bolt[Nsw_N]
+            set Nsw_Caster[Nsw_N] = null
+            set Nsw_Target[Nsw_N] = null
+            set Nsw_Bolt[Nsw_N] = null
+            set Nsw_N = Nsw_N - 1
+        else
+            set dx = GetUnitX(caster) - GetUnitX(target)
+            set dy = GetUnitY(caster) - GetUnitY(target)
+            set dist = SquareRoot(dx * dx + dy * dy)
+            if dist > 650.00 then
+                set f = 30.00 / RMaxBJ(dist, 0.01)
+                set nx = GetUnitX(target) + dx * f
+                set ny = GetUnitY(target) + dy * f
+                if nx >= Eng_MinX and nx <= Eng_MaxX and ny >= Eng_MinY and ny <= Eng_MaxY and not IsTerrainPathable(nx, ny, PATHING_TYPE_WALKABILITY) then
+                    call SetUnitX(target, nx)
+                    call SetUnitY(target, ny)
+                endif
+                if GetRandomInt(1, 8) == 1 then
+                    call SFX_Unit("Abilities\\Spells\\Orc\\Purge\\PurgeBuffTarget.mdl", target, "chest")
+                endif
+            endif
+            call MoveLightningEx(Nsw_Bolt[i], false, GetUnitX(caster), GetUnitY(caster), 60.00, GetUnitX(target), GetUnitY(target), 60.00)
+        endif
+        set caster = null
+        set target = null
+        set i = i - 1
+    endloop
+endfunction
+
+//---------------------------------------------------------------------------
+// Blood layer - heavy hits paint heroes red (throttled per unit), and every
+// hero death detonates in gore. Death also flushes per-unit engine state.
+//---------------------------------------------------------------------------
+function Bld_DamageEvent takes nothing returns boolean
+    local unit v = udg_GDD_DamagedUnit
+    local integer h
+    if udg_GDD_Damage < 25.00 or v == null or not IsUnitType(v, UNIT_TYPE_HERO) then
+        return false
+    endif
+    set h = GetHandleId(v)
+    if Eng_Now - LoadReal(Fx_HT, h, 10) >= 0.35 then
+        call SaveReal(Fx_HT, h, 10, Eng_Now)
+        call SFX_Unit("Objects\\Spawnmodels\\Human\\HumanBlood\\HumanBloodLarge0.mdl", v, "chest")
+    endif
+    set v = null
+    return false
+endfunction
+
+function Eng_GoreDeath takes nothing returns boolean
+    local unit u = GetTriggerUnit()
+    local integer i = Amp_N
+    local real x
+    local real y
+    call FlushChildHashtable(Fx_HT, GetHandleId(u))
+    loop
+        exitwhen i < 1
+        if Amp_Unit[i] == u then
+            call DestroyEffect(Amp_Fx[i])
+            set Amp_Unit[i] = Amp_Unit[Amp_N]
+            set Amp_Expire[i] = Amp_Expire[Amp_N]
+            set Amp_Fx[i] = Amp_Fx[Amp_N]
+            set Amp_Unit[Amp_N] = null
+            set Amp_Fx[Amp_N] = null
+            set Amp_N = Amp_N - 1
+        endif
+        set i = i - 1
+    endloop
+    if IsUnitType(u, UNIT_TYPE_HERO) and not Eng_IsDummyType(GetUnitTypeId(u)) then
+        set x = GetUnitX(u)
+        set y = GetUnitY(u)
+        call SFX_Point("Objects\\Spawnmodels\\Human\\HumanLargeDeathExplode\\HumanLargeDeathExplode.mdl", x, y)
+        call SFX_Point("Objects\\Spawnmodels\\Orc\\Orcblood\\BattrollBlood.mdl", x + 80.00, y + 40.00)
+        call SFX_Point("Objects\\Spawnmodels\\Orc\\Orcblood\\BattrollBlood.mdl", x - 60.00, y - 70.00)
+    endif
+    set u = null
+    return false
+endfunction
+
 function Eng_MasterTick takes nothing returns nothing
+    set Eng_Now = Eng_Now + Eng_TickRate
     call Rcy_Tick()
+    call Ltg_Tick()
     call Msl_Tick()
     call Hk_Tick()
     call Fbz_Tick()
@@ -6562,7 +7415,11 @@ function Eng_MasterTick takes nothing returns nothing
     call Rfw_Tick()
     call Hyg_Tick()
     call Hyu_Tick()
-    call Mms_Tick()
+    call Gvb_Tick()
+    call Nsw_Tick()
+    call Rot_Tick()
+    call Amp_Tick()
+    call Sla_Tick()
     call TowA_Tick()
     call TowW_Tick()
     call Esh_NodeTick()
@@ -6594,8 +7451,13 @@ function Engine_Init takes nothing returns nothing
     local trigger turtleSpell = CreateTrigger()
     local trigger turtleDamage = CreateTrigger()
     local trigger turtleSummon = CreateTrigger()
+    local trigger festerDamage = CreateTrigger()
+    local trigger vengeDamage = CreateTrigger()
+    local trigger bloodDamage = CreateTrigger()
+    local trigger goreDeath = CreateTrigger()
     set Eng_HT = InitHashtable()
     set Wcl_HT = InitHashtable()
+    set Fx_HT = InitHashtable()
     set Eng_Enum = CreateGroup()
     set Eng_Timer = CreateTimer()
     set Eng_Rect = Rect(0.00, 0.00, 32.00, 32.00)
@@ -6608,6 +7470,21 @@ function Engine_Init takes nothing returns nothing
     set Eng_OrdBloodlust = OrderId("bloodlust")
     set Eng_OrdMagicLeash = OrderId("magicleash")
     set Eng_OrdChainLightning = OrderId("chainlightning")
+    set Eng_OrdSlow = OrderId("slow")
+    set Gvb_OnHitTrig = CreateTrigger()
+    call TriggerAddCondition(Gvb_OnHitTrig, Condition(function Gvb_OnHit))
+    set Wvt_OnHitTrig = CreateTrigger()
+    call TriggerAddCondition(Wvt_OnHitTrig, Condition(function WaveOfTerror_OnHit))
+    set Vng_WaveTrig = CreateTrigger()
+    call TriggerAddAction(Vng_WaveTrig, function Trig_WaveOfTerror_Actions)
+    call TriggerRegisterVariableEvent(festerDamage, "udg_GDD_Event", EQUAL, 1.00)
+    call TriggerAddCondition(festerDamage, Condition(function Amp_DamageEvent))
+    call TriggerRegisterVariableEvent(vengeDamage, "udg_GDD_Event", EQUAL, 1.00)
+    call TriggerAddCondition(vengeDamage, Condition(function Vng_DamageEvent))
+    call TriggerRegisterVariableEvent(bloodDamage, "udg_GDD_Event", EQUAL, 1.00)
+    call TriggerAddCondition(bloodDamage, Condition(function Bld_DamageEvent))
+    call TriggerRegisterAnyUnitEventBJ(goreDeath, EVENT_PLAYER_UNIT_DEATH)
+    call TriggerAddCondition(goreDeath, Condition(function Eng_GoreDeath))
     set Trp_OnHit = CreateTrigger()
     call TriggerAddCondition(Trp_OnHit, Condition(function Torpedo_OnHit))
     set Prc_OnHit = CreateTrigger()
@@ -6670,6 +7547,10 @@ function Engine_Init takes nothing returns nothing
     set turtleSpell = null
     set turtleDamage = null
     set turtleSummon = null
+    set festerDamage = null
+    set vengeDamage = null
+    set bloodDamage = null
+    set goreDeath = null
 endfunction
 
 function InitGlobals takes nothing returns nothing
@@ -12105,7 +12986,7 @@ function Trig_MM_Conditions takes nothing returns boolean
 endfunction
 
 function Trig_MM_Actions takes nothing returns nothing
-    call MagicMissile_Launch(GetTriggerUnit(), GetSpellTargetUnit())
+    call GrudgeBolt_Launch(GetTriggerUnit(), GetSpellTargetUnit())
 endfunction
 
 //===========================================================================
@@ -12119,158 +13000,19 @@ endfunction
 //===========================================================================
 // Trigger: NA
 //===========================================================================
-function Trig_NA_Func003C takes nothing returns boolean
-    if ( not ( UnitHasBuffBJ(GetSpellAbilityUnit(), 'B004') == true ) ) then
-        return false
-    endif
-    if ( not ( GetUnitAbilityLevelSwapped('A00A', GetSpellAbilityUnit()) < 1 ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_NA_Conditions takes nothing returns boolean
-    if ( not Trig_NA_Func003C() ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_NA_Func002Func002Func001C takes nothing returns boolean
-    if ( not ( udg_Nether_Aura <= 40 ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_NA_Func002Func002Func004C takes nothing returns boolean
-    if ( not ( udg_NA_Cust > 2000 ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_NA_Func002Func002Func006C takes nothing returns boolean
-    return false
-endfunction
-
-function Trig_NA_Func002Func002C takes nothing returns boolean
-    if ( not Trig_NA_Func002Func002Func006C() ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_NA_Func002C takes nothing returns boolean
-    if ( not ( udg_Nether_Aura <= 25 ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_NA_Actions takes nothing returns nothing
-    local unit caster = GetSpellAbilityUnit()
-    local unit d
-    set udg_Nether_Aura = GetRandomInt(1, 100)
-    if ( Trig_NA_Func002C() ) then
-        if ( Trig_NA_Func002Func002C() ) then
-            set udg_NA_Cust = ( udg_NA_Cust + 1 )
-            call SetUnitUserData( GetTriggerUnit(), udg_NA_Cust )
-            if ( Trig_NA_Func002Func002Func004C() ) then
-                set udg_NA_Cust = 1
-            else
-            endif
-            call AddSpecialEffectTargetUnitBJ( "overhead", GetTriggerUnit(), "Abilities\\Spells\\Human\\DispelMagic\\DispelMagicTarget.mdl" )
-        else
-            if ( Trig_NA_Func002Func002Func001C() ) then
-                set d = Dummy_Get(Player(PLAYER_NEUTRAL_PASSIVE), 'hkni', GetUnitX(caster), GetUnitY(caster), bj_UNIT_FACING)
-                call UnitAddAbility(d, 'A00E')
-                call SetUnitAbilityLevel(d, 'A00E', 4)
-                call IssueTargetOrderById(d, Eng_OrdThunderbolt, caster)
-                call Dummy_RecycleTimed(d, 1.00, 'A00E')
-            else
-            endif
-        endif
-    else
-        set udg_NA_Con = false
-    endif
-    set caster = null
-    set d = null
-endfunction
-
-//===========================================================================
+// Retired: Nether Aura's random spell-punish gimmick (which also stomped
+// the unit indexer's UnitUserData) is replaced by Unpaid Blood, which lives
+// in the engine section as a GDD vengeance pool.
 function InitTrig_NA takes nothing returns nothing
-    set gg_trg_NA = CreateTrigger(  )
-    call TriggerRegisterAnyUnitEventBJ( gg_trg_NA, EVENT_PLAYER_UNIT_SPELL_CAST )
-    call TriggerAddCondition( gg_trg_NA, Condition( function Trig_NA_Conditions ) )
-    call TriggerAddAction( gg_trg_NA, function Trig_NA_Actions )
 endfunction
 
 //===========================================================================
 // Trigger: NS
 //===========================================================================
-function Trig_NS_Func019001003001 takes nothing returns boolean
-    return ( IsUnitType(GetFilterUnit(), UNIT_TYPE_STRUCTURE) == false )
-endfunction
-
-function Trig_NS_Func019001003002001 takes nothing returns boolean
-    return ( IsUnitAliveBJ(GetFilterUnit()) == true )
-endfunction
-
-function Trig_NS_Func019001003002002001 takes nothing returns boolean
-    return ( IsUnitEnemy(GetFilterUnit(), GetOwningPlayer(GetTriggerUnit())) == true )
-endfunction
-
-function Trig_NS_Func019001003002002002 takes nothing returns boolean
-    return ( GetUnitAbilityLevelSwapped('A00A', GetFilterUnit()) < 1 )
-endfunction
-
-function Trig_NS_Func019001003002002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_NS_Func019001003002002001(), Trig_NS_Func019001003002002002() )
-endfunction
-
-function Trig_NS_Func019001003002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_NS_Func019001003002001(), Trig_NS_Func019001003002002() )
-endfunction
-
-function Trig_NS_Func019001003 takes nothing returns boolean
-    return GetBooleanAnd( Trig_NS_Func019001003001(), Trig_NS_Func019001003002() )
-endfunction
-
-function Trig_NS_Func019A takes nothing returns nothing
-    local unit u = GetEnumUnit()
-    local unit d = Dummy_Get(GetOwningPlayer(GetTriggerUnit()), 'h005', GetUnitX(u), GetUnitY(u), bj_UNIT_FACING)
-    call UnitAddAbility(d, 'A00G')
-    call IssueTargetOrder(d, "chainlightning", udg_NS_Caster)
-    call Dummy_RecycleTimed(d, 1.00, 'A00G')
-    call SetUnitX(u, GetLocationX(udg_NS_Cast_Loc))
-    call SetUnitY(u, GetLocationY(udg_NS_Cast_Loc))
-    set u = null
-    set d = null
-endfunction
-
+// Nether Swap v2: instant soul trade, pure damage and the 3.5-second soul
+// tether are implemented in NetherSwap_Launch (engine section).
 function Trig_NS_Actions takes nothing returns nothing
-    set udg_NS_Targ = GetSpellTargetUnit()
-    call CreateNUnitsAtLoc( 1, 'h005', GetOwningPlayer(GetTriggerUnit()), GetUnitLoc(GetTriggerUnit()), bj_UNIT_FACING )
-    call UnitApplyTimedLifeBJ( 2.00, 'BTLF', GetLastCreatedUnit() )
-    set udg_NS_Cast_Loc = GetUnitLoc(GetLastCreatedUnit())
-    call CreateUnit(GetOwningPlayer(GetTriggerUnit()), 'h005', GetUnitX(udg_NS_Targ), GetUnitY(udg_NS_Targ), bj_UNIT_FACING)
-    call UnitApplyTimedLifeBJ( 2.00, 'BTLF', GetLastCreatedUnit() )
-    set udg_NS_Targ_Loc = GetUnitLoc(GetLastCreatedUnit())
-    call CreateNUnitsAtLoc( 1, 'h005', GetOwningPlayer(GetTriggerUnit()), udg_NS_Cast_Loc, bj_UNIT_FACING )
-    call UnitAddAbilityBJ( 'A00F', GetLastCreatedUnit() )
-    call IssueTargetOrderBJ( GetLastCreatedUnit(), "chainlightning", udg_NS_Targ )
-    call UnitApplyTimedLifeBJ( 1.00, 'BTLF', GetLastCreatedUnit() )
-    call CreateNUnitsAtLoc( 1, 'h005', GetOwningPlayer(GetTriggerUnit()), udg_NS_Targ_Loc, bj_UNIT_FACING )
-    call UnitAddAbilityBJ( 'A00G', GetLastCreatedUnit() )
-    call IssueTargetOrderBJ( GetLastCreatedUnit(), "chainlightning", udg_NS_Caster )
-    call UnitApplyTimedLifeBJ( 1.00, 'BTLF', GetLastCreatedUnit() )
-    call TriggerSleepAction( 0.20 )
-    call SetUnitPositionLoc( GetTriggerUnit(), udg_NS_Targ_Loc )
-    set bj_wantDestroyGroup = true
-    call ForGroupBJ( GetUnitsInRangeOfLocMatching(450.00, GetUnitLoc(udg_NS_Targ), Condition(function Trig_NS_Func019001003)), function Trig_NS_Func019A )
-    call RemoveLocation(udg_NS_Targ_Loc)
-    call RemoveLocation(udg_NS_Cast_Loc)
+    call NetherSwap_Launch(GetTriggerUnit(), GetSpellTargetUnit())
 endfunction
 
 //===========================================================================
@@ -12582,8 +13324,43 @@ endfunction
 //===========================================================================
 // Trigger: FoD
 //===========================================================================
+// Finger of Death v2: 600-radius pure-damage execution field around the
+// target. Damage = 700 + 3x Intelligence + 50% of Lion's TOTAL stats. Every
+// victim is lashed by its own death-finger arc and slowed 25% for 2 seconds.
 function Trig_FoD_Actions takes nothing returns nothing
-    call UnitDamageTargetBJ( GetTriggerUnit(), GetSpellTargetUnit(), ( 700.00 + ( 3.00 * I2R(GetHeroStatBJ(bj_HEROSTAT_INT, GetTriggerUnit(), true)) ) ), ATTACK_TYPE_CHAOS, DAMAGE_TYPE_FIRE )
+    local unit caster = GetTriggerUnit()
+    local unit target = GetSpellTargetUnit()
+    local unit u
+    local player p = GetOwningPlayer(caster)
+    local real tx
+    local real ty
+    local real dmg = 700.00 + 3.00 * I2R(GetHeroInt(caster, true)) + 0.50 * I2R(GetHeroStr(caster, true) + GetHeroAgi(caster, true) + GetHeroInt(caster, true))
+    if target == null then
+        set caster = null
+        set p = null
+        return
+    endif
+    set tx = GetUnitX(target)
+    set ty = GetUnitY(target)
+    call SFX_Point("Abilities\\Spells\\Demon\\DarkPortal\\DarkPortalTarget.mdl", tx, ty)
+    call SFX_Point("Abilities\\Spells\\Undead\\DeathAndDecay\\DeathAndDecayTarget.mdl", tx, ty)
+    call GroupEnumUnitsInRange(Eng_Enum, tx, ty, 600.00, null)
+    loop
+        set u = FirstOfGroup(Eng_Enum)
+        exitwhen u == null
+        call GroupRemoveUnit(Eng_Enum, u)
+        if Eng_ValidTarget(u, p) and IsUnitEnemy(u, p) and GetUnitAbilityLevel(u, 'A00A') < 1 then
+            call Damage_Pure(caster, u, dmg)
+            call Dummy_CastTarget(p, 'A07J', Eng_OrdSlow, u)
+            call SFX_Unit("Abilities\\Spells\\Undead\\DeathCoil\\DeathCoilSpecialArt.mdl", u, "chest")
+            call Ltg_Add(AddLightningEx("AFOD", false, GetUnitX(caster), GetUnitY(caster), 90.00, GetUnitX(u), GetUnitY(u), 40.00), 0.65)
+        endif
+    endloop
+    call GroupClear(Eng_Enum)
+    set caster = null
+    set target = null
+    set u = null
+    set p = null
 endfunction
 
 //===========================================================================
@@ -13832,12 +14609,16 @@ function Trig_Rot_Func002C takes nothing returns boolean
 endfunction
 
 function Trig_Rot_Actions takes nothing returns nothing
+    // Rot rework: the toggle drives the engine channel. A03D stays as the
+    // companion slow aura; all damage lives in Rot_Tick.
     if ( Trig_Rot_Func001C() ) then
         call UnitAddAbilityBJ( 'A03D', GetOrderedUnit() )
+        call Rot_Enable(GetOrderedUnit())
     else
     endif
     if ( Trig_Rot_Func002C() ) then
         call UnitRemoveAbilityBJ( 'A03D', GetOrderedUnit() )
+        call Rot_Disable(GetOrderedUnit())
     else
     endif
 endfunction
@@ -13894,17 +14675,8 @@ endfunction
 // Trigger: Chomp
 //===========================================================================
 function Trig_Chomp_Actions takes nothing returns nothing
-    set udg_TempReal = ( I2R(GetHeroStatBJ(bj_HEROSTAT_STR, GetTriggerUnit(), true)) * 2.75 )
-    set udg_DTA_Target = GetSpellTargetUnit()
-    set udg_DTA_DmgDealer = GetTriggerUnit()
-    set udg_DTA_TotalDamageDealt = ( udg_TempReal + 125.00 )
-    set udg_DTA_Time = 2.00
-    set udg_DTA_Interval = 0.50
-    set udg_DTA_SpecialEffect = "Objects\\Spawnmodels\\Orc\\Orcblood\\BattrollBlood.mdl"
-    set udg_DTA_EffectAttachmentPoint = "chest"
-    set udg_DTA_Attacktype = ATTACK_TYPE_NORMAL
-    set udg_DTA_DamageType = DAMAGE_TYPE_UNIVERSAL
-    call ConditionalTriggerExecute( gg_trg_Get_DOT )
+    // Chomp is dead. Long live the Slaughterhouse (engine section).
+    call Slaughterhouse_Launch(GetTriggerUnit(), GetSpellTargetUnit())
 endfunction
 
 //===========================================================================
@@ -19850,6 +20622,7 @@ function Trig_Init_Trigger_Actions takes nothing returns nothing
     set udg_SpellEventAbility[54] = 'A06X'
     set udg_SpellEventAbility[55] = 'A07F'
     set udg_SpellEventAbility[56] = 'A00N'
+    set udg_SpellEventAbility[57] = 'A02D'
     // -
     set udg_SpellEventTrigger[1] = gg_trg_Torpedo
     set udg_SpellEventTrigger[2] = gg_trg_Tidal_Orbs_AW
@@ -19907,6 +20680,7 @@ function Trig_Init_Trigger_Actions takes nothing returns nothing
     set udg_SpellEventTrigger[54] = gg_trg_Valor
     set udg_SpellEventTrigger[55] = gg_trg_Explosive_Shots
     set udg_SpellEventTrigger[56] = gg_trg_Hydra_Summons
+    set udg_SpellEventTrigger[57] = Vng_WaveTrig
     // -
     call TriggerExecute( gg_trg_GUI_SpellEvent )
 endfunction

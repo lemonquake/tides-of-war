@@ -10,6 +10,51 @@
 
 ### Hero-overhaul campaign (active)
 
+- **Batch 24 — Blood Arena wave (2026-07-19).** Global cooldown rebalance at
+  build time (`rebalance_cooldowns` in the patch script): every hero-carried
+  ability with an explicit `acdn` is scaled for arena pace — basics
+  `max(4, cd*0.6)` capped 18, ultimates `max(10, cd*0.5)` capped 45 (user
+  floors: ults never < 10s, basics never < 4s). Ult = last non-AInv `uabi`
+  entry per hero. New engine layers: `Eng_Now` clock, `Ltg_*` timed-lightning
+  recycler, `Fx_HT` hashtable (per-victim children 0/1 = Rot exposure/last
+  seen, 10 = blood throttle; parent `-chainId` = per-instance handle sets),
+  `Eng_ChainSeq` stable chain ids, dummy pool now resets vertex color.
+  - **Butcher**: Rot (A03L) native immolation damage zeroed; `Rot_Tick` deals
+    (90 + 35% STR)/s in 250, tracks per-victim exposure, 5s+ of rot applies
+    **Festering Wounds** (`Amp_*`: +10% damage taken from ANY source via GDD
+    pure echo, recursion-guarded, curse overhead fx, 4s refresh). Chomp
+    replaced by **Slaughterhouse** (`Sla_*`): chain of pooled h00R links drags
+    the victim onto the block, 8 strikes x (65 + 50% STR + 2.5% max life)
+    pure with full self-heal, festering, gore; death on the block = +5
+    permanent STR + 450-radius corpse detonation. Hotkeys Q/W/R.
+  - **Vengeful Spirit (H003)** full kit (he was always sold in tavern n001 —
+    now he's worth picking): Q **Grudge Bolt** (A008, MissileCore homing, 100
+    + 260% AGI pure + stun + delayed 50% echo wisp), W **Wave of Terror**
+    (A02D REBUILT on ANcl channel base, order "shockwave", dispatch slot 57;
+    piercing violet shockwave, 75 + 220% AGI magic + engine acid debuff), E
+    **Unpaid Blood** (A00C ally-aura +8% MS; GDD pool `Vng_*` stores 25% of
+    ally hero damage up to 200 + 12x AGI, released as pure on Venge's next
+    strike), R **Nether Swap** (A00B REBUILT on AHtb base: instant ally/enemy
+    hero swap, enemies take 100 + 300% AGI pure + 3.5s soul tether that drags
+    them back inside 650). H003 is now a real AGI hero (26 + 2.9/level).
+    Legacy NA (UnitUserData-stomping!) and old NS/MM bodies deleted.
+  - **Lone Hydra**: Drowned Garden crater sign FIXED (+120 sinks; it rose
+    before), rim-wave churn pulses; **Abyssal Hold** (A02Z) now chains every
+    victim to the Hydra with DRAM drain-arcs, blue-tints them, layers frost
+    novas + blizzard shards, siphons 15 mana/s, and cleans everything up via
+    `Fx_HT` parent `-chain`.
+  - **Lightning Grip** (A04J): persistent giant Farseer ball on the beacon,
+    three orbiting lightning orbs with CLPB arcs sweeping the rim, 0.5s DRAM
+    grip-tether + Purge shock pulses on every caught enemy. Chain Shock
+    endpoint got a thunder-flash arrival.
+  - **Finger of Death** (A014): 600-radius around the target, pure damage =
+    700 + 3x INT + 50% of (STR+AGI+INT), per-victim AFOD arcs, and a new
+    dummy-cast 25%/2s slow (**A07J "Nether Chill"**, Aslo base, order "slow",
+    `Eng_OrdSlow`).
+  - **Blood layer**: GDD hits >= 25 on heroes spray blood (0.35s per-unit
+    throttle), every hero death detonates in gore; death listener flushes
+    per-unit `Fx_HT` state and Festering entries.
+
 - `HERO_OVERHAUL_BIBLE.md` now audits and redesigns all 27 selectable heroes,
   grouped into four implementation waves.
 - Tiles of War (`H00O`) is the first full live overhaul:
