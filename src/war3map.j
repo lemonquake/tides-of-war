@@ -1098,6 +1098,7 @@ globals
     trigger                 gg_trg_Lightning_Ward      = null
     trigger                 gg_trg_Lightning_Ward_Strike = null
     trigger                 gg_trg_Freezing_Blast      = null
+    trigger                 gg_trg_Hydra_Summons       = null
     trigger                 gg_trg_FB                  = null
     trigger                 gg_trg_Explosive_Impulse   = null
     trigger                 gg_trg_Tidal_Strike        = null
@@ -1266,7 +1267,7 @@ globals
     trigger                 gg_trg_Denkis_Shock_Tazer  = null
     trigger                 gg_trg_Grand_Bracer        = null
     trigger                 gg_trg_Staff_of_Wuulgarath = null
-    trigger                 gg_trg_Ninjaruels_Niggastick = null
+    trigger                 gg_trg_Ninjaruels_Staff      = null
     trigger                 gg_trg_Armor_of_Terror     = null
     trigger                 gg_trg_Derping_Axe         = null
     trigger                 gg_trg_Grimoire_of_Resto   = null
@@ -1446,27 +1447,332 @@ globals
     boolean array           Hk_Back
     integer array           Hk_LinkN
     integer array           Hk_Level
+    // --- Tiles of War overhaul: siege tank / anti-tank hero
+    // Citadel of War keeps stable recycled ids because its lightning and
+    // per-unit crossing cooldowns are stored in Eng_HT by instance id.
+    integer                 TowA_N                      = 0
+    integer array           TowA_List
+    integer                 TowA_FreeN                  = 0
+    integer array           TowA_FreeList
+    integer                 TowA_Max                    = 0
+    unit array              TowA_Caster
+    player array            TowA_Owner
+    group array             TowA_Inside
+    group array             TowA_Enum
+    group array             TowA_Nodes
+    real array              TowA_X
+    real array              TowA_Y
+    real array              TowA_Time
+    real array              TowA_Elapsed
+    boolean                 Tow_PlatingGuard            = false
+    // Worldbreaker Protocol follows the H00O <-> E001 morph.
+    integer                 TowW_N                      = 0
+    unit array              TowW_Caster
+    group array             TowW_Enum
+    real array              TowW_Time
+    real array              TowW_Pulse
+    boolean array           TowW_SeenBurrow
+    // --- EarthShaker overhaul: persistent resonance/faultline nodes
+    integer                 Esh_NodeN                   = 0
+    unit array              Esh_Node
+    unit array              Esh_Owner
+    real array              Esh_NodeX
+    real array              Esh_NodeY
+    real array              Esh_NodeTime
+    // --- Ancient Wanderer overhaul: persistent boulders and rolling missiles
+    integer                 Aw_SeedN                     = 0
+    unit array              Aw_Seed
+    unit array              Aw_SeedOwner
+    real array              Aw_SeedX
+    real array              Aw_SeedY
+    real array              Aw_SeedTime
+    integer                 Aw_MoveN                     = 0
+    unit array              Aw_Move
+    unit array              Aw_MoveOwner
+    group array             Aw_MoveHit
+    real array              Aw_MoveX
+    real array              Aw_MoveY
+    real array              Aw_MoveVx
+    real array              Aw_MoveVy
+    real array              Aw_MoveLife
+    real array              Aw_MoveMax
+    integer array           Aw_MoveMode
+    integer array           Aw_MoveBounces
+    boolean                 Aw_RockGuard                 = false
+    // --- God of Hammers overhaul: embedded hammers and Heavenfall Foundry
+    integer                 Hmr_NodeN                    = 0
+    unit array              Hmr_Node
+    unit array              Hmr_Owner
+    unit array              Hmr_Target
+    effect array            Hmr_Effect
+    real array              Hmr_NodeX
+    real array              Hmr_NodeY
+    real array              Hmr_NodeTime
+    real array              Hmr_NodePulse
+    real array              Hmr_NodeHeat
+    boolean array           Hmr_NodeHot
+    integer                 Hmr_FallN                    = 0
+    unit array              Hmr_Fall
+    unit array              Hmr_FallOwner
+    effect array            Hmr_FallEffect
+    real array              Hmr_FallX
+    real array              Hmr_FallY
+    real array              Hmr_FallTime
+    integer array           Hmr_FallPower
+    boolean                 Hmr_DamageGuard              = false
+    // --- Move Pointer overhaul: anchors, Fold portals, error zones, moving discs
+    integer                 Mp_AnchorN                   = 0
+    unit array              Mp_Anchor
+    unit array              Mp_AnchorOwner
+    effect array            Mp_AnchorEffect
+    real array              Mp_AnchorX
+    real array              Mp_AnchorY
+    real array              Mp_AnchorTime
+    integer                 Mp_PortalN                   = 0
+    unit array              Mp_PortalOwner
+    unit array              Mp_PortalA
+    unit array              Mp_PortalB
+    effect array            Mp_PortalEffectA
+    effect array            Mp_PortalEffectB
+    real array              Mp_PortalAX
+    real array              Mp_PortalAY
+    real array              Mp_PortalBX
+    real array              Mp_PortalBY
+    real array              Mp_PortalTime
+    integer                 Mp_ErrorN                    = 0
+    unit array              Mp_ErrorOwner
+    unit array              Mp_ErrorVisual
+    real array              Mp_ErrorX
+    real array              Mp_ErrorY
+    real array              Mp_ErrorTime
+    real array              Mp_ErrorPulse
+    integer                 Mp_DragN                     = 0
+    unit array              Mp_DragOwner
+    unit array              Mp_DragVisual
+    effect array            Mp_DragEffect
+    group array             Mp_DragGroup
+    real array              Mp_DragSX
+    real array              Mp_DragSY
+    real array              Mp_DragTX
+    real array              Mp_DragTY
+    real array              Mp_DragTime
+    integer                 Mp_DragContext               = 0
+    real                    Mp_DragContextX              = 0.00
+    real                    Mp_DragContextY              = 0.00
+    // --- Turtler overhaul: persistent wedge formation and World Turtle form
+    integer                 Tur_ShellN                   = 0
+    unit array              Tur_Shell
+    unit array              Tur_ShellOwner
+    real array              Tur_ShellTime
+    integer array           Tur_ShellSlot
+    integer                 Tur_FormN                    = 0
+    unit array              Tur_Form
+    real array              Tur_FormTime
+    real array              Tur_FormX
+    real array              Tur_FormY
+    real array              Tur_FormPulse
+    boolean array           Tur_FormSeen
+    boolean                 Tur_DamageGuard              = false
+    // --- Bow Master overhaul: suspended arrow geometry and ricochet wind
+    integer                 Bow_HeadN                    = 0
+    unit array              Bow_Head
+    unit array              Bow_HeadOwner
+    real array              Bow_HeadX
+    real array              Bow_HeadY
+    real array              Bow_HeadTime
+    trigger                 Bow_GaleHit                  = null
+    trigger                 Bow_GaleTick                 = null
+    boolean                 Bow_DamageGuard              = false
+    // --- Rifleman overhaul: breach shells, suppression, calibration, railgun
+    trigger                 Rfl_BreachHit                = null
+    integer                 Rfl_SupN                     = 0
+    unit array              Rfl_SupTarget
+    unit array              Rfl_SupOwner
+    integer array           Rfl_SupStacks
+    real array              Rfl_SupTime
+    integer                 Rfl_CalN                     = 0
+    unit array              Rfl_CalUnit
+    effect array            Rfl_CalEffect
+    real array              Rfl_CalX
+    real array              Rfl_CalY
+    real array              Rfl_CalTime
+    integer                 Rfl_RailN                    = 0
+    unit array              Rfl_RailOwner
+    unit array              Rfl_RailVisual
+    lightning array         Rfl_RailBeam
+    real array              Rfl_RailX
+    real array              Rfl_RailY
+    real array              Rfl_RailTime
+    boolean                 Rfl_DamageGuard              = false
+    // --- KnockbackCore (universal displacement engine)
+    integer                 Knb_N                        = 0
+    unit array              Knb_Unit
+    real array              Knb_Vx
+    real array              Knb_Vy
+    real array              Knb_Time
+    real array              Knb_Duration
+    boolean array           Knb_DestroyTrees
+    boolean array           Knb_PausePathing
+    string array            Knb_Fx
+    // --- ParabolaCore (universal 3D arc movement engine)
+    integer                 Prb_N                        = 0
+    unit array              Prb_Unit
+    real array              Prb_StartX
+    real array              Prb_StartY
+    real array              Prb_TargetX
+    real array              Prb_TargetY
+    real array              Prb_MaxHeight
+    real array              Prb_Time
+    real array              Prb_MaxTime
+    trigger array           Prb_OnLand
+    // --- JumpCore (Paladon-style jump/dash arc channel)
+    integer                 Jmp_N                        = 0
+    unit array              Jmp_Unit
+    real array              Jmp_StartX
+    real array              Jmp_StartY
+    real array              Jmp_CosA
+    real array              Jmp_SinA
+    real array              Jmp_Dist
+    real array              Jmp_Travel
+    real array              Jmp_Speed
+    real array              Jmp_Height
+    real array              Jmp_DefHeight
+    real array              Jmp_TrailAcc
+    boolean array           Jmp_Trees
+    string array            Jmp_Trail
+    trigger array           Jmp_OnLand
+    integer                 EV_JUMP                      = 0
+    trigger                 Lea_OnLand                   = null
+    trigger                 Esv_OnLand                   = null
+    // --- Reefwalk (4-tide arc convergence)
+    integer                 Rfw_N                        = 0
+    unit array              Rfw_Caster
+    real array              Rfw_TargetX
+    real array              Rfw_TargetY
+    real array              Rfw_Time
+    real array              Rfw_Duration
+    real array              Rfw_Damage
+    unit array              Rfw_Tide1
+    unit array              Rfw_Tide2
+    unit array              Rfw_Tide3
+    unit array              Rfw_Tide4
+    real array              Rfw_StartX1
+    real array              Rfw_StartY1
+    real array              Rfw_StartX2
+    real array              Rfw_StartY2
+    real array              Rfw_StartX3
+    real array              Rfw_StartY3
+    real array              Rfw_StartX4
+    real array              Rfw_StartY4
+    group array             Rfw_Hit
+    // --- Lone Hydra Drowned Garden & Ultimate
+    integer                 Hyg_N                        = 0
+    unit array              Hyg_Caster
+    real array              Hyg_X
+    real array              Hyg_Y
+    real array              Hyg_Time
+    integer array           Hyg_TentacleCount
+    unit array              Hyg_Tentacles
+    integer                 Hyu_N                        = 0
+    unit array              Hyu_Caster
+    real array              Hyu_Time
+    group array             Hyu_HeldUnits
+    real array              Hyu_Damage
+    // --- Magic Missile (Chain bouncing missile)
+    integer                 Mms_N                        = 0
+    unit array              Mms_Caster
+    unit array              Mms_CurrentTarget
+    real array              Mms_X
+    real array              Mms_Y
+    integer array           Mms_BouncesLeft
+    real array              Mms_Damage
+    integer array           Mms_Level
+    group array             Mms_HitGroup
+    unit array              Mms_Proxy
 endglobals
 
-//***************************************************************************
-//*
-//*  TIDES ENGINE - pure JASS, leak-free, multi-instance
-//*  Layers: DummyPool / Recycler / Stun / Damage / SFX / MissileCore / HookCore
-//*  All engine locals are nulled before exit; no locations are ever created.
-//*
-//***************************************************************************
+function Tow_ClampX takes real x returns real
+    if x < Eng_MinX then
+        return Eng_MinX
+    elseif x > Eng_MaxX then
+        return Eng_MaxX
+    endif
+    return x
+endfunction
+
+function Tow_ClampY takes real y returns real
+    if y < Eng_MinY then
+        return Eng_MinY
+    elseif y > Eng_MaxY then
+        return Eng_MaxY
+    endif
+    return y
+endfunction
 
 //===========================================================================
-// Dummy pool - recycled effect/caster units, keyed by unit-type id.
-// Eng_HT layout: parent = unit-type id, child 0 = stack count, child n = unit.
+// DummyCore - facing-bucketed dummy pool (pure-JASS port of the classic
+// Dummy recycler resource):
+//  * Dummies are stored in 30-degree facing buckets per unit type, so a
+//    checkout hands back a unit already looking (nearly) the right way -
+//    SetUnitFacing needs ~0.7s to turn 180 degrees, which is visible on
+//    reused projectile dummies. Nearest non-empty bucket wins.
+//  * Every created dummy is crow-form enabled ('Amrf' add/remove) so any
+//    system may SetUnitFlyHeight it immediately.
+//  * Effects attached through Dummy_AttachFx are destroyed automatically
+//    when the dummy returns to the pool - no orphaned chain graphics.
+//  Bucket layout inside Eng_HT (parent = typeId):
+//    child 9000000 + b          = count of bucket b (0..11)
+//    child (b + 1) * 100000 + n = stored unit n of bucket b
 //===========================================================================
+function Dummy_ClearFx takes unit u returns nothing
+    local integer id = GetHandleId(u)
+    if HaveSavedHandle(Eng_HT, id, 0) then
+        call DestroyEffect(LoadEffectHandle(Eng_HT, id, 0))
+        call FlushChildHashtable(Eng_HT, id)
+    endif
+endfunction
+
+function Dummy_AttachFx takes unit u, string model returns nothing
+    call Dummy_ClearFx(u)
+    call SaveEffectHandle(Eng_HT, GetHandleId(u), 0, AddSpecialEffectTarget(model, u, "origin"))
+endfunction
+
 function Dummy_Get takes player p, integer typeId, real x, real y, real face returns unit
-    local integer n = LoadInteger(Eng_HT, typeId, 0)
-    local unit u
-    if n > 0 then
-        set u = LoadUnitHandle(Eng_HT, typeId, n)
-        call RemoveSavedHandle(Eng_HT, typeId, n)
-        call SaveInteger(Eng_HT, typeId, 0, n - 1)
+    local integer b
+    local integer bb
+    local integer off = 0
+    local integer n
+    local unit u = null
+    set face = face - I2R(R2I(face / 360.00)) * 360.00
+    if face < 0.00 then
+        set face = face + 360.00
+    endif
+    set b = R2I(face / 30.00)
+    if b > 11 then
+        set b = 11
+    endif
+    loop
+        exitwhen off > 6 or u != null
+        set bb = b + off
+        if bb > 11 then
+            set bb = bb - 12
+        endif
+        set n = LoadInteger(Eng_HT, typeId, 9000000 + bb)
+        if n < 1 then
+            set bb = b - off
+            if bb < 0 then
+                set bb = bb + 12
+            endif
+            set n = LoadInteger(Eng_HT, typeId, 9000000 + bb)
+        endif
+        if n > 0 then
+            set u = LoadUnitHandle(Eng_HT, typeId, (bb + 1) * 100000 + n)
+            call RemoveSavedHandle(Eng_HT, typeId, (bb + 1) * 100000 + n)
+            call SaveInteger(Eng_HT, typeId, 9000000 + bb, n - 1)
+        endif
+        set off = off + 1
+    endloop
+    if u != null then
         call SetUnitOwner(u, p, false)
         call SetWidgetLife(u, GetUnitState(u, UNIT_STATE_MAX_LIFE))
         call SetUnitState(u, UNIT_STATE_MANA, GetUnitState(u, UNIT_STATE_MAX_MANA))
@@ -1478,6 +1784,8 @@ function Dummy_Get takes player p, integer typeId, real x, real y, real face ret
     else
         set u = CreateUnit(p, typeId, x, y, face)
         call SetUnitPathing(u, false)
+        call UnitAddAbility(u, 'Amrf')
+        call UnitRemoveAbility(u, 'Amrf')
     endif
     set bj_lastCreatedUnit = u
     set u = null
@@ -1486,17 +1794,28 @@ endfunction
 
 function Dummy_Recycle takes unit u returns nothing
     local integer t = GetUnitTypeId(u)
+    local integer b
     local integer n
     if u != null and t != 0 and GetWidgetLife(u) > 0.405 then
-        set n = LoadInteger(Eng_HT, t, 0) + 1
-        call SaveInteger(Eng_HT, t, 0, n)
-        call SaveUnitHandle(Eng_HT, t, n, u)
+        call Dummy_ClearFx(u)
+        set b = R2I(GetUnitFacing(u) / 30.00)
+        if b > 11 then
+            set b = 11
+        elseif b < 0 then
+            set b = 0
+        endif
+        set n = LoadInteger(Eng_HT, t, 9000000 + b) + 1
+        call SaveInteger(Eng_HT, t, 9000000 + b, n)
+        call SaveUnitHandle(Eng_HT, t, (b + 1) * 100000 + n, u)
         call SetUnitScale(u, 1.00, 1.00, 1.00)
+        call SetUnitFlyHeight(u, GetUnitDefaultFlyHeight(u), 0.00)
+        call SetUnitPathing(u, false)
         call PauseUnit(u, true)
         call ShowUnit(u, false)
         call SetUnitX(u, Eng_PoolX)
         call SetUnitY(u, Eng_PoolY)
     elseif u != null and t != 0 then
+        call Dummy_ClearFx(u)
         call RemoveUnit(u)
     endif
 endfunction
@@ -1544,7 +1863,7 @@ endfunction
 // Target validation shared by all engine collision checks.
 //===========================================================================
 function Eng_IsDummyType takes integer t returns boolean
-    return t == 'h005' or t == 'h00Q' or t == 'h00R' or t == 'e002' or t == 'h00Y' or t == 'hrif' or t == 'hgry' or t == 'hgyr' or t == 'h016' or t == 'hkni' or t == 'h014' or t == 'h00C' or t == 'h00L' or t == 'h00U' or t == 'h00V' or t == 'h01A'
+    return t == 'h005' or t == 'h00Q' or t == 'h00R' or t == 'e002' or t == 'h00Y' or t == 'hrif' or t == 'hgry' or t == 'hgyr' or t == 'h016' or t == 'hkni' or t == 'h014' or t == 'h00C' or t == 'h00L' or t == 'h00U' or t == 'h00V' or t == 'h01A' or t == 'h008' or t == 'h00B' or t == 'h011' or t == 'h012' or t == 'h00M'
 endfunction
 
 function Eng_ValidTarget takes unit u, player castOwner returns boolean
@@ -1633,6 +1952,168 @@ function Eng_KillTreesAt takes real x, real y, real r returns nothing
     set Eng_TreeR = r * r
     call SetRect(Eng_Rect, x - r, y - r, x + r, y + r)
     call EnumDestructablesInRect(Eng_Rect, null, function Eng_TreeKillEnum)
+endfunction
+
+//===========================================================================
+// JumpCore - the engine jump/dash arc channel (pure-JASS port of Paladon's
+// Jump n' Dash system). One master-tick instance per airborne unit:
+//  * Sine arc: flyHeight = default + maxHeight * Sin(pi * progress), the
+//    exact curve of the original system, world-bounds clamped.
+//  * Crow-form enable, pathing off for the flight, animation + time scale
+//    played during the arc and fully restored on landing or death.
+//  * Optional tree destruction along the path and a throttled trail effect.
+//  * onLand callback fires via TriggerEvaluate with EV_UNIT = the jumper
+//    and EV_JUMP = the instance id, after the unit is safely grounded.
+//===========================================================================
+function Jmp_Finish takes integer i, boolean landed returns nothing
+    local unit u = Jmp_Unit[i]
+    local trigger onLand = Jmp_OnLand[i]
+    set Jmp_Unit[i] = Jmp_Unit[Jmp_N]
+    set Jmp_StartX[i] = Jmp_StartX[Jmp_N]
+    set Jmp_StartY[i] = Jmp_StartY[Jmp_N]
+    set Jmp_CosA[i] = Jmp_CosA[Jmp_N]
+    set Jmp_SinA[i] = Jmp_SinA[Jmp_N]
+    set Jmp_Dist[i] = Jmp_Dist[Jmp_N]
+    set Jmp_Travel[i] = Jmp_Travel[Jmp_N]
+    set Jmp_Speed[i] = Jmp_Speed[Jmp_N]
+    set Jmp_Height[i] = Jmp_Height[Jmp_N]
+    set Jmp_DefHeight[i] = Jmp_DefHeight[Jmp_N]
+    set Jmp_TrailAcc[i] = Jmp_TrailAcc[Jmp_N]
+    set Jmp_Trees[i] = Jmp_Trees[Jmp_N]
+    set Jmp_Trail[i] = Jmp_Trail[Jmp_N]
+    set Jmp_OnLand[i] = Jmp_OnLand[Jmp_N]
+    set Jmp_Unit[Jmp_N] = null
+    set Jmp_OnLand[Jmp_N] = null
+    set Jmp_N = Jmp_N - 1
+    if u != null and GetUnitTypeId(u) != 0 then
+        call SetUnitFlyHeight(u, GetUnitDefaultFlyHeight(u), 0.00)
+        call SetUnitPathing(u, true)
+        call SetUnitTimeScalePercent(u, 100.00)
+        call ResetUnitAnimation(u)
+        if landed and onLand != null then
+            set EV_UNIT = u
+            set EV_JUMP = i
+            call TriggerEvaluate(onLand)
+        endif
+    endif
+    set u = null
+    set onLand = null
+endfunction
+
+function Jump_Launch takes unit u, real tx, real ty, real height, real speed, boolean trees, string anim, real animSpeed, string trail, trigger onLand returns integer
+    local real x
+    local real y
+    local real dx
+    local real dy
+    local real d
+    if u == null or GetUnitTypeId(u) == 0 or GetWidgetLife(u) <= 0.405 or speed <= 0.00 then
+        return 0
+    endif
+    set x = GetUnitX(u)
+    set y = GetUnitY(u)
+    set dx = Tow_ClampX(tx) - x
+    set dy = Tow_ClampY(ty) - y
+    set d = SquareRoot(dx * dx + dy * dy)
+    if d < 1.00 then
+        return 0
+    endif
+    set Jmp_N = Jmp_N + 1
+    set Jmp_Unit[Jmp_N] = u
+    set Jmp_StartX[Jmp_N] = x
+    set Jmp_StartY[Jmp_N] = y
+    set Jmp_CosA[Jmp_N] = dx / d
+    set Jmp_SinA[Jmp_N] = dy / d
+    set Jmp_Dist[Jmp_N] = d
+    set Jmp_Travel[Jmp_N] = 0.00
+    set Jmp_Speed[Jmp_N] = speed
+    set Jmp_Height[Jmp_N] = height
+    set Jmp_DefHeight[Jmp_N] = GetUnitDefaultFlyHeight(u)
+    set Jmp_TrailAcc[Jmp_N] = 0.00
+    set Jmp_Trees[Jmp_N] = trees
+    set Jmp_Trail[Jmp_N] = trail
+    set Jmp_OnLand[Jmp_N] = onLand
+    call UnitAddAbility(u, 'Amrf')
+    call UnitRemoveAbility(u, 'Amrf')
+    call SetUnitPathing(u, false)
+    if anim != null and anim != "" then
+        call SetUnitTimeScalePercent(u, animSpeed * 100.00)
+        call SetUnitAnimation(u, anim)
+    endif
+    return Jmp_N
+endfunction
+
+function Jmp_Tick takes nothing returns nothing
+    local integer i = Jmp_N
+    local unit u
+    local real t
+    local real nx
+    local real ny
+    loop
+        exitwhen i < 1
+        set u = Jmp_Unit[i]
+        if u == null or GetUnitTypeId(u) == 0 or GetWidgetLife(u) <= 0.405 then
+            call Jmp_Finish(i, false)
+        else
+            set Jmp_Travel[i] = Jmp_Travel[i] + Jmp_Speed[i] * Eng_TickRate
+            if Jmp_Travel[i] > Jmp_Dist[i] then
+                set Jmp_Travel[i] = Jmp_Dist[i]
+            endif
+            set nx = Tow_ClampX(Jmp_StartX[i] + Jmp_CosA[i] * Jmp_Travel[i])
+            set ny = Tow_ClampY(Jmp_StartY[i] + Jmp_SinA[i] * Jmp_Travel[i])
+            if Jmp_Trees[i] then
+                call Eng_KillTreesAt(nx, ny, 150.00)
+            endif
+            call SetUnitX(u, nx)
+            call SetUnitY(u, ny)
+            set t = Jmp_Travel[i] / Jmp_Dist[i]
+            call SetUnitFlyHeight(u, Jmp_DefHeight[i] + Jmp_Height[i] * Sin(bj_PI * t), 0.00)
+            if Jmp_Trail[i] != null and Jmp_Trail[i] != "" then
+                set Jmp_TrailAcc[i] = Jmp_TrailAcc[i] + Eng_TickRate
+                if Jmp_TrailAcc[i] >= 0.15 then
+                    set Jmp_TrailAcc[i] = 0.00
+                    call SFX_Unit(Jmp_Trail[i], u, "chest")
+                endif
+            endif
+            if Jmp_Travel[i] >= Jmp_Dist[i] then
+                call Jmp_Finish(i, true)
+            endif
+        endif
+        set u = null
+        set i = i - 1
+    endloop
+endfunction
+
+//===========================================================================
+// Leap landing (A058 empowered leap): pooled bloodlust casters buff every
+// living allied non-structure within 500 of the landing point.
+//===========================================================================
+function Leap_OnLand takes nothing returns boolean
+    local unit caster = EV_UNIT
+    local group g
+    local unit t
+    local unit d
+    if GetUnitAbilityLevel(caster, 'A058') >= 1 then
+        set g = CreateGroup()
+        call GroupEnumUnitsInRange(g, GetUnitX(caster), GetUnitY(caster), 500.00, null)
+        loop
+            set t = FirstOfGroup(g)
+            exitwhen t == null
+            call GroupRemoveUnit(g, t)
+            if GetWidgetLife(t) > 0.405 and not IsUnitType(t, UNIT_TYPE_STRUCTURE) and not Eng_IsDummyType(GetUnitTypeId(t)) and IsUnitAlly(t, GetOwningPlayer(caster)) then
+                set d = Dummy_Get(GetOwningPlayer(caster), 'hgry', GetUnitX(t), GetUnitY(t), 0.00)
+                call UnitAddAbility(d, 'A02T')
+                call SetUnitAbilityLevel(d, 'A02T', GetUnitAbilityLevel(caster, 'A02Y'))
+                call IssueTargetOrderById(d, Eng_OrdBloodlust, t)
+                call Dummy_RecycleTimed(d, 0.50, 'A02T')
+            endif
+        endloop
+        call DestroyGroup(g)
+        set g = null
+    endif
+    set caster = null
+    set t = null
+    set d = null
+    return false
 endfunction
 
 //===========================================================================
@@ -1815,6 +2296,262 @@ function Torpedo_Launch takes unit caster, real tx, real ty returns nothing
 endfunction
 
 //===========================================================================
+// Bow Master overhaul - Bore Shot leaves persistent suspended arrowheads.
+// Galeforce Cut hunts those anchors through MissileCore and Skyloom converts
+// their connecting geometry into a maximum-life execution canopy.
+//===========================================================================
+function Bow_HeadRemove takes integer i returns nothing
+    if Bow_Head[i] != null then
+        call Dummy_Recycle(Bow_Head[i])
+    endif
+    set Bow_Head[i] = Bow_Head[Bow_HeadN]
+    set Bow_HeadOwner[i] = Bow_HeadOwner[Bow_HeadN]
+    set Bow_HeadX[i] = Bow_HeadX[Bow_HeadN]
+    set Bow_HeadY[i] = Bow_HeadY[Bow_HeadN]
+    set Bow_HeadTime[i] = Bow_HeadTime[Bow_HeadN]
+    set Bow_Head[Bow_HeadN] = null
+    set Bow_HeadOwner[Bow_HeadN] = null
+    set Bow_HeadN = Bow_HeadN - 1
+endfunction
+
+function Bow_HeadAdd takes unit caster, real x, real y returns nothing
+    local integer i = Bow_HeadN
+    local integer owned = 0
+    local unit head
+    loop
+        exitwhen i < 1
+        if Bow_HeadOwner[i] == caster then
+            set owned = owned + 1
+            if owned >= 16 then
+                call Bow_HeadRemove(i)
+            endif
+        endif
+        set i = i - 1
+    endloop
+    set x = Tow_ClampX(x)
+    set y = Tow_ClampY(y)
+    set head = Dummy_Get(GetOwningPlayer(caster), 'h00V', x, y, GetUnitFacing(caster))
+    call UnitAddAbility(head, 'Amrf')
+    call UnitRemoveAbility(head, 'Amrf')
+    call SetUnitFlyHeight(head, 135.00, 0.00)
+    call SetUnitScale(head, 0.72, 0.72, 0.72)
+    call PauseUnit(head, true)
+    set Bow_HeadN = Bow_HeadN + 1
+    set Bow_Head[Bow_HeadN] = head
+    set Bow_HeadOwner[Bow_HeadN] = caster
+    set Bow_HeadX[Bow_HeadN] = x
+    set Bow_HeadY[Bow_HeadN] = y
+    set Bow_HeadTime[Bow_HeadN] = 14.00
+    call SFX_Point("Abilities\\Spells\\NightElf\\Blink\\BlinkTarget.mdl", x, y)
+    set head = null
+endfunction
+
+function Bow_HeadTick takes nothing returns nothing
+    local integer i = Bow_HeadN
+    loop
+        exitwhen i < 1
+        set Bow_HeadTime[i] = Bow_HeadTime[i] - Eng_TickRate
+        if Bow_Head[i] != null and GetUnitTypeId(Bow_Head[i]) != 0 then
+            call SetUnitFacing(Bow_Head[i], GetUnitFacing(Bow_Head[i]) + 4.50)
+            call SetUnitFlyHeight(Bow_Head[i], 135.00 + 22.00 * Sin(Bow_HeadTime[i] * 4.00), 0.00)
+        endif
+        if Bow_HeadTime[i] <= 0.00 or Bow_Head[i] == null or GetUnitTypeId(Bow_Head[i]) == 0 or Bow_HeadOwner[i] == null or GetUnitTypeId(Bow_HeadOwner[i]) == 0 then
+            call Bow_HeadRemove(i)
+        endif
+        set i = i - 1
+    endloop
+endfunction
+
+function Bow_Gale_OnHit takes nothing returns boolean
+    local real damage = Msl_DataR[EV_MISSILE]
+    if IsUnitEnemy(EV_UNIT, GetOwningPlayer(Msl_Owner[EV_MISSILE])) then
+        if Msl_Data[EV_MISSILE] >= 2 then
+            set damage = damage + GetUnitState(EV_UNIT, UNIT_STATE_MAX_LIFE) * 0.025
+        endif
+        set Bow_DamageGuard = true
+        call Damage_Magic(Msl_Owner[EV_MISSILE], EV_UNIT, damage)
+        set Bow_DamageGuard = false
+        call SFX_Unit("Abilities\\Spells\\Other\\Tornado\\Tornado_Target.mdl", EV_UNIT, "chest")
+    endif
+    return false
+endfunction
+
+function Bow_Gale_OnTick takes nothing returns boolean
+    local integer i = EV_MISSILE
+    local integer j = 1
+    local integer nearest = 0
+    local real dx
+    local real dy
+    local real d2
+    local real best = 810000.00
+    if Msl_Target[i] != null and GetUnitTypeId(Msl_Target[i]) != 0 then
+        set dx = GetUnitX(Msl_Target[i]) - Msl_X[i]
+        set dy = GetUnitY(Msl_Target[i]) - Msl_Y[i]
+        if dx * dx + dy * dy <= 16900.00 then
+            call GroupAddUnit(Msl_Hit[i], Msl_Target[i])
+            call SFX_Point("Abilities\\Spells\\Other\\Monsoon\\MonsoonBoltTarget.mdl", GetUnitX(Msl_Target[i]), GetUnitY(Msl_Target[i]))
+            set Msl_Data[i] = Msl_Data[i] + 1
+            set Msl_DataR[i] = Msl_DataR[i] + 25.00
+            set Msl_Target[i] = null
+        endif
+    endif
+    if Msl_Target[i] == null and Msl_Data[i] < 6 then
+        loop
+            exitwhen j > Bow_HeadN
+            if Bow_HeadOwner[j] == Msl_Owner[i] and not IsUnitInGroup(Bow_Head[j], Msl_Hit[i]) then
+                set dx = Bow_HeadX[j] - Msl_X[i]
+                set dy = Bow_HeadY[j] - Msl_Y[i]
+                set d2 = dx * dx + dy * dy
+                if d2 < best then
+                    set best = d2
+                    set nearest = j
+                endif
+            endif
+            set j = j + 1
+        endloop
+        if nearest > 0 then
+            set Msl_Target[i] = Bow_Head[nearest]
+        endif
+    endif
+    return false
+endfunction
+
+function Bow_Galeforce takes unit caster, real tx, real ty returns nothing
+    local real speed
+    local integer i
+    if GetUnitTypeId(caster) == 'H00Z' then
+        set speed = 2400.00
+    else
+        set speed = 1700.00
+    endif
+    set i = Missile_LaunchXY(caster, GetUnitX(caster), GetUnitY(caster), tx, ty, speed, 2200.00, 120.00, 'h005', "Abilities\\Spells\\Other\\Tornado\\Tornado_Target.mdl", Bow_GaleHit, null)
+    set Msl_DataR[i] = 65.00 + 0.80 * I2R(GetHeroAgi(caster, true))
+    call Missile_SetOnTick(i, Bow_GaleTick)
+endfunction
+
+function Bow_DamageEvent takes nothing returns boolean
+    local unit source = udg_GDD_DamageSource
+    local unit target = udg_GDD_DamagedUnit
+    local real bonus
+    if not Bow_DamageGuard and source != null and (GetUnitTypeId(source) == 'H00T' or GetUnitTypeId(source) == 'H00Z') and target != null and udg_GDD_Damage > 0.00 and IsUnitEnemy(target, GetOwningPlayer(source)) then
+        if GetUnitTypeId(source) == 'H00Z' then
+            set bonus = 0.30 * I2R(GetHeroAgi(source, true) + GetHeroInt(source, true))
+            call SFX_Unit("Abilities\\Spells\\Items\\AIfb\\AIfbSpecialArt.mdl", target, "chest")
+        else
+            set bonus = 0.20 * I2R(GetHeroAgi(source, true))
+            call SFX_Unit("Abilities\\Weapons\\MoonPriestessMissile\\MoonPriestessMissile.mdl", target, "chest")
+        endif
+        set Bow_DamageGuard = true
+        call Damage_Phys(source, target, bonus)
+        set Bow_DamageGuard = false
+    endif
+    set source = null
+    set target = null
+    return false
+endfunction
+
+function Bow_Skyloom takes unit caster, real tx, real ty returns nothing
+    local group g = CreateGroup()
+    local group hit = CreateGroup()
+    local unit u
+    local unit rise
+    local player p = GetOwningPlayer(caster)
+    local lightning beam
+    local integer i = 1
+    local integer j
+    local integer next
+    local integer step
+    local integer n = 0
+    local integer m
+    local real dx
+    local real dy
+    local real dist
+    local real px
+    local real py
+    local real a
+    local real r
+    local real x
+    local real y
+    loop
+        exitwhen i > Bow_HeadN
+        if Bow_HeadOwner[i] == caster then
+            set next = 0
+            set j = i + 1
+            loop
+                exitwhen j > Bow_HeadN
+                if Bow_HeadOwner[j] == caster then
+                    set next = j
+                    set j = Bow_HeadN + 1
+                endif
+                set j = j + 1
+            endloop
+            if next > 0 then
+                set dx = Bow_HeadX[next] - Bow_HeadX[i]
+                set dy = Bow_HeadY[next] - Bow_HeadY[i]
+                set dist = SquareRoot(dx * dx + dy * dy)
+                set beam = AddLightningEx("CLPB", true, Bow_HeadX[i], Bow_HeadY[i], 140.00, Bow_HeadX[next], Bow_HeadY[next], 140.00)
+                set step = 0
+                loop
+                    exitwhen I2R(step) * 100.00 > dist
+                    set px = Bow_HeadX[i] + dx * (I2R(step) * 100.00 / RMaxBJ(dist, 1.00))
+                    set py = Bow_HeadY[i] + dy * (I2R(step) * 100.00 / RMaxBJ(dist, 1.00))
+                    call GroupEnumUnitsInRange(g, px, py, 125.00, null)
+                    loop
+                        set u = FirstOfGroup(g)
+                        exitwhen u == null
+                        call GroupRemoveUnit(g, u)
+                        if Eng_ValidTarget(u, p) and IsUnitEnemy(u, p) and not IsUnitInGroup(u, hit) then
+                            call GroupAddUnit(hit, u)
+                            set Bow_DamageGuard = true
+                            call Damage_Pure(caster, u, 100.00 + 0.75 * I2R(GetHeroAgi(caster, true)) + GetUnitState(u, UNIT_STATE_MAX_LIFE) * 0.04)
+                            set Bow_DamageGuard = false
+                        endif
+                    endloop
+                    call SFX_Point("Abilities\\Spells\\Other\\Monsoon\\MonsoonBoltTarget.mdl", px, py)
+                    set step = step + 1
+                endloop
+                call DestroyLightning(beam)
+            endif
+        endif
+        set i = i + 1
+    endloop
+    set rise = Dummy_Get(p, 'h00U', GetUnitX(caster), GetUnitY(caster), bj_UNIT_FACING)
+    call SetUnitFlyHeight(rise, 0.00, 0.00)
+    call SetUnitFlyHeight(rise, 1500.00, 2500.00)
+    call Dummy_RecycleTimed(rise, 1.00, 0)
+    loop
+        exitwhen n >= 32
+        set r = GetRandomReal(0.00, 360.00)
+        set a = GetRandomReal(0.00, 2.00 * bj_PI)
+        set x = Tow_ClampX(tx + r * Cos(a))
+        set y = Tow_ClampY(ty + r * Sin(a))
+        set m = Missile_LaunchXY(caster, tx, ty, tx, ty, 0.00, 1.00, 0.00, 'h00V', "", null, null)
+        set Msl_DataR[m] = 0.70 + 0.025 * I2R(n)
+        set Msl_DataX[m] = x
+        set Msl_DataY[m] = y
+        call SetUnitFlyHeight(Msl_Dummy[m], 1500.00, 0.00)
+        call Missile_SetOnTick(m, Ash_OnTick)
+        set n = n + 1
+    endloop
+    set i = Bow_HeadN
+    loop
+        exitwhen i < 1
+        if Bow_HeadOwner[i] == caster then
+            call Bow_HeadRemove(i)
+        endif
+        set i = i - 1
+    endloop
+    call DestroyGroup(g)
+    call DestroyGroup(hit)
+    set g = null
+    set hit = null
+    set u = null
+    set rise = null
+    set p = null
+    set beam = null
+endfunction
+
+//===========================================================================
 // Piercing Shot (ability 'A03F') - arrow wave that damages each enemy once,
 // drags everything it touches along its path, and fells trees. The arrow
 // dummy 'e002' IS the missile body; a shadow after-image trails every 400.
@@ -1822,6 +2559,7 @@ endfunction
 function PiercingShot_OnHit takes nothing returns boolean
     if IsUnitEnemy(EV_UNIT, GetOwningPlayer(Msl_Owner[EV_MISSILE])) and not IsUnitType(EV_UNIT, UNIT_TYPE_MAGIC_IMMUNE) then
         call UnitDamageTarget(Msl_Owner[EV_MISSILE], EV_UNIT, Msl_DataR[EV_MISSILE], true, true, ATTACK_TYPE_PIERCE, DAMAGE_TYPE_NORMAL, WEAPON_TYPE_WHOKNOWS)
+        call Bow_HeadAdd(Msl_Owner[EV_MISSILE], GetUnitX(EV_UNIT), GetUnitY(EV_UNIT))
     endif
     return false
 endfunction
@@ -2667,6 +3405,8 @@ function Hk_Tick takes nothing returns nothing
     local real a
     local real cx
     local real cy
+    local real nx
+    local real ny
     local real d
     local unit u
     local boolean fin
@@ -2680,10 +3420,17 @@ function Hk_Tick takes nothing returns nothing
             set cx = GetUnitX(Hk_Caster[i])
             set cy = GetUnitY(Hk_Caster[i])
             if not Hk_Back[i] then
-                set Hk_HeadX[i] = Hk_HeadX[i] + HK_SPEED_OUT * Cos(Hk_Ang[i])
-                set Hk_HeadY[i] = Hk_HeadY[i] + HK_SPEED_OUT * Sin(Hk_Ang[i])
+                set nx = Hk_HeadX[i] + HK_SPEED_OUT * Cos(Hk_Ang[i])
+                set ny = Hk_HeadY[i] + HK_SPEED_OUT * Sin(Hk_Ang[i])
+                if IsTerrainPathable(nx, ny, PATHING_TYPE_WALKABILITY) then
+                    set Hk_Ang[i] = bj_PI - Hk_Ang[i]
+                    set nx = Tow_ClampX(Hk_HeadX[i] + HK_SPEED_OUT * Cos(Hk_Ang[i]))
+                    set ny = Tow_ClampY(Hk_HeadY[i] + HK_SPEED_OUT * Sin(Hk_Ang[i]))
+                    call SFX_Point("Abilities\\Spells\\Human\\Thunderclap\\ThunderClapCaster.mdl", Hk_HeadX[i], Hk_HeadY[i])
+                endif
+                set Hk_HeadX[i] = nx
+                set Hk_HeadY[i] = ny
                 set Hk_Dist[i] = Hk_Dist[i] + HK_SPEED_OUT
-                // clamp to world bounds and start retracting at the edge
                 if Hk_HeadX[i] < Eng_MinX then
                     set Hk_HeadX[i] = Eng_MinX
                     set Hk_Back[i] = true
@@ -2733,6 +3480,7 @@ function Hk_Tick takes nothing returns nothing
                 set Hk_HeadY[i] = Hk_HeadY[i] + HK_SPEED_BACK * Sin(a)
                 call SetUnitX(Hk_Head[i], Hk_HeadX[i])
                 call SetUnitY(Hk_Head[i], Hk_HeadY[i])
+                call SetUnitFacing(Hk_Head[i], a * bj_RADTODEG)
                 if Hk_Victim[i] != null then
                     if GetUnitTypeId(Hk_Victim[i]) == 0 then
                         set Hk_Victim[i] = null
@@ -2760,15 +3508,6 @@ function Hk_Tick takes nothing returns nothing
     set u = null
 endfunction
 
-//===========================================================================
-// Engine heartbeat + init
-//===========================================================================
-//===========================================================================
-// Cutting Glide (ability 'A06O', damage scales with 'A002') - the caster
-// becomes a gale and dashes to the target point at 1500 u/s, invulnerable and
-// unpathed, shredding enemies within 200 each tick for (5*lvl + dist)/10 and
-// felling trees. State is always restored, even if the caster dies mid-dash.
-//===========================================================================
 function Cgl_Alloc takes nothing returns integer
     if Cgl_FreeN > 0 then
         set Cgl_FreeN = Cgl_FreeN - 1
@@ -3013,6 +3752,2801 @@ function Trm_Tick takes nothing returns nothing
     endloop
 endfunction
 
+//===========================================================================
+// Tiles of War overhaul
+//
+// Q - Siegebreaker Pulse (A039): maximum-life anti-tank shockwave.
+// W - Citadel of War (A07I): 800-radius arena. Enemies outside cannot enter;
+//     enemies caught inside are punished and forced back when they cross out.
+// E - Reactive Plating (A038/B00V): absorbs most incoming damage and reflects
+//     maximum-life damage while active (GDD handler remains below).
+// R - Worldbreaker Protocol (A037): burrow-form seismic engine and eruption.
+//===========================================================================
+
+function TowA_Alloc takes nothing returns integer
+    if TowA_FreeN > 0 then
+        set TowA_FreeN = TowA_FreeN - 1
+        return TowA_FreeList[TowA_FreeN + 1]
+    endif
+    set TowA_Max = TowA_Max + 1
+    return TowA_Max
+endfunction
+
+function TowA_Destroy takes integer i returns nothing
+    local unit node
+    local lightning beam
+    local integer n = 1
+    loop
+        exitwhen n > 16
+        set beam = LoadLightningHandle(Eng_HT, 2100000 + i, n)
+        if beam != null then
+            call DestroyLightning(beam)
+        endif
+        set n = n + 1
+    endloop
+    call FlushChildHashtable(Eng_HT, 2100000 + i)
+    call FlushChildHashtable(Eng_HT, 2200000 + i)
+    loop
+        set node = FirstOfGroup(TowA_Nodes[i])
+        exitwhen node == null
+        call GroupRemoveUnit(TowA_Nodes[i], node)
+        call Dummy_Recycle(node)
+    endloop
+    call DestroyGroup(TowA_Nodes[i])
+    call DestroyGroup(TowA_Inside[i])
+    call DestroyGroup(TowA_Enum[i])
+    set TowA_Caster[i] = null
+    set TowA_Owner[i] = null
+    set TowA_Nodes[i] = null
+    set TowA_Inside[i] = null
+    set TowA_Enum[i] = null
+    set TowA_X[i] = 0.00
+    set TowA_Y[i] = 0.00
+    set TowA_Time[i] = 0.00
+    set TowA_Elapsed[i] = 0.00
+    set TowA_FreeN = TowA_FreeN + 1
+    set TowA_FreeList[TowA_FreeN] = i
+    set node = null
+    set beam = null
+endfunction
+
+function TowA_Launch takes unit caster returns nothing
+    local integer i = TowA_Alloc()
+    local integer n = 1
+    local real a1
+    local real a2
+    local real x1
+    local real y1
+    local real x2
+    local real y2
+    local unit node
+    local unit u
+    local player p = GetOwningPlayer(caster)
+    set TowA_Caster[i] = caster
+    set TowA_Owner[i] = p
+    set TowA_X[i] = GetUnitX(caster)
+    set TowA_Y[i] = GetUnitY(caster)
+    set TowA_Time[i] = 7.00
+    set TowA_Elapsed[i] = 0.00
+    set TowA_Inside[i] = CreateGroup()
+    set TowA_Enum[i] = CreateGroup()
+    set TowA_Nodes[i] = CreateGroup()
+    // Remember exactly who began inside. This is what makes the boundary
+    // directional rather than a crude periodic knockback aura.
+    call GroupEnumUnitsInRange(TowA_Enum[i], TowA_X[i], TowA_Y[i], 800.00, null)
+    loop
+        set u = FirstOfGroup(TowA_Enum[i])
+        exitwhen u == null
+        call GroupRemoveUnit(TowA_Enum[i], u)
+        if Eng_ValidTarget(u, p) and IsUnitEnemy(u, p) then
+            call GroupAddUnit(TowA_Inside[i], u)
+        endif
+    endloop
+    call SFX_Point("Abilities\\Spells\\Orc\\WarStomp\\WarStompCaster.mdl", TowA_X[i], TowA_Y[i])
+    loop
+        exitwhen n > 16
+        set a1 = (I2R(n - 1) * 22.50) * bj_DEGTORAD
+        set a2 = (I2R(n) * 22.50) * bj_DEGTORAD
+        set x1 = TowA_X[i] + 800.00 * Cos(a1)
+        set y1 = TowA_Y[i] + 800.00 * Sin(a1)
+        set x2 = TowA_X[i] + 800.00 * Cos(a2)
+        set y2 = TowA_Y[i] + 800.00 * Sin(a2)
+        set node = Dummy_Get(p, 'h00P', Tow_ClampX(x1), Tow_ClampY(y1), a1 * bj_RADTODEG + 90.00)
+        call SetUnitScale(node, 0.33, 0.33, 0.33)
+        call GroupAddUnit(TowA_Nodes[i], node)
+        call SaveLightningHandle(Eng_HT, 2100000 + i, n, AddLightningEx("DRAL", true, x1, y1, 90.00, x2, y2, 90.00))
+        call SFX_Point("Abilities\\Spells\\Undead\\Impale\\ImpaleHitTarget.mdl", x1, y1)
+        set n = n + 1
+    endloop
+    set TowA_N = TowA_N + 1
+    set TowA_List[TowA_N] = i
+    set node = null
+    set u = null
+    set p = null
+endfunction
+
+function TowA_Tick takes nothing returns nothing
+    local integer k = TowA_N
+    local integer i
+    local integer hid
+    local unit u
+    local real dx
+    local real dy
+    local real d2
+    local real a
+    local real x
+    local real y
+    local real damage
+    loop
+        exitwhen k < 1
+        set i = TowA_List[k]
+        set TowA_Time[i] = TowA_Time[i] - Eng_TickRate
+        set TowA_Elapsed[i] = TowA_Elapsed[i] + Eng_TickRate
+        if TowA_Time[i] <= 0.00 then
+            call TowA_Destroy(i)
+            set TowA_List[k] = TowA_List[TowA_N]
+            set TowA_List[TowA_N] = 0
+            set TowA_N = TowA_N - 1
+        else
+            call GroupEnumUnitsInRange(TowA_Enum[i], TowA_X[i], TowA_Y[i], 875.00, null)
+            loop
+                set u = FirstOfGroup(TowA_Enum[i])
+                exitwhen u == null
+                call GroupRemoveUnit(TowA_Enum[i], u)
+                if Eng_ValidTarget(u, TowA_Owner[i]) and IsUnitEnemy(u, TowA_Owner[i]) then
+                    set dx = GetUnitX(u) - TowA_X[i]
+                    set dy = GetUnitY(u) - TowA_Y[i]
+                    set d2 = dx * dx + dy * dy
+                    if IsUnitInGroup(u, TowA_Inside[i]) then
+                        // Caught units may fight inside, but crossing out
+                        // slams them back into the kill zone.
+                        if d2 > 640000.00 then
+                            set a = Atan2(dy, dx)
+                            set x = Tow_ClampX(TowA_X[i] + 735.00 * Cos(a))
+                            set y = Tow_ClampY(TowA_Y[i] + 735.00 * Sin(a))
+                            call SetUnitX(u, x)
+                            call SetUnitY(u, y)
+                            set hid = GetHandleId(u)
+                            if TowA_Elapsed[i] >= LoadReal(Eng_HT, 2200000 + i, hid) then
+                                set damage = 75.00 + GetUnitState(u, UNIT_STATE_MAX_LIFE) * 0.04
+                                call SaveReal(Eng_HT, 2200000 + i, hid, TowA_Elapsed[i] + 0.75)
+                                call SFX_Unit("Abilities\\Weapons\\AncientProtectorMissile\\AncientProtectorMissile.mdl", u, "chest")
+                                call Damage_Pure(TowA_Caster[i], u, damage)
+                            endif
+                        endif
+                    elseif d2 < 640000.00 then
+                        // Anyone who started outside is rejected outward.
+                        set a = Atan2(dy, dx)
+                        set x = Tow_ClampX(TowA_X[i] + 850.00 * Cos(a))
+                        set y = Tow_ClampY(TowA_Y[i] + 850.00 * Sin(a))
+                        call SetUnitX(u, x)
+                        call SetUnitY(u, y)
+                        call SFX_Unit("Abilities\\Spells\\Human\\ManaFlare\\ManaFlareBoltImpact.mdl", u, "origin")
+                    endif
+                endif
+            endloop
+        endif
+        set k = k - 1
+    endloop
+    set u = null
+endfunction
+
+function Tow_SiegebreakerPulse takes unit caster returns nothing
+    local group g = CreateGroup()
+    local unit u
+    local player p = GetOwningPlayer(caster)
+    local real cx = GetUnitX(caster)
+    local real cy = GetUnitY(caster)
+    local real dx
+    local real dy
+    local real d2
+    local real a
+    local real damage
+    local integer n = 0
+    call SFX_Point("Abilities\\Spells\\Orc\\WarStomp\\WarStompCaster.mdl", cx, cy)
+    loop
+        exitwhen n >= 18
+        set a = I2R(n) * 20.00 * bj_DEGTORAD
+        call SFX_Point("Abilities\\Spells\\Orc\\EarthQuake\\EarthQuakeTarget.mdl", cx + 700.00 * Cos(a), cy + 700.00 * Sin(a))
+        set n = n + 1
+    endloop
+    call GroupEnumUnitsInRange(g, cx, cy, 700.00, null)
+    loop
+        set u = FirstOfGroup(g)
+        exitwhen u == null
+        call GroupRemoveUnit(g, u)
+        if Eng_ValidTarget(u, p) and IsUnitEnemy(u, p) then
+            set damage = 50.00 + I2R(GetHeroStr(caster, true)) * 1.25 + GetUnitState(u, UNIT_STATE_MAX_LIFE) * 0.06
+            call Damage_Pure(caster, u, damage)
+            set dx = GetUnitX(u) - cx
+            set dy = GetUnitY(u) - cy
+            set d2 = dx * dx + dy * dy
+            if d2 > 1.00 then
+                set a = Atan2(dy, dx)
+                call SetUnitX(u, Tow_ClampX(GetUnitX(u) + 140.00 * Cos(a)))
+                call SetUnitY(u, Tow_ClampY(GetUnitY(u) + 140.00 * Sin(a)))
+            endif
+        endif
+    endloop
+    call DestroyGroup(g)
+    set g = null
+    set u = null
+    set p = null
+endfunction
+
+function TowW_Find takes unit caster returns integer
+    local integer i = 1
+    loop
+        exitwhen i > TowW_N
+        if TowW_Caster[i] == caster then
+            return i
+        endif
+        set i = i + 1
+    endloop
+    return 0
+endfunction
+
+function TowW_Remove takes integer i returns nothing
+    call DestroyGroup(TowW_Enum[i])
+    set TowW_Caster[i] = TowW_Caster[TowW_N]
+    set TowW_Enum[i] = TowW_Enum[TowW_N]
+    set TowW_Time[i] = TowW_Time[TowW_N]
+    set TowW_Pulse[i] = TowW_Pulse[TowW_N]
+    set TowW_SeenBurrow[i] = TowW_SeenBurrow[TowW_N]
+    set TowW_Caster[TowW_N] = null
+    set TowW_Enum[TowW_N] = null
+    set TowW_Time[TowW_N] = 0.00
+    set TowW_Pulse[TowW_N] = 0.00
+    set TowW_SeenBurrow[TowW_N] = false
+    set TowW_N = TowW_N - 1
+endfunction
+
+function TowW_Erupt takes unit caster returns nothing
+    local group g = CreateGroup()
+    local unit u
+    local player p = GetOwningPlayer(caster)
+    local real cx = GetUnitX(caster)
+    local real cy = GetUnitY(caster)
+    local real dx
+    local real dy
+    local real a
+    local real damage
+    local integer n = 0
+    call SFX_Point("Abilities\\Spells\\Orc\\WarStomp\\WarStompCaster.mdl", cx, cy)
+    call SFX_Point("Abilities\\Spells\\Other\\Volcano\\VolcanoDeath.mdl", cx, cy)
+    loop
+        exitwhen n >= 16
+        set a = I2R(n) * 22.50 * bj_DEGTORAD
+        call SFX_Point("Abilities\\Spells\\Undead\\Impale\\ImpaleHitTarget.mdl", cx + 620.00 * Cos(a), cy + 620.00 * Sin(a))
+        set n = n + 1
+    endloop
+    call GroupEnumUnitsInRange(g, cx, cy, 650.00, null)
+    loop
+        set u = FirstOfGroup(g)
+        exitwhen u == null
+        call GroupRemoveUnit(g, u)
+        if Eng_ValidTarget(u, p) and IsUnitEnemy(u, p) then
+            set damage = 150.00 + GetUnitState(u, UNIT_STATE_MAX_LIFE) * 0.08
+            call Damage_Pure(caster, u, damage)
+            set dx = GetUnitX(u) - cx
+            set dy = GetUnitY(u) - cy
+            set a = Atan2(dy, dx)
+            call SetUnitX(u, Tow_ClampX(GetUnitX(u) + 280.00 * Cos(a)))
+            call SetUnitY(u, Tow_ClampY(GetUnitY(u) + 280.00 * Sin(a)))
+        endif
+    endloop
+    call Eng_KillTreesAt(cx, cy, 650.00)
+    call DestroyGroup(g)
+    set g = null
+    set u = null
+    set p = null
+endfunction
+
+function TowW_Start takes unit caster returns nothing
+    local integer i = TowW_Find(caster)
+    if i == 0 then
+        set TowW_N = TowW_N + 1
+        set i = TowW_N
+        set TowW_Caster[i] = caster
+        set TowW_Enum[i] = CreateGroup()
+    endif
+    set TowW_Time[i] = 0.00
+    set TowW_Pulse[i] = 0.00
+    set TowW_SeenBurrow[i] = false
+    call SFX_Point("Objects\\Spawnmodels\\Undead\\ImpaleTargetDust\\ImpaleTargetDust.mdl", GetUnitX(caster), GetUnitY(caster))
+endfunction
+
+function TowW_Stop takes unit caster, boolean erupt returns nothing
+    local integer i = TowW_Find(caster)
+    if erupt then
+        call TowW_Erupt(caster)
+    endif
+    if i != 0 then
+        call TowW_Remove(i)
+    endif
+endfunction
+
+function TowW_PulseAt takes integer i returns nothing
+    local unit caster = TowW_Caster[i]
+    local unit u
+    local player p = GetOwningPlayer(caster)
+    local real cx = GetUnitX(caster)
+    local real cy = GetUnitY(caster)
+    local real dx
+    local real dy
+    local real d2
+    local real a
+    local real damage
+    local integer hits = 0
+    call SFX_Point("Abilities\\Spells\\Orc\\WarStomp\\WarStompCaster.mdl", cx, cy)
+    call GroupEnumUnitsInRange(TowW_Enum[i], cx, cy, 550.00, null)
+    loop
+        set u = FirstOfGroup(TowW_Enum[i])
+        exitwhen u == null
+        call GroupRemoveUnit(TowW_Enum[i], u)
+        if Eng_ValidTarget(u, p) and IsUnitEnemy(u, p) then
+            set damage = 25.00 + GetUnitState(u, UNIT_STATE_MAX_LIFE) * 0.025
+            call Damage_Pure(caster, u, damage)
+            set hits = hits + 1
+            set dx = cx - GetUnitX(u)
+            set dy = cy - GetUnitY(u)
+            set d2 = dx * dx + dy * dy
+            if d2 > 6400.00 then
+                set a = Atan2(dy, dx)
+                call SetUnitX(u, Tow_ClampX(GetUnitX(u) + 45.00 * Cos(a)))
+                call SetUnitY(u, Tow_ClampY(GetUnitY(u) + 45.00 * Sin(a)))
+            endif
+        endif
+    endloop
+    if hits > 0 then
+        call SetWidgetLife(caster, GetWidgetLife(caster) + GetUnitState(caster, UNIT_STATE_MAX_LIFE) * RMinBJ(0.02, I2R(hits) * 0.004))
+    endif
+    set caster = null
+    set u = null
+    set p = null
+endfunction
+
+function TowW_Tick takes nothing returns nothing
+    local integer i = TowW_N
+    loop
+        exitwhen i < 1
+        set TowW_Time[i] = TowW_Time[i] + Eng_TickRate
+        if TowW_Caster[i] == null or GetUnitTypeId(TowW_Caster[i]) == 0 or GetWidgetLife(TowW_Caster[i]) <= 0.405 then
+            call TowW_Remove(i)
+        elseif GetUnitTypeId(TowW_Caster[i]) == 'E001' then
+            set TowW_SeenBurrow[i] = true
+            set TowW_Pulse[i] = TowW_Pulse[i] + Eng_TickRate
+            if TowW_Pulse[i] >= 0.75 then
+                set TowW_Pulse[i] = TowW_Pulse[i] - 0.75
+                call TowW_PulseAt(i)
+            endif
+        elseif TowW_SeenBurrow[i] then
+            call TowW_Erupt(TowW_Caster[i])
+            call TowW_Remove(i)
+        elseif TowW_Time[i] > 4.00 then
+            call TowW_Remove(i)
+        endif
+        set i = i - 1
+    endloop
+endfunction
+
+function Tow_RemoveLegacyStatue takes nothing returns boolean
+    local unit summoner = GetSummoningUnit()
+    local unit summoned = GetSummonedUnit()
+    local integer t = GetUnitTypeId(summoner)
+    if (t == 'H00O' or t == 'E001') and GetUnitTypeId(summoned) == 'esen' then
+        call RemoveUnit(summoned)
+    endif
+    set summoner = null
+    set summoned = null
+    return false
+endfunction
+
+function Tow_SpellEffect takes nothing returns boolean
+    local unit caster = GetTriggerUnit()
+    local integer t = GetUnitTypeId(caster)
+    local integer abil = GetSpellAbilityId()
+    if t == 'H00O' or t == 'E001' then
+        if abil == 'A07I' then
+            call TowA_Launch(caster)
+        elseif abil == 'A039' then
+            call Tow_SiegebreakerPulse(caster)
+        elseif abil == 'A038' then
+            call SFX_Point("Abilities\\Spells\\Human\\DivineShield\\DivineShieldTarget.mdl", GetUnitX(caster), GetUnitY(caster))
+        elseif abil == 'A037' then
+            if t == 'E001' then
+                call TowW_Stop(caster, true)
+            else
+                call TowW_Start(caster)
+            endif
+        endif
+    endif
+    set caster = null
+    return false
+endfunction
+
+//===========================================================================
+// EarthShaker overhaul - persistent physical faultlines and resonance.
+//===========================================================================
+function Esh_NodeAdd takes unit caster, real x, real y returns nothing
+    local unit node = Dummy_Get(GetOwningPlayer(caster), 'h00C', Tow_ClampX(x), Tow_ClampY(y), GetUnitFacing(caster))
+    call SetUnitScale(node, 0.82, 0.82, 0.82)
+    call SetUnitPathing(node, true)
+    set Esh_NodeN = Esh_NodeN + 1
+    set Esh_Node[Esh_NodeN] = node
+    set Esh_Owner[Esh_NodeN] = caster
+    set Esh_NodeX[Esh_NodeN] = GetUnitX(node)
+    set Esh_NodeY[Esh_NodeN] = GetUnitY(node)
+    set Esh_NodeTime[Esh_NodeN] = 5.25
+    set node = null
+endfunction
+
+function Esh_NodeRemove takes integer i returns nothing
+    call SetUnitPathing(Esh_Node[i], false)
+    call Dummy_Recycle(Esh_Node[i])
+    set Esh_Node[i] = Esh_Node[Esh_NodeN]
+    set Esh_Owner[i] = Esh_Owner[Esh_NodeN]
+    set Esh_NodeX[i] = Esh_NodeX[Esh_NodeN]
+    set Esh_NodeY[i] = Esh_NodeY[Esh_NodeN]
+    set Esh_NodeTime[i] = Esh_NodeTime[Esh_NodeN]
+    set Esh_Node[Esh_NodeN] = null
+    set Esh_Owner[Esh_NodeN] = null
+    set Esh_NodeX[Esh_NodeN] = 0.00
+    set Esh_NodeY[Esh_NodeN] = 0.00
+    set Esh_NodeTime[Esh_NodeN] = 0.00
+    set Esh_NodeN = Esh_NodeN - 1
+endfunction
+
+function Esh_NodeTick takes nothing returns nothing
+    local integer i = Esh_NodeN
+    loop
+        exitwhen i < 1
+        set Esh_NodeTime[i] = Esh_NodeTime[i] - Eng_TickRate
+        // h00C has intentionally tiny life and negative regeneration, so keep
+        // the visual anchor alive until this system owns its cleanup.
+        call SetWidgetLife(Esh_Node[i], GetUnitState(Esh_Node[i], UNIT_STATE_MAX_LIFE))
+        if Esh_NodeTime[i] <= 0.00 or Esh_Node[i] == null or GetUnitTypeId(Esh_Node[i]) == 0 then
+            call Esh_NodeRemove(i)
+        endif
+        set i = i - 1
+    endloop
+endfunction
+
+function Esh_Fissure takes unit caster, real tx, real ty returns nothing
+    local group victims = CreateGroup()
+    local group hit = CreateGroup()
+    local unit u
+    local player p = GetOwningPlayer(caster)
+    local real cx = GetUnitX(caster)
+    local real cy = GetUnitY(caster)
+    local real a = Atan2(ty - cy, tx - cx)
+    local real x
+    local real y
+    local real damage = 90.00 + I2R(GetHeroStr(caster, true)) * 1.10
+    local integer n = 1
+    call SetUnitFacing(caster, a * bj_RADTODEG)
+    loop
+        exitwhen n > 15
+        set x = cx + I2R(n) * 82.00 * Cos(a)
+        set y = cy + I2R(n) * 82.00 * Sin(a)
+        call Esh_NodeAdd(caster, x, y)
+        call SFX_Point("Objects\\Spawnmodels\\Undead\\ImpaleTargetDust\\ImpaleTargetDust.mdl", x, y)
+        call SFX_Point("Abilities\\Spells\\Other\\Volcano\\VolcanoDeath.mdl", x, y)
+        call GroupEnumUnitsInRange(victims, x, y, 145.00, null)
+        loop
+            set u = FirstOfGroup(victims)
+            exitwhen u == null
+            call GroupRemoveUnit(victims, u)
+            if not IsUnitInGroup(u, hit) and Eng_ValidTarget(u, p) and IsUnitEnemy(u, p) then
+                call GroupAddUnit(hit, u)
+                call Damage_Magic(caster, u, damage)
+                call Stun_Bolt(p, u)
+            endif
+        endloop
+        set n = n + 1
+    endloop
+    call Eng_KillTreesAt(cx + 615.00 * Cos(a), cy + 615.00 * Sin(a), 700.00)
+    call DestroyGroup(victims)
+    call DestroyGroup(hit)
+    set victims = null
+    set hit = null
+    set u = null
+    set p = null
+endfunction
+
+function Esh_Aftershock takes unit caster returns nothing
+    local group g = CreateGroup()
+    local unit u
+    local player p = GetOwningPlayer(caster)
+    local real x = GetUnitX(caster)
+    local real y = GetUnitY(caster)
+    local real damage = 45.00 + I2R(GetHeroStr(caster, true)) * 0.65
+    call SFX_Point("Abilities\\Spells\\Orc\\WarStomp\\WarStompCaster.mdl", x, y)
+    call GroupEnumUnitsInRange(g, x, y, 325.00, null)
+    loop
+        set u = FirstOfGroup(g)
+        exitwhen u == null
+        call GroupRemoveUnit(g, u)
+        if Eng_ValidTarget(u, p) and IsUnitEnemy(u, p) then
+            call Damage_Magic(caster, u, damage)
+            call Stun_Bolt(p, u)
+        endif
+    endloop
+    call DestroyGroup(g)
+    set g = null
+    set u = null
+    set p = null
+endfunction
+
+function Esh_VaultLand takes nothing returns boolean
+    call Esh_NodeAdd(EV_UNIT, GetUnitX(EV_UNIT), GetUnitY(EV_UNIT))
+    call SFX_Point("Abilities\\Spells\\Orc\\WarStomp\\WarStompCaster.mdl", GetUnitX(EV_UNIT), GetUnitY(EV_UNIT))
+    return false
+endfunction
+
+function Esh_TotemVault takes unit caster returns nothing
+    local real a = GetUnitFacing(caster) * bj_DEGTORAD
+    local real x = Tow_ClampX(GetUnitX(caster) + 280.00 * Cos(a))
+    local real y = Tow_ClampY(GetUnitY(caster) + 280.00 * Sin(a))
+    call SFX_Point("Abilities\\Spells\\Orc\\MirrorImage\\MirrorImageDeathCaster.mdl", GetUnitX(caster), GetUnitY(caster))
+    if not IsTerrainPathable(x, y, PATHING_TYPE_WALKABILITY) then
+        // Real vault motion on JumpCore: 280-distance sine arc, node planted
+        // and Aftershock stomp visual on touchdown via Esv_OnLand.
+        call Jump_Launch(caster, x, y, 220.00, 560.00, false, "attack", 1.20, "", Esv_OnLand)
+    else
+        // Blocked terrain: no vault, plant the node in place as before.
+        call Esh_NodeAdd(caster, GetUnitX(caster), GetUnitY(caster))
+        call SFX_Point("Abilities\\Spells\\Orc\\WarStomp\\WarStompCaster.mdl", GetUnitX(caster), GetUnitY(caster))
+    endif
+endfunction
+
+function Esh_EchoSlam takes unit caster returns nothing
+    local group g = CreateGroup()
+    local unit u
+    local player p = GetOwningPlayer(caster)
+    local real cx = GetUnitX(caster)
+    local real cy = GetUnitY(caster)
+    local real ux
+    local real uy
+    local real dx
+    local real dy
+    local real damage
+    local integer nearby
+    local integer i
+    set bj_lastCreatedTerrainDeformation = TerrainDeformRipple(cx, cy, 700.00, 95.00, 2200, 1, 2.00, 13.333333, 1.00, false)
+    call SFX_Point("Abilities\\Spells\\Orc\\WarStomp\\WarStompCaster.mdl", cx, cy)
+    set i = 1
+    loop
+        exitwhen i > Esh_NodeN
+        if Esh_Owner[i] == caster then
+            call SFX_Point("Abilities\\Spells\\Orc\\WarStomp\\WarStompCaster.mdl", Esh_NodeX[i], Esh_NodeY[i])
+            call SFX_Point("Abilities\\Spells\\Undead\\Impale\\ImpaleHitTarget.mdl", Esh_NodeX[i], Esh_NodeY[i])
+        endif
+        set i = i + 1
+    endloop
+    call GroupEnumUnitsInRange(g, cx, cy, 1700.00, null)
+    loop
+        set u = FirstOfGroup(g)
+        exitwhen u == null
+        call GroupRemoveUnit(g, u)
+        if Eng_ValidTarget(u, p) and IsUnitEnemy(u, p) then
+            set ux = GetUnitX(u)
+            set uy = GetUnitY(u)
+            set nearby = 0
+            set i = 1
+            loop
+                exitwhen i > Esh_NodeN
+                if Esh_Owner[i] == caster then
+                    set dx = Esh_NodeX[i] - ux
+                    set dy = Esh_NodeY[i] - uy
+                    if dx * dx + dy * dy <= 122500.00 then
+                        set nearby = nearby + 1
+                    endif
+                endif
+                set i = i + 1
+            endloop
+            set damage = 120.00 + GetUnitState(u, UNIT_STATE_MAX_LIFE) * 0.04 + I2R(nearby) * 45.00
+            call Damage_Pure(caster, u, damage)
+            if nearby > 1 then
+                call Stun_Bolt(p, u)
+            endif
+        endif
+    endloop
+    set i = Esh_NodeN
+    loop
+        exitwhen i < 1
+        if Esh_Owner[i] == caster then
+            call Esh_NodeRemove(i)
+        endif
+        set i = i - 1
+    endloop
+    call DestroyGroup(g)
+    set g = null
+    set u = null
+    set p = null
+endfunction
+
+//===========================================================================
+// Ancient Wanderer overhaul - persistent Meteor Seeds, ricocheting boulders,
+// Lithic Heart counterwaves, and a battlefield-wide Tectonic Assembly.
+//===========================================================================
+function Aw_SeedRemove takes integer i returns nothing
+    if Aw_Seed[i] != null then
+        call SetUnitPathing(Aw_Seed[i], false)
+        call Dummy_Recycle(Aw_Seed[i])
+    endif
+    set Aw_Seed[i] = Aw_Seed[Aw_SeedN]
+    set Aw_SeedOwner[i] = Aw_SeedOwner[Aw_SeedN]
+    set Aw_SeedX[i] = Aw_SeedX[Aw_SeedN]
+    set Aw_SeedY[i] = Aw_SeedY[Aw_SeedN]
+    set Aw_SeedTime[i] = Aw_SeedTime[Aw_SeedN]
+    set Aw_Seed[Aw_SeedN] = null
+    set Aw_SeedOwner[Aw_SeedN] = null
+    set Aw_SeedN = Aw_SeedN - 1
+endfunction
+
+function Aw_SeedAdd takes unit caster, real x, real y returns nothing
+    local unit seed
+    if Aw_SeedN >= 80 then
+        call Aw_SeedRemove(1)
+    endif
+    set x = Tow_ClampX(x)
+    set y = Tow_ClampY(y)
+    set seed = Dummy_Get(GetOwningPlayer(caster), 'h00B', x, y, GetRandomReal(0.00, 360.00))
+    call UnitAddAbility(seed, 'Amrf')
+    call UnitRemoveAbility(seed, 'Amrf')
+    call SetUnitScale(seed, 1.65, 1.65, 1.65)
+    call SetUnitFlyHeight(seed, 15.00, 0.00)
+    set Aw_SeedN = Aw_SeedN + 1
+    set Aw_Seed[Aw_SeedN] = seed
+    set Aw_SeedOwner[Aw_SeedN] = caster
+    set Aw_SeedX[Aw_SeedN] = x
+    set Aw_SeedY[Aw_SeedN] = y
+    set Aw_SeedTime[Aw_SeedN] = 30.00
+    call SFX_Point("Abilities\\Spells\\Other\\Volcano\\VolcanoDeath.mdl", x, y)
+    set seed = null
+endfunction
+
+function Aw_ImpactBurst takes unit caster, real x, real y, real power returns nothing
+    local group g = CreateGroup()
+    local unit u
+    local player p = GetOwningPlayer(caster)
+    local real damage
+    local real dx
+    local real dy
+    local real d2
+    local real a
+    call SFX_Point("Objects\\Spawnmodels\\Undead\\UDeathSmall\\UDeathSmall.mdl", x, y)
+    call SFX_Point("Abilities\\Spells\\Orc\\WarStomp\\WarStompCaster.mdl", x, y)
+    call GroupEnumUnitsInRange(g, x, y, 245.00, null)
+    loop
+        set u = FirstOfGroup(g)
+        exitwhen u == null
+        call GroupRemoveUnit(g, u)
+        if Eng_ValidTarget(u, p) and IsUnitEnemy(u, p) then
+            set damage = 55.00 + 0.65 * I2R(GetHeroStr(caster, true)) + GetUnitState(u, UNIT_STATE_MAX_LIFE) * 0.025 * power
+            if IsUnitType(u, UNIT_TYPE_HERO) then
+                set damage = damage + GetUnitState(u, UNIT_STATE_MAX_LIFE) * 0.015 * power
+            endif
+            call Damage_Pure(caster, u, damage)
+            set dx = GetUnitX(u) - x
+            set dy = GetUnitY(u) - y
+            set d2 = dx * dx + dy * dy
+            if d2 > 100.00 then
+                set a = Atan2(dy, dx)
+                call SetUnitX(u, Tow_ClampX(GetUnitX(u) + 60.00 * power * Cos(a)))
+                call SetUnitY(u, Tow_ClampY(GetUnitY(u) + 60.00 * power * Sin(a)))
+            endif
+        endif
+    endloop
+    call DestroyGroup(g)
+    set g = null
+    set u = null
+    set p = null
+endfunction
+
+function Aw_Impact takes unit caster, real x, real y, real power returns nothing
+    call Aw_ImpactBurst(caster, x, y, power)
+    call Aw_SeedAdd(caster, x, y)
+endfunction
+
+function Aw_MoveRemove takes integer i returns nothing
+    if Aw_Move[i] != null then
+        call SetUnitFlyHeight(Aw_Move[i], 0.00, 0.00)
+        call Dummy_Recycle(Aw_Move[i])
+    endif
+    if Aw_MoveHit[i] != null then
+        call DestroyGroup(Aw_MoveHit[i])
+    endif
+    set Aw_Move[i] = Aw_Move[Aw_MoveN]
+    set Aw_MoveOwner[i] = Aw_MoveOwner[Aw_MoveN]
+    set Aw_MoveHit[i] = Aw_MoveHit[Aw_MoveN]
+    set Aw_MoveX[i] = Aw_MoveX[Aw_MoveN]
+    set Aw_MoveY[i] = Aw_MoveY[Aw_MoveN]
+    set Aw_MoveVx[i] = Aw_MoveVx[Aw_MoveN]
+    set Aw_MoveVy[i] = Aw_MoveVy[Aw_MoveN]
+    set Aw_MoveLife[i] = Aw_MoveLife[Aw_MoveN]
+    set Aw_MoveMax[i] = Aw_MoveMax[Aw_MoveN]
+    set Aw_MoveMode[i] = Aw_MoveMode[Aw_MoveN]
+    set Aw_MoveBounces[i] = Aw_MoveBounces[Aw_MoveN]
+    set Aw_Move[Aw_MoveN] = null
+    set Aw_MoveOwner[Aw_MoveN] = null
+    set Aw_MoveHit[Aw_MoveN] = null
+    set Aw_MoveN = Aw_MoveN - 1
+endfunction
+
+function Aw_AddMeteor takes unit caster, real tx, real ty returns nothing
+    local unit rock
+    local real x = GetUnitX(caster)
+    local real y = GetUnitY(caster)
+    set Aw_MoveN = Aw_MoveN + 1
+    set rock = Dummy_Get(GetOwningPlayer(caster), 'h00B', x, y, Atan2(ty - y, tx - x) * bj_RADTODEG)
+    call UnitAddAbility(rock, 'Amrf')
+    call UnitRemoveAbility(rock, 'Amrf')
+    call SetUnitScale(rock, 2.25, 2.25, 2.25)
+    set Aw_Move[Aw_MoveN] = rock
+    set Aw_MoveOwner[Aw_MoveN] = caster
+    set Aw_MoveHit[Aw_MoveN] = CreateGroup()
+    set Aw_MoveX[Aw_MoveN] = x
+    set Aw_MoveY[Aw_MoveN] = y
+    set Aw_MoveVx[Aw_MoveN] = (tx - x) / 0.80
+    set Aw_MoveVy[Aw_MoveN] = (ty - y) / 0.80
+    set Aw_MoveLife[Aw_MoveN] = 0.00
+    set Aw_MoveMax[Aw_MoveN] = 0.80
+    set Aw_MoveMode[Aw_MoveN] = 1
+    set Aw_MoveBounces[Aw_MoveN] = 0
+    set rock = null
+endfunction
+
+function Aw_AddRoll takes unit caster, real x, real y, real angle, real range returns nothing
+    local unit rock
+    set Aw_MoveN = Aw_MoveN + 1
+    set rock = Dummy_Get(GetOwningPlayer(caster), 'h008', Tow_ClampX(x), Tow_ClampY(y), angle * bj_RADTODEG)
+    call UnitAddAbility(rock, 'Amrf')
+    call UnitRemoveAbility(rock, 'Amrf')
+    call SetUnitScale(rock, 2.75, 2.75, 2.75)
+    call SetUnitFlyHeight(rock, 45.00, 0.00)
+    set Aw_Move[Aw_MoveN] = rock
+    set Aw_MoveOwner[Aw_MoveN] = caster
+    set Aw_MoveHit[Aw_MoveN] = CreateGroup()
+    set Aw_MoveX[Aw_MoveN] = Tow_ClampX(x)
+    set Aw_MoveY[Aw_MoveN] = Tow_ClampY(y)
+    set Aw_MoveVx[Aw_MoveN] = 1450.00 * Cos(angle)
+    set Aw_MoveVy[Aw_MoveN] = 1450.00 * Sin(angle)
+    set Aw_MoveLife[Aw_MoveN] = 0.00
+    set Aw_MoveMax[Aw_MoveN] = range
+    set Aw_MoveMode[Aw_MoveN] = 2
+    set Aw_MoveBounces[Aw_MoveN] = 0
+    set rock = null
+endfunction
+
+function Aw_MoveTick takes nothing returns nothing
+    local integer i = Aw_MoveN
+    local integer s
+    local unit u
+    local unit caster
+    local player p
+    local group g = CreateGroup()
+    local real nx
+    local real ny
+    local real dx
+    local real dy
+    local real a
+    local real progress
+    local real damage
+    local boolean finish
+    loop
+        exitwhen i < 1
+        set caster = Aw_MoveOwner[i]
+        set finish = caster == null or GetUnitTypeId(caster) == 0 or Aw_Move[i] == null or GetUnitTypeId(Aw_Move[i]) == 0
+        if not finish then
+            set p = GetOwningPlayer(caster)
+            set Aw_MoveLife[i] = Aw_MoveLife[i] + Eng_TickRate
+            set nx = Aw_MoveX[i] + Aw_MoveVx[i] * Eng_TickRate
+            set ny = Aw_MoveY[i] + Aw_MoveVy[i] * Eng_TickRate
+            if Aw_MoveMode[i] == 1 then
+                set Aw_MoveX[i] = Tow_ClampX(nx)
+                set Aw_MoveY[i] = Tow_ClampY(ny)
+                set progress = Aw_MoveLife[i] / RMaxBJ(Aw_MoveMax[i], 0.01)
+                call SetUnitX(Aw_Move[i], Aw_MoveX[i])
+                call SetUnitY(Aw_Move[i], Aw_MoveY[i])
+                call SetUnitFlyHeight(Aw_Move[i], 55.00 + 620.00 * Sin(progress * bj_PI), 0.00)
+                call SetUnitFacing(Aw_Move[i], GetUnitFacing(Aw_Move[i]) + 24.00)
+                if Aw_MoveLife[i] >= Aw_MoveMax[i] then
+                    call Aw_Impact(caster, Aw_MoveX[i], Aw_MoveY[i], 1.00)
+                    set finish = true
+                endif
+            else
+                if nx <= Eng_MinX or nx >= Eng_MaxX or ny <= Eng_MinY or ny >= Eng_MaxY or IsTerrainPathable(nx, ny, PATHING_TYPE_WALKABILITY) then
+                    set a = Atan2(Aw_MoveVy[i], Aw_MoveVx[i]) + GetRandomReal(120.00, 240.00) * bj_DEGTORAD
+                    set Aw_MoveVx[i] = 1450.00 * Cos(a)
+                    set Aw_MoveVy[i] = 1450.00 * Sin(a)
+                    set Aw_MoveBounces[i] = Aw_MoveBounces[i] + 1
+                    call SFX_Point("Abilities\\Spells\\Other\\Volcano\\VolcanoDeath.mdl", Aw_MoveX[i], Aw_MoveY[i])
+                else
+                    set Aw_MoveX[i] = nx
+                    set Aw_MoveY[i] = ny
+                endif
+                call SetUnitX(Aw_Move[i], Aw_MoveX[i])
+                call SetUnitY(Aw_Move[i], Aw_MoveY[i])
+                call SetUnitFacing(Aw_Move[i], Atan2(Aw_MoveVy[i], Aw_MoveVx[i]) * bj_RADTODEG)
+                call SetUnitFlyHeight(Aw_Move[i], 42.00 + 18.00 * Sin(Aw_MoveLife[i] * 28.00), 0.00)
+                set s = Aw_SeedN
+                loop
+                    exitwhen s < 1
+                    set dx = Aw_SeedX[s] - Aw_MoveX[i]
+                    set dy = Aw_SeedY[s] - Aw_MoveY[i]
+                    if dx * dx + dy * dy <= 22500.00 then
+                        call Aw_ImpactBurst(caster, Aw_SeedX[s], Aw_SeedY[s], 0.75)
+                        set a = Atan2(Aw_MoveVy[i], Aw_MoveVx[i]) + GetRandomReal(55.00, 95.00) * bj_DEGTORAD
+                        set Aw_MoveVx[i] = 1450.00 * Cos(a)
+                        set Aw_MoveVy[i] = 1450.00 * Sin(a)
+                        call Aw_SeedRemove(s)
+                        set Aw_MoveBounces[i] = Aw_MoveBounces[i] + 1
+                        set s = 0
+                    endif
+                    set s = s - 1
+                endloop
+                call GroupEnumUnitsInRange(g, Aw_MoveX[i], Aw_MoveY[i], 175.00, null)
+                loop
+                    set u = FirstOfGroup(g)
+                    exitwhen u == null
+                    call GroupRemoveUnit(g, u)
+                    if Eng_ValidTarget(u, p) and IsUnitEnemy(u, p) and not IsUnitInGroup(u, Aw_MoveHit[i]) then
+                        call GroupAddUnit(Aw_MoveHit[i], u)
+                        set damage = 70.00 + 0.80 * I2R(GetHeroStr(caster, true)) + GetUnitState(u, UNIT_STATE_MAX_LIFE) * 0.025
+                        call Damage_Pure(caster, u, damage)
+                        set a = Atan2(Aw_MoveVy[i], Aw_MoveVx[i])
+                        call SetUnitX(u, Tow_ClampX(GetUnitX(u) + 95.00 * Cos(a)))
+                        call SetUnitY(u, Tow_ClampY(GetUnitY(u) + 95.00 * Sin(a)))
+                    endif
+                endloop
+                if Aw_MoveLife[i] * 1450.00 >= Aw_MoveMax[i] or Aw_MoveBounces[i] >= 4 then
+                    call Aw_Impact(caster, Aw_MoveX[i], Aw_MoveY[i], 1.20)
+                    set finish = true
+                endif
+            endif
+        endif
+        if finish then
+            call Aw_MoveRemove(i)
+        endif
+        set i = i - 1
+    endloop
+    call DestroyGroup(g)
+    set g = null
+    set u = null
+    set caster = null
+    set p = null
+endfunction
+
+function Aw_SeedTick takes nothing returns nothing
+    local integer i = Aw_SeedN
+    loop
+        exitwhen i < 1
+        set Aw_SeedTime[i] = Aw_SeedTime[i] - Eng_TickRate
+        if Aw_Seed[i] != null and GetUnitTypeId(Aw_Seed[i]) != 0 then
+            call SetWidgetLife(Aw_Seed[i], GetUnitState(Aw_Seed[i], UNIT_STATE_MAX_LIFE))
+            call SetUnitX(Aw_Seed[i], Aw_SeedX[i])
+            call SetUnitY(Aw_Seed[i], Aw_SeedY[i])
+        endif
+        if Aw_SeedTime[i] <= 0.00 or Aw_Seed[i] == null or GetUnitTypeId(Aw_Seed[i]) == 0 or Aw_SeedOwner[i] == null or GetUnitTypeId(Aw_SeedOwner[i]) == 0 then
+            call Aw_SeedRemove(i)
+        endif
+        set i = i - 1
+    endloop
+endfunction
+
+function Aw_TossRock takes unit caster, real tx, real ty returns nothing
+    call Aw_AddMeteor(caster, tx, ty)
+    call SFX_Unit("Abilities\\Spells\\Human\\Avatar\\AvatarCaster.mdl", caster, "origin")
+endfunction
+
+function Aw_ContinentalRoll takes unit caster, real tx, real ty returns nothing
+    local integer i = Aw_SeedN
+    local integer launched = 0
+    local real cx = GetUnitX(caster)
+    local real cy = GetUnitY(caster)
+    local real dx
+    local real dy
+    local real a = Atan2(ty - cy, tx - cx)
+    call Aw_AddRoll(caster, cx, cy, a, 1450.00)
+    loop
+        exitwhen i < 1
+        set dx = Aw_SeedX[i] - cx
+        set dy = Aw_SeedY[i] - cy
+        if Aw_SeedOwner[i] == caster and dx * dx + dy * dy <= 810000.00 and launched < 6 then
+            call Aw_AddRoll(caster, Aw_SeedX[i], Aw_SeedY[i], a + GetRandomReal(-18.00, 18.00) * bj_DEGTORAD, 1150.00)
+            call Aw_SeedRemove(i)
+            set launched = launched + 1
+        endif
+        set i = i - 1
+    endloop
+    call SFX_Point("Abilities\\Spells\\Orc\\WarStomp\\WarStompCaster.mdl", cx, cy)
+endfunction
+
+function Aw_TectonicAssembly takes unit caster, real tx, real ty returns nothing
+    local group g = CreateGroup()
+    local group hit = CreateGroup()
+    local unit u
+    local player p = GetOwningPlayer(caster)
+    local integer count = 0
+    local integer i = 1
+    local integer j
+    local integer nearest
+    local integer step
+    local real best
+    local real d2
+    local real dx
+    local real dy
+    local real dist
+    local real px
+    local real py
+    local real damage
+    loop
+        exitwhen i > Aw_SeedN
+        if Aw_SeedOwner[i] == caster then
+            set count = count + 1
+        endif
+        set i = i + 1
+    endloop
+    if count == 0 then
+        set i = 1
+        loop
+            exitwhen i > 8
+            call Aw_SeedAdd(caster, tx + 360.00 * Cos(I2R(i) * bj_PI / 4.00), ty + 360.00 * Sin(I2R(i) * bj_PI / 4.00))
+            set i = i + 1
+        endloop
+        set count = 8
+    endif
+    set bj_lastCreatedTerrainDeformation = TerrainDeformRipple(tx, ty, 1000.00, 120.00, 2500, 1, 2.00, 12.00, 1.00, false)
+    call SFX_Point("Abilities\\Spells\\Other\\Volcano\\VolcanoDeath.mdl", tx, ty)
+    set i = 1
+    loop
+        exitwhen i > Aw_SeedN
+        if Aw_SeedOwner[i] == caster then
+            call SetUnitScale(Aw_Seed[i], 2.45, 2.45, 2.45)
+            call SetUnitFlyHeight(Aw_Seed[i], 180.00, 850.00)
+            call SFX_Point("Abilities\\Spells\\Undead\\Impale\\ImpaleHitTarget.mdl", Aw_SeedX[i], Aw_SeedY[i])
+            set nearest = 0
+            set best = 999999999.00
+            set j = 1
+            loop
+                exitwhen j > Aw_SeedN
+                if j != i and Aw_SeedOwner[j] == caster then
+                    set dx = Aw_SeedX[j] - Aw_SeedX[i]
+                    set dy = Aw_SeedY[j] - Aw_SeedY[i]
+                    set d2 = dx * dx + dy * dy
+                    if d2 < best then
+                        set best = d2
+                        set nearest = j
+                    endif
+                endif
+                set j = j + 1
+            endloop
+            if nearest > 0 and best > 1.00 then
+                set dist = SquareRoot(best)
+                set step = 0
+                loop
+                    exitwhen I2R(step) * 115.00 > dist
+                    set px = Aw_SeedX[i] + (Aw_SeedX[nearest] - Aw_SeedX[i]) * (I2R(step) * 115.00 / RMaxBJ(dist, 1.00))
+                    set py = Aw_SeedY[i] + (Aw_SeedY[nearest] - Aw_SeedY[i]) * (I2R(step) * 115.00 / RMaxBJ(dist, 1.00))
+                    call SFX_Point("Abilities\\Spells\\Other\\Volcano\\VolcanoDeath.mdl", px, py)
+                    call GroupEnumUnitsInRange(g, px, py, 155.00, null)
+                    loop
+                        set u = FirstOfGroup(g)
+                        exitwhen u == null
+                        call GroupRemoveUnit(g, u)
+                        if Eng_ValidTarget(u, p) and IsUnitEnemy(u, p) and not IsUnitInGroup(u, hit) then
+                            call GroupAddUnit(hit, u)
+                            set damage = 140.00 + 25.00 * I2R(count) + GetUnitState(u, UNIT_STATE_MAX_LIFE) * 0.045
+                            call Damage_Pure(caster, u, damage)
+                            call Stun_Bolt(p, u)
+                        endif
+                    endloop
+                    set step = step + 1
+                endloop
+            endif
+        endif
+        set i = i + 1
+    endloop
+    set i = Aw_SeedN
+    loop
+        exitwhen i < 1
+        if Aw_SeedOwner[i] == caster then
+            call Aw_ImpactBurst(caster, Aw_SeedX[i], Aw_SeedY[i], 1.35)
+            call Aw_SeedRemove(i)
+        endif
+        set i = i - 1
+    endloop
+    call DestroyGroup(g)
+    call DestroyGroup(hit)
+    set g = null
+    set hit = null
+    set u = null
+    set p = null
+endfunction
+
+function Aw_DamageEvent takes nothing returns boolean
+    local unit hero = udg_GDD_DamagedUnit
+    local unit u
+    local player p
+    local group g
+    local integer key
+    local integer strata
+    local real hx
+    local real hy
+    local real dx
+    local real dy
+    local real a
+    if not Aw_RockGuard and hero != null and GetUnitTypeId(hero) == 'H00A' and GetUnitAbilityLevel(hero, 'A01B') > 0 and udg_GDD_Damage > 0.00 then
+        set key = GetHandleId(hero)
+        set strata = LoadInteger(Eng_HT, 3100000, key) + 1
+        if strata >= 5 then
+            set strata = 0
+            set Aw_RockGuard = true
+            call SetWidgetLife(hero, GetWidgetLife(hero) + udg_GDD_Damage * 0.50)
+            set p = GetOwningPlayer(hero)
+            set hx = GetUnitX(hero)
+            set hy = GetUnitY(hero)
+            set g = CreateGroup()
+            call SFX_Point("Abilities\\Spells\\Orc\\WarStomp\\WarStompCaster.mdl", hx, hy)
+            call GroupEnumUnitsInRange(g, hx, hy, 375.00, null)
+            loop
+                set u = FirstOfGroup(g)
+                exitwhen u == null
+                call GroupRemoveUnit(g, u)
+                if Eng_ValidTarget(u, p) and IsUnitEnemy(u, p) then
+                    call Damage_Pure(hero, u, 45.00 + 0.55 * I2R(GetHeroStr(hero, true)) + GetUnitState(u, UNIT_STATE_MAX_LIFE) * 0.015)
+                    set dx = GetUnitX(u) - hx
+                    set dy = GetUnitY(u) - hy
+                    if dx * dx + dy * dy > 100.00 then
+                        set a = Atan2(dy, dx)
+                        call SetUnitX(u, Tow_ClampX(GetUnitX(u) + 90.00 * Cos(a)))
+                        call SetUnitY(u, Tow_ClampY(GetUnitY(u) + 90.00 * Sin(a)))
+                    endif
+                endif
+            endloop
+            call DestroyGroup(g)
+            set Aw_RockGuard = false
+        endif
+        call SaveInteger(Eng_HT, 3100000, key, strata)
+    endif
+    set hero = null
+    set u = null
+    set p = null
+    set g = null
+    return false
+endfunction
+
+//===========================================================================
+// God of Hammers overhaul - embedded hammers, Overforge heat, attack relays,
+// and the fused Heavenfall Foundry superhammer.
+//===========================================================================
+function Hmr_NodeRemove takes integer i returns nothing
+    if Hmr_Effect[i] != null then
+        call DestroyEffect(Hmr_Effect[i])
+    endif
+    if Hmr_Node[i] != null then
+        call SetUnitFlyHeight(Hmr_Node[i], 0.00, 0.00)
+        call Dummy_Recycle(Hmr_Node[i])
+    endif
+    set Hmr_Node[i] = Hmr_Node[Hmr_NodeN]
+    set Hmr_Owner[i] = Hmr_Owner[Hmr_NodeN]
+    set Hmr_Target[i] = Hmr_Target[Hmr_NodeN]
+    set Hmr_Effect[i] = Hmr_Effect[Hmr_NodeN]
+    set Hmr_NodeX[i] = Hmr_NodeX[Hmr_NodeN]
+    set Hmr_NodeY[i] = Hmr_NodeY[Hmr_NodeN]
+    set Hmr_NodeTime[i] = Hmr_NodeTime[Hmr_NodeN]
+    set Hmr_NodePulse[i] = Hmr_NodePulse[Hmr_NodeN]
+    set Hmr_NodeHeat[i] = Hmr_NodeHeat[Hmr_NodeN]
+    set Hmr_NodeHot[i] = Hmr_NodeHot[Hmr_NodeN]
+    set Hmr_Node[Hmr_NodeN] = null
+    set Hmr_Owner[Hmr_NodeN] = null
+    set Hmr_Target[Hmr_NodeN] = null
+    set Hmr_Effect[Hmr_NodeN] = null
+    set Hmr_NodeN = Hmr_NodeN - 1
+endfunction
+
+function Hmr_NodeAdd takes unit caster, unit target, real x, real y returns nothing
+    local unit anchor
+    if Hmr_NodeN >= 36 then
+        call Hmr_NodeRemove(1)
+    endif
+    set x = Tow_ClampX(x)
+    set y = Tow_ClampY(y)
+    set anchor = Dummy_Get(GetOwningPlayer(caster), 'h005', x, y, GetRandomReal(0.00, 360.00))
+    call UnitAddAbility(anchor, 'Amrf')
+    call UnitRemoveAbility(anchor, 'Amrf')
+    call SetUnitFlyHeight(anchor, 72.00, 0.00)
+    call SetUnitScale(anchor, 1.45, 1.45, 1.45)
+    call PauseUnit(anchor, true)
+    set Hmr_NodeN = Hmr_NodeN + 1
+    set Hmr_Node[Hmr_NodeN] = anchor
+    set Hmr_Owner[Hmr_NodeN] = caster
+    set Hmr_Target[Hmr_NodeN] = target
+    set Hmr_Effect[Hmr_NodeN] = AddSpecialEffectTarget("Abilities\\Weapons\\StormHammer\\StormHammerMissile.mdl", anchor, "origin")
+    set Hmr_NodeX[Hmr_NodeN] = x
+    set Hmr_NodeY[Hmr_NodeN] = y
+    set Hmr_NodeTime[Hmr_NodeN] = 25.00
+    set Hmr_NodePulse[Hmr_NodeN] = 0.00
+    set Hmr_NodeHeat[Hmr_NodeN] = 0.00
+    set Hmr_NodeHot[Hmr_NodeN] = false
+    call SFX_Point("Abilities\\Spells\\Human\\ThunderClap\\ThunderClapCaster.mdl", x, y)
+    set anchor = null
+endfunction
+
+function Hmr_Embed takes unit caster, unit target, real tx, real ty returns nothing
+    if target != null and GetUnitTypeId(target) != 0 then
+        set tx = GetUnitX(target)
+        set ty = GetUnitY(target)
+        call Damage_Magic(caster, target, 70.00 + 0.80 * I2R(GetHeroStr(caster, true)) + GetUnitState(target, UNIT_STATE_MAX_LIFE) * 0.02)
+        call SFX_Unit("Abilities\\Spells\\Human\\StormBolt\\StormBoltTarget.mdl", target, "chest")
+    endif
+    call Hmr_NodeAdd(caster, target, tx, ty)
+endfunction
+
+function Hmr_Overforge takes unit caster returns nothing
+    local integer i = 1
+    local integer count = 0
+    loop
+        exitwhen i > Hmr_NodeN
+        if Hmr_Owner[i] == caster then
+            set Hmr_NodeHot[i] = true
+            set Hmr_NodeHeat[i] = 6.00
+            set Hmr_NodePulse[i] = 0.70
+            set Hmr_NodeTime[i] = RMaxBJ(Hmr_NodeTime[i], 8.00)
+            call SFX_Point("Abilities\\Spells\\Other\\ImmolationRed\\ImmolationRedTarget.mdl", Hmr_NodeX[i], Hmr_NodeY[i])
+            set count = count + 1
+        endif
+        set i = i + 1
+    endloop
+    if count == 0 then
+        call Hmr_NodeAdd(caster, null, GetUnitX(caster) + 110.00 * Cos(GetUnitFacing(caster) * bj_DEGTORAD), GetUnitY(caster) + 110.00 * Sin(GetUnitFacing(caster) * bj_DEGTORAD))
+        set Hmr_NodeHot[Hmr_NodeN] = true
+        set Hmr_NodeHeat[Hmr_NodeN] = 6.00
+    endif
+    call SFX_Unit("Abilities\\Spells\\Human\\Avatar\\AvatarCaster.mdl", caster, "origin")
+endfunction
+
+function Hmr_FindNearest takes unit caster, real x, real y returns integer
+    local integer i = 1
+    local integer nearest = 0
+    local real best = 1440000.00
+    local real dx
+    local real dy
+    local real d2
+    loop
+        exitwhen i > Hmr_NodeN
+        if Hmr_Owner[i] == caster then
+            set dx = Hmr_NodeX[i] - x
+            set dy = Hmr_NodeY[i] - y
+            set d2 = dx * dx + dy * dy
+            if d2 < best then
+                set best = d2
+                set nearest = i
+            endif
+        endif
+        set i = i + 1
+    endloop
+    return nearest
+endfunction
+
+function Hmr_NodeTick takes nothing returns nothing
+    local integer i = Hmr_NodeN
+    local group g = CreateGroup()
+    local unit u
+    local player p
+    loop
+        exitwhen i < 1
+        set Hmr_NodeTime[i] = Hmr_NodeTime[i] - Eng_TickRate
+        if Hmr_Target[i] != null and GetUnitTypeId(Hmr_Target[i]) != 0 and GetWidgetLife(Hmr_Target[i]) > 0.405 then
+            set Hmr_NodeX[i] = GetUnitX(Hmr_Target[i])
+            set Hmr_NodeY[i] = GetUnitY(Hmr_Target[i])
+        else
+            set Hmr_Target[i] = null
+        endif
+        if Hmr_Node[i] != null and GetUnitTypeId(Hmr_Node[i]) != 0 then
+            call SetUnitX(Hmr_Node[i], Hmr_NodeX[i])
+            call SetUnitY(Hmr_Node[i], Hmr_NodeY[i])
+        endif
+        if Hmr_NodeHot[i] then
+            set Hmr_NodeHeat[i] = Hmr_NodeHeat[i] - Eng_TickRate
+            set Hmr_NodePulse[i] = Hmr_NodePulse[i] + Eng_TickRate
+            if Hmr_NodePulse[i] >= 0.75 then
+                set Hmr_NodePulse[i] = Hmr_NodePulse[i] - 0.75
+                set p = GetOwningPlayer(Hmr_Owner[i])
+                call SFX_Point("Abilities\\Spells\\Other\\Monsoon\\MonsoonBoltTarget.mdl", Hmr_NodeX[i], Hmr_NodeY[i])
+                call GroupEnumUnitsInRange(g, Hmr_NodeX[i], Hmr_NodeY[i], 235.00, null)
+                loop
+                    set u = FirstOfGroup(g)
+                    exitwhen u == null
+                    call GroupRemoveUnit(g, u)
+                    if Eng_ValidTarget(u, p) and IsUnitEnemy(u, p) then
+                        set Hmr_DamageGuard = true
+                        call Damage_Pure(Hmr_Owner[i], u, 20.00 + GetUnitState(u, UNIT_STATE_MAX_LIFE) * 0.0125)
+                        set Hmr_DamageGuard = false
+                    endif
+                endloop
+            endif
+            if Hmr_NodeHeat[i] <= 0.00 then
+                set Hmr_NodeHot[i] = false
+                set Hmr_NodeHeat[i] = 0.00
+            endif
+        endif
+        if Hmr_NodeTime[i] <= 0.00 or Hmr_Node[i] == null or GetUnitTypeId(Hmr_Node[i]) == 0 or Hmr_Owner[i] == null or GetUnitTypeId(Hmr_Owner[i]) == 0 then
+            call Hmr_NodeRemove(i)
+        endif
+        set i = i - 1
+    endloop
+    call DestroyGroup(g)
+    set g = null
+    set u = null
+    set p = null
+endfunction
+
+function Hmr_DamageEvent takes nothing returns boolean
+    local unit source = udg_GDD_DamageSource
+    local unit target = udg_GDD_DamagedUnit
+    local lightning beam
+    local integer i
+    local real bonus
+    if not Hmr_DamageGuard and source != null and GetUnitTypeId(source) == 'H01J' and GetUnitAbilityLevel(source, 'A05S') > 0 and target != null and udg_GDD_Damage > 0.00 and IsUnitEnemy(target, GetOwningPlayer(source)) then
+        set i = Hmr_FindNearest(source, GetUnitX(target), GetUnitY(target))
+        if i > 0 then
+            set beam = AddLightningEx("CLPB", true, Hmr_NodeX[i], Hmr_NodeY[i], 80.00, GetUnitX(target), GetUnitY(target), 45.00)
+            call SFX_Unit("Abilities\\Spells\\Other\\Monsoon\\MonsoonBoltTarget.mdl", target, "chest")
+            set bonus = 35.00 + 0.55 * I2R(GetHeroStr(source, true))
+            set Hmr_DamageGuard = true
+            call Damage_Magic(source, target, bonus)
+            if Hmr_NodeHot[i] then
+                call Damage_Pure(source, target, GetUnitState(target, UNIT_STATE_MAX_LIFE) * 0.025)
+                set Hmr_NodeHeat[i] = Hmr_NodeHeat[i] + 0.35
+            endif
+            set Hmr_DamageGuard = false
+            call DestroyLightning(beam)
+        endif
+    endif
+    set source = null
+    set target = null
+    set beam = null
+    return false
+endfunction
+
+function Hmr_Foundry takes unit caster, real tx, real ty returns nothing
+    local integer i = Hmr_NodeN
+    local integer count = 0
+    local unit hammer
+    loop
+        exitwhen i < 1
+        if Hmr_Owner[i] == caster then
+            call SFX_Point("Abilities\\Spells\\Human\\MassTeleport\\MassTeleportTarget.mdl", Hmr_NodeX[i], Hmr_NodeY[i])
+            call Hmr_NodeRemove(i)
+            set count = count + 1
+        endif
+        set i = i - 1
+    endloop
+    if count < 1 then
+        set count = 1
+    endif
+    set Hmr_FallN = Hmr_FallN + 1
+    set hammer = Dummy_Get(GetOwningPlayer(caster), 'h005', Tow_ClampX(tx), Tow_ClampY(ty), GetRandomReal(0.00, 360.00))
+    call UnitAddAbility(hammer, 'Amrf')
+    call UnitRemoveAbility(hammer, 'Amrf')
+    call SetUnitScale(hammer, 3.50 + 0.22 * I2R(count), 3.50 + 0.22 * I2R(count), 3.50 + 0.22 * I2R(count))
+    call SetUnitFlyHeight(hammer, 1350.00, 0.00)
+    call PauseUnit(hammer, true)
+    set Hmr_Fall[Hmr_FallN] = hammer
+    set Hmr_FallOwner[Hmr_FallN] = caster
+    set Hmr_FallEffect[Hmr_FallN] = AddSpecialEffectTarget("Abilities\\Weapons\\StormHammer\\StormHammerMissile.mdl", hammer, "origin")
+    set Hmr_FallX[Hmr_FallN] = Tow_ClampX(tx)
+    set Hmr_FallY[Hmr_FallN] = Tow_ClampY(ty)
+    set Hmr_FallTime[Hmr_FallN] = 0.90
+    set Hmr_FallPower[Hmr_FallN] = count
+    call SFX_Point("Abilities\\Spells\\Human\\MassTeleport\\MassTeleportTarget.mdl", tx, ty)
+    call SFX_Point("Abilities\\Spells\\Other\\Drain\\DrainTarget.mdl", tx, ty)
+    set hammer = null
+endfunction
+
+function Hmr_FallRemove takes integer i returns nothing
+    if Hmr_FallEffect[i] != null then
+        call DestroyEffect(Hmr_FallEffect[i])
+    endif
+    if Hmr_Fall[i] != null then
+        call SetUnitFlyHeight(Hmr_Fall[i], 0.00, 0.00)
+        call Dummy_Recycle(Hmr_Fall[i])
+    endif
+    set Hmr_Fall[i] = Hmr_Fall[Hmr_FallN]
+    set Hmr_FallOwner[i] = Hmr_FallOwner[Hmr_FallN]
+    set Hmr_FallEffect[i] = Hmr_FallEffect[Hmr_FallN]
+    set Hmr_FallX[i] = Hmr_FallX[Hmr_FallN]
+    set Hmr_FallY[i] = Hmr_FallY[Hmr_FallN]
+    set Hmr_FallTime[i] = Hmr_FallTime[Hmr_FallN]
+    set Hmr_FallPower[i] = Hmr_FallPower[Hmr_FallN]
+    set Hmr_Fall[Hmr_FallN] = null
+    set Hmr_FallOwner[Hmr_FallN] = null
+    set Hmr_FallEffect[Hmr_FallN] = null
+    set Hmr_FallN = Hmr_FallN - 1
+endfunction
+
+function Hmr_FallTick takes nothing returns nothing
+    local integer i = Hmr_FallN
+    local group g = CreateGroup()
+    local unit u
+    local unit caster
+    local player p
+    local real radius
+    local real damage
+    loop
+        exitwhen i < 1
+        set caster = Hmr_FallOwner[i]
+        set Hmr_FallTime[i] = Hmr_FallTime[i] - Eng_TickRate
+        if Hmr_Fall[i] != null and GetUnitTypeId(Hmr_Fall[i]) != 0 then
+            call SetUnitFlyHeight(Hmr_Fall[i], 1350.00 * RMaxBJ(Hmr_FallTime[i], 0.00) / 0.90, 0.00)
+            call SetUnitFacing(Hmr_Fall[i], GetUnitFacing(Hmr_Fall[i]) + 28.00)
+        endif
+        if Hmr_FallTime[i] <= 0.00 or caster == null or GetUnitTypeId(caster) == 0 then
+            if caster != null and GetUnitTypeId(caster) != 0 then
+                set p = GetOwningPlayer(caster)
+                set radius = 460.00 + 18.00 * I2R(Hmr_FallPower[i])
+                set bj_lastCreatedTerrainDeformation = TerrainDeformRipple(Hmr_FallX[i], Hmr_FallY[i], radius * 1.75, 135.00, 2200, 1, 2.00, 12.00, 1.00, false)
+                call SFX_Point("Abilities\\Spells\\Human\\ThunderClap\\ThunderClapCaster.mdl", Hmr_FallX[i], Hmr_FallY[i])
+                call SFX_Point("Abilities\\Spells\\Other\\Volcano\\VolcanoDeath.mdl", Hmr_FallX[i], Hmr_FallY[i])
+                call SFX_Point("Objects\\Spawnmodels\\Human\\HCancelDeath\\HCancelDeath.mdl", Hmr_FallX[i], Hmr_FallY[i])
+                call GroupEnumUnitsInRange(g, Hmr_FallX[i], Hmr_FallY[i], radius, null)
+                loop
+                    set u = FirstOfGroup(g)
+                    exitwhen u == null
+                    call GroupRemoveUnit(g, u)
+                    if Eng_ValidTarget(u, p) and IsUnitEnemy(u, p) then
+                        set damage = 250.00 + 1.50 * I2R(GetHeroStr(caster, true)) + GetUnitState(u, UNIT_STATE_MAX_LIFE) * RMinBJ(0.18, 0.04 + 0.012 * I2R(Hmr_FallPower[i]))
+                        set Hmr_DamageGuard = true
+                        call Damage_Pure(caster, u, damage)
+                        set Hmr_DamageGuard = false
+                        call Stun_Bolt(p, u)
+                    endif
+                endloop
+            endif
+            call Hmr_FallRemove(i)
+        endif
+        set i = i - 1
+    endloop
+    call DestroyGroup(g)
+    set g = null
+    set u = null
+    set caster = null
+    set p = null
+endfunction
+
+function Hmr_SpellEffect takes nothing returns boolean
+    local unit caster = GetTriggerUnit()
+    local unit target
+    local integer abil = GetSpellAbilityId()
+    if caster != null and GetUnitTypeId(caster) == 'H01J' then
+        if abil == 'A05R' then
+            set target = GetSpellTargetUnit()
+            call Hmr_Embed(caster, target, GetSpellTargetX(), GetSpellTargetY())
+        elseif abil == 'A05V' then
+            call Hmr_Overforge(caster)
+        endif
+    endif
+    set caster = null
+    set target = null
+    return false
+endfunction
+
+//===========================================================================
+// Move Pointer overhaul - persistent anchors and paired Fold portals. Portals
+// relocate both ordinary units and every active MissileCore projectile while
+// retaining facing and velocity.
+//===========================================================================
+function Mp_AnchorRemove takes integer i returns nothing
+    if Mp_AnchorEffect[i] != null then
+        call DestroyEffect(Mp_AnchorEffect[i])
+    endif
+    if Mp_Anchor[i] != null then
+        call Dummy_Recycle(Mp_Anchor[i])
+    endif
+    set Mp_Anchor[i] = Mp_Anchor[Mp_AnchorN]
+    set Mp_AnchorOwner[i] = Mp_AnchorOwner[Mp_AnchorN]
+    set Mp_AnchorEffect[i] = Mp_AnchorEffect[Mp_AnchorN]
+    set Mp_AnchorX[i] = Mp_AnchorX[Mp_AnchorN]
+    set Mp_AnchorY[i] = Mp_AnchorY[Mp_AnchorN]
+    set Mp_AnchorTime[i] = Mp_AnchorTime[Mp_AnchorN]
+    set Mp_Anchor[Mp_AnchorN] = null
+    set Mp_AnchorOwner[Mp_AnchorN] = null
+    set Mp_AnchorEffect[Mp_AnchorN] = null
+    set Mp_AnchorN = Mp_AnchorN - 1
+endfunction
+
+function Mp_AnchorAdd takes unit caster, real x, real y returns nothing
+    local integer i = Mp_AnchorN
+    local integer owned = 0
+    local unit node
+    loop
+        exitwhen i < 1
+        if Mp_AnchorOwner[i] == caster then
+            set owned = owned + 1
+            if owned >= 2 then
+                call Mp_AnchorRemove(i)
+            endif
+        endif
+        set i = i - 1
+    endloop
+    set x = Tow_ClampX(x)
+    set y = Tow_ClampY(y)
+    set node = Dummy_Get(GetOwningPlayer(caster), 'h011', x, y, 0.00)
+    call UnitAddAbility(node, 'Amrf')
+    call UnitRemoveAbility(node, 'Amrf')
+    call SetUnitFlyHeight(node, 80.00, 0.00)
+    call SetUnitScale(node, 0.70, 0.70, 0.70)
+    call PauseUnit(node, true)
+    set Mp_AnchorN = Mp_AnchorN + 1
+    set Mp_Anchor[Mp_AnchorN] = node
+    set Mp_AnchorOwner[Mp_AnchorN] = caster
+    set Mp_AnchorEffect[Mp_AnchorN] = AddSpecialEffectTarget("Abilities\\Spells\\Other\\Drain\\DrainTarget.mdl", node, "origin")
+    set Mp_AnchorX[Mp_AnchorN] = x
+    set Mp_AnchorY[Mp_AnchorN] = y
+    set Mp_AnchorTime[Mp_AnchorN] = 25.00
+    call SFX_Point("Abilities\\Spells\\Human\\MassTeleport\\MassTeleportTarget.mdl", x, y)
+    set node = null
+endfunction
+
+function Mp_AnchorTick takes nothing returns nothing
+    local integer i = Mp_AnchorN
+    loop
+        exitwhen i < 1
+        set Mp_AnchorTime[i] = Mp_AnchorTime[i] - Eng_TickRate
+        if Mp_Anchor[i] != null and GetUnitTypeId(Mp_Anchor[i]) != 0 then
+            call SetUnitFacing(Mp_Anchor[i], GetUnitFacing(Mp_Anchor[i]) + 3.00)
+            call SetUnitFlyHeight(Mp_Anchor[i], 80.00 + 20.00 * Sin(Mp_AnchorTime[i] * 3.50), 0.00)
+        endif
+        if Mp_AnchorTime[i] <= 0.00 or Mp_Anchor[i] == null or GetUnitTypeId(Mp_Anchor[i]) == 0 or Mp_AnchorOwner[i] == null or GetUnitTypeId(Mp_AnchorOwner[i]) == 0 then
+            call Mp_AnchorRemove(i)
+        endif
+        set i = i - 1
+    endloop
+endfunction
+
+function Mp_PortalRemove takes integer i returns nothing
+    if Mp_PortalEffectA[i] != null then
+        call DestroyEffect(Mp_PortalEffectA[i])
+    endif
+    if Mp_PortalEffectB[i] != null then
+        call DestroyEffect(Mp_PortalEffectB[i])
+    endif
+    if Mp_PortalA[i] != null then
+        call Dummy_Recycle(Mp_PortalA[i])
+    endif
+    if Mp_PortalB[i] != null then
+        call Dummy_Recycle(Mp_PortalB[i])
+    endif
+    set Mp_PortalOwner[i] = Mp_PortalOwner[Mp_PortalN]
+    set Mp_PortalA[i] = Mp_PortalA[Mp_PortalN]
+    set Mp_PortalB[i] = Mp_PortalB[Mp_PortalN]
+    set Mp_PortalEffectA[i] = Mp_PortalEffectA[Mp_PortalN]
+    set Mp_PortalEffectB[i] = Mp_PortalEffectB[Mp_PortalN]
+    set Mp_PortalAX[i] = Mp_PortalAX[Mp_PortalN]
+    set Mp_PortalAY[i] = Mp_PortalAY[Mp_PortalN]
+    set Mp_PortalBX[i] = Mp_PortalBX[Mp_PortalN]
+    set Mp_PortalBY[i] = Mp_PortalBY[Mp_PortalN]
+    set Mp_PortalTime[i] = Mp_PortalTime[Mp_PortalN]
+    set Mp_PortalOwner[Mp_PortalN] = null
+    set Mp_PortalA[Mp_PortalN] = null
+    set Mp_PortalB[Mp_PortalN] = null
+    set Mp_PortalEffectA[Mp_PortalN] = null
+    set Mp_PortalEffectB[Mp_PortalN] = null
+    set Mp_PortalN = Mp_PortalN - 1
+endfunction
+
+function Mp_PortalAdd takes unit caster, real ax, real ay, real bx, real by returns nothing
+    local unit a
+    local unit b
+    set ax = Tow_ClampX(ax)
+    set ay = Tow_ClampY(ay)
+    set bx = Tow_ClampX(bx)
+    set by = Tow_ClampY(by)
+    set a = Dummy_Get(GetOwningPlayer(caster), 'h011', ax, ay, Atan2(by - ay, bx - ax) * bj_RADTODEG)
+    set b = Dummy_Get(GetOwningPlayer(caster), 'h012', bx, by, Atan2(ay - by, ax - bx) * bj_RADTODEG)
+    call UnitAddAbility(a, 'Amrf')
+    call UnitRemoveAbility(a, 'Amrf')
+    call UnitAddAbility(b, 'Amrf')
+    call UnitRemoveAbility(b, 'Amrf')
+    call SetUnitFlyHeight(a, 105.00, 0.00)
+    call SetUnitFlyHeight(b, 105.00, 0.00)
+    call SetUnitScale(a, 1.15, 1.15, 1.15)
+    call SetUnitScale(b, 1.15, 1.15, 1.15)
+    call PauseUnit(a, true)
+    call PauseUnit(b, true)
+    set Mp_PortalN = Mp_PortalN + 1
+    set Mp_PortalOwner[Mp_PortalN] = caster
+    set Mp_PortalA[Mp_PortalN] = a
+    set Mp_PortalB[Mp_PortalN] = b
+    set Mp_PortalEffectA[Mp_PortalN] = AddSpecialEffectTarget("Abilities\\Spells\\Human\\MassTeleport\\MassTeleportTarget.mdl", a, "origin")
+    set Mp_PortalEffectB[Mp_PortalN] = AddSpecialEffectTarget("Abilities\\Spells\\Human\\MassTeleport\\MassTeleportTarget.mdl", b, "origin")
+    set Mp_PortalAX[Mp_PortalN] = ax
+    set Mp_PortalAY[Mp_PortalN] = ay
+    set Mp_PortalBX[Mp_PortalN] = bx
+    set Mp_PortalBY[Mp_PortalN] = by
+    set Mp_PortalTime[Mp_PortalN] = 8.00
+    call SFX_Point("Abilities\\Spells\\Other\\Charm\\CharmTarget.mdl", ax, ay)
+    call SFX_Point("Abilities\\Spells\\Other\\Charm\\CharmTarget.mdl", bx, by)
+    set a = null
+    set b = null
+endfunction
+
+function Mp_Fold takes unit caster, unit target returns nothing
+    local integer i = Mp_AnchorN
+    local integer first = 0
+    local integer second = 0
+    local real bx
+    local real by
+    loop
+        exitwhen i < 1 or second > 0
+        if Mp_AnchorOwner[i] == caster then
+            if first == 0 then
+                set first = i
+            else
+                set second = i
+            endif
+        endif
+        set i = i - 1
+    endloop
+    if first > 0 and second > 0 then
+        call Mp_PortalAdd(caster, Mp_AnchorX[first], Mp_AnchorY[first], Mp_AnchorX[second], Mp_AnchorY[second])
+    else
+        if target != null and GetUnitTypeId(target) != 0 then
+            set bx = GetUnitX(target)
+            set by = GetUnitY(target)
+        else
+            set bx = GetUnitX(caster) + 550.00 * Cos(GetUnitFacing(caster) * bj_DEGTORAD)
+            set by = GetUnitY(caster) + 550.00 * Sin(GetUnitFacing(caster) * bj_DEGTORAD)
+        endif
+        call Mp_PortalAdd(caster, GetUnitX(caster), GetUnitY(caster), bx, by)
+    endif
+endfunction
+
+function Mp_PortalTick takes nothing returns nothing
+    local integer i = Mp_PortalN
+    local integer k
+    local integer m
+    local group g = CreateGroup()
+    local unit u
+    local real a
+    local real dx
+    local real dy
+    local real ox
+    local real oy
+    loop
+        exitwhen i < 1
+        set Mp_PortalTime[i] = Mp_PortalTime[i] - Eng_TickRate
+        call SetUnitFacing(Mp_PortalA[i], GetUnitFacing(Mp_PortalA[i]) + 7.00)
+        call SetUnitFacing(Mp_PortalB[i], GetUnitFacing(Mp_PortalB[i]) - 7.00)
+        call GroupEnumUnitsInRange(g, Mp_PortalAX[i], Mp_PortalAY[i], 115.00, null)
+        loop
+            set u = FirstOfGroup(g)
+            exitwhen u == null
+            call GroupRemoveUnit(g, u)
+            if GetWidgetLife(u) > 0.405 and not IsUnitType(u, UNIT_TYPE_STRUCTURE) and not Eng_IsDummyType(GetUnitTypeId(u)) then
+                set a = GetUnitFacing(u) * bj_DEGTORAD
+                set ox = Tow_ClampX(Mp_PortalBX[i] + 210.00 * Cos(a))
+                set oy = Tow_ClampY(Mp_PortalBY[i] + 210.00 * Sin(a))
+                if not IsTerrainPathable(ox, oy, PATHING_TYPE_WALKABILITY) then
+                    call SFX_Point("Abilities\\Spells\\NightElf\\Blink\\BlinkCaster.mdl", GetUnitX(u), GetUnitY(u))
+                    call SetUnitX(u, ox)
+                    call SetUnitY(u, oy)
+                    call SFX_Point("Abilities\\Spells\\NightElf\\Blink\\BlinkTarget.mdl", ox, oy)
+                endif
+            endif
+        endloop
+        call GroupEnumUnitsInRange(g, Mp_PortalBX[i], Mp_PortalBY[i], 115.00, null)
+        loop
+            set u = FirstOfGroup(g)
+            exitwhen u == null
+            call GroupRemoveUnit(g, u)
+            if GetWidgetLife(u) > 0.405 and not IsUnitType(u, UNIT_TYPE_STRUCTURE) and not Eng_IsDummyType(GetUnitTypeId(u)) then
+                set a = GetUnitFacing(u) * bj_DEGTORAD
+                set ox = Tow_ClampX(Mp_PortalAX[i] + 210.00 * Cos(a))
+                set oy = Tow_ClampY(Mp_PortalAY[i] + 210.00 * Sin(a))
+                if not IsTerrainPathable(ox, oy, PATHING_TYPE_WALKABILITY) then
+                    call SFX_Point("Abilities\\Spells\\NightElf\\Blink\\BlinkCaster.mdl", GetUnitX(u), GetUnitY(u))
+                    call SetUnitX(u, ox)
+                    call SetUnitY(u, oy)
+                    call SFX_Point("Abilities\\Spells\\NightElf\\Blink\\BlinkTarget.mdl", ox, oy)
+                endif
+            endif
+        endloop
+        set k = 1
+        loop
+            exitwhen k > Msl_N
+            set m = Msl_List[k]
+            set dx = Msl_X[m] - Mp_PortalAX[i]
+            set dy = Msl_Y[m] - Mp_PortalAY[i]
+            if dx * dx + dy * dy <= 13225.00 then
+                set a = Atan2(Msl_Vy[m], Msl_Vx[m])
+                set Msl_X[m] = Tow_ClampX(Mp_PortalBX[i] + 170.00 * Cos(a))
+                set Msl_Y[m] = Tow_ClampY(Mp_PortalBY[i] + 170.00 * Sin(a))
+                call SetUnitX(Msl_Dummy[m], Msl_X[m])
+                call SetUnitY(Msl_Dummy[m], Msl_Y[m])
+                call SFX_Point("Abilities\\Spells\\NightElf\\Blink\\BlinkTarget.mdl", Msl_X[m], Msl_Y[m])
+            else
+                set dx = Msl_X[m] - Mp_PortalBX[i]
+                set dy = Msl_Y[m] - Mp_PortalBY[i]
+                if dx * dx + dy * dy <= 13225.00 then
+                    set a = Atan2(Msl_Vy[m], Msl_Vx[m])
+                    set Msl_X[m] = Tow_ClampX(Mp_PortalAX[i] + 170.00 * Cos(a))
+                    set Msl_Y[m] = Tow_ClampY(Mp_PortalAY[i] + 170.00 * Sin(a))
+                    call SetUnitX(Msl_Dummy[m], Msl_X[m])
+                    call SetUnitY(Msl_Dummy[m], Msl_Y[m])
+                    call SFX_Point("Abilities\\Spells\\NightElf\\Blink\\BlinkTarget.mdl", Msl_X[m], Msl_Y[m])
+                endif
+            endif
+            set k = k + 1
+        endloop
+        if Mp_PortalTime[i] <= 0.00 or Mp_PortalOwner[i] == null or GetUnitTypeId(Mp_PortalOwner[i]) == 0 then
+            call Mp_PortalRemove(i)
+        endif
+        set i = i - 1
+    endloop
+    call DestroyGroup(g)
+    set g = null
+    set u = null
+endfunction
+
+function Mp_ErrorRemove takes integer i returns nothing
+    if Mp_ErrorVisual[i] != null then
+        call FlushChildHashtable(Eng_HT, GetHandleId(Mp_ErrorVisual[i]))
+        call Dummy_Recycle(Mp_ErrorVisual[i])
+    endif
+    set Mp_ErrorOwner[i] = Mp_ErrorOwner[Mp_ErrorN]
+    set Mp_ErrorVisual[i] = Mp_ErrorVisual[Mp_ErrorN]
+    set Mp_ErrorX[i] = Mp_ErrorX[Mp_ErrorN]
+    set Mp_ErrorY[i] = Mp_ErrorY[Mp_ErrorN]
+    set Mp_ErrorTime[i] = Mp_ErrorTime[Mp_ErrorN]
+    set Mp_ErrorPulse[i] = Mp_ErrorPulse[Mp_ErrorN]
+    set Mp_ErrorOwner[Mp_ErrorN] = null
+    set Mp_ErrorVisual[Mp_ErrorN] = null
+    set Mp_ErrorN = Mp_ErrorN - 1
+endfunction
+
+function Mp_ErrorLaunch takes unit caster, real x, real y returns nothing
+    local unit visual = Dummy_Get(GetOwningPlayer(caster), 'h012', Tow_ClampX(x), Tow_ClampY(y), 0.00)
+    call UnitAddAbility(visual, 'Amrf')
+    call UnitRemoveAbility(visual, 'Amrf')
+    call SetUnitFlyHeight(visual, 35.00, 0.00)
+    call SetUnitScale(visual, 2.80, 2.80, 2.80)
+    call PauseUnit(visual, true)
+    set Mp_ErrorN = Mp_ErrorN + 1
+    set Mp_ErrorOwner[Mp_ErrorN] = caster
+    set Mp_ErrorVisual[Mp_ErrorN] = visual
+    set Mp_ErrorX[Mp_ErrorN] = Tow_ClampX(x)
+    set Mp_ErrorY[Mp_ErrorN] = Tow_ClampY(y)
+    set Mp_ErrorTime[Mp_ErrorN] = 7.00
+    set Mp_ErrorPulse[Mp_ErrorN] = 0.10
+    call SFX_Point("Abilities\\Spells\\Human\\MassTeleport\\MassTeleportTo.mdl", x, y)
+    set visual = null
+endfunction
+
+function Mp_ErrorTick takes nothing returns nothing
+    local integer i = Mp_ErrorN
+    local integer parent
+    local integer key
+    local group g = CreateGroup()
+    local unit u
+    local player p
+    local real px
+    local real py
+    local real dx
+    local real dy
+    local real error
+    loop
+        exitwhen i < 1
+        set Mp_ErrorTime[i] = Mp_ErrorTime[i] - Eng_TickRate
+        set Mp_ErrorPulse[i] = Mp_ErrorPulse[i] + Eng_TickRate
+        call SetUnitFacing(Mp_ErrorVisual[i], GetUnitFacing(Mp_ErrorVisual[i]) + 5.00)
+        if Mp_ErrorPulse[i] >= 0.10 then
+            set Mp_ErrorPulse[i] = Mp_ErrorPulse[i] - 0.10
+            set parent = GetHandleId(Mp_ErrorVisual[i])
+            set p = GetOwningPlayer(Mp_ErrorOwner[i])
+            call GroupEnumUnitsInRange(g, Mp_ErrorX[i], Mp_ErrorY[i], 550.00, null)
+            loop
+                set u = FirstOfGroup(g)
+                exitwhen u == null
+                call GroupRemoveUnit(g, u)
+                if Eng_ValidTarget(u, p) and IsUnitEnemy(u, p) then
+                    set key = GetHandleId(u)
+                    if not HaveSavedReal(Eng_HT, parent, key * 3) then
+                        call SaveReal(Eng_HT, parent, key * 3, GetUnitX(u))
+                        call SaveReal(Eng_HT, parent, key * 3 + 1, GetUnitY(u))
+                        call SaveReal(Eng_HT, parent, key * 3 + 2, 0.00)
+                    else
+                        set px = LoadReal(Eng_HT, parent, key * 3)
+                        set py = LoadReal(Eng_HT, parent, key * 3 + 1)
+                        set dx = GetUnitX(u) - px
+                        set dy = GetUnitY(u) - py
+                        set error = LoadReal(Eng_HT, parent, key * 3 + 2) + SquareRoot(dx * dx + dy * dy)
+                        if error >= 460.00 then
+                            call SFX_Point("Abilities\\Spells\\NightElf\\Blink\\BlinkCaster.mdl", GetUnitX(u), GetUnitY(u))
+                            if not IsTerrainPathable(px, py, PATHING_TYPE_WALKABILITY) then
+                                call SetUnitX(u, px)
+                                call SetUnitY(u, py)
+                            endif
+                            call Damage_Pure(Mp_ErrorOwner[i], u, 60.00 + 0.65 * I2R(GetHeroAgi(Mp_ErrorOwner[i], true)) + GetUnitState(u, UNIT_STATE_MAX_LIFE) * 0.025)
+                            call SaveReal(Eng_HT, parent, key * 3, GetUnitX(u))
+                            call SaveReal(Eng_HT, parent, key * 3 + 1, GetUnitY(u))
+                            set error = 0.00
+                        endif
+                        call SaveReal(Eng_HT, parent, key * 3 + 2, error)
+                    endif
+                endif
+            endloop
+            call SFX_Point("Abilities\\Spells\\Other\\Drain\\DrainTarget.mdl", Mp_ErrorX[i], Mp_ErrorY[i])
+        endif
+        if Mp_ErrorTime[i] <= 0.00 or Mp_ErrorOwner[i] == null or GetUnitTypeId(Mp_ErrorOwner[i]) == 0 then
+            call Mp_ErrorRemove(i)
+        endif
+        set i = i - 1
+    endloop
+    call DestroyGroup(g)
+    set g = null
+    set u = null
+    set p = null
+endfunction
+
+function Mp_DragMoveEnum takes nothing returns nothing
+    local unit u = GetEnumUnit()
+    local integer parent = GetHandleId(Mp_DragVisual[Mp_DragContext])
+    local integer key = GetHandleId(u)
+    call SetUnitX(u, Tow_ClampX(Mp_DragContextX + LoadReal(Eng_HT, parent, key * 2)))
+    call SetUnitY(u, Tow_ClampY(Mp_DragContextY + LoadReal(Eng_HT, parent, key * 2 + 1)))
+    set u = null
+endfunction
+
+function Mp_DragRemove takes integer i returns nothing
+    local unit u
+    if Mp_DragGroup[i] != null then
+        loop
+            set u = FirstOfGroup(Mp_DragGroup[i])
+            exitwhen u == null
+            call GroupRemoveUnit(Mp_DragGroup[i], u)
+            call PauseUnit(u, false)
+            call SetUnitPathing(u, true)
+        endloop
+        call DestroyGroup(Mp_DragGroup[i])
+    endif
+    if Mp_DragEffect[i] != null then
+        call DestroyEffect(Mp_DragEffect[i])
+    endif
+    if Mp_DragVisual[i] != null then
+        call FlushChildHashtable(Eng_HT, GetHandleId(Mp_DragVisual[i]))
+        call Dummy_Recycle(Mp_DragVisual[i])
+    endif
+    set Mp_DragOwner[i] = Mp_DragOwner[Mp_DragN]
+    set Mp_DragVisual[i] = Mp_DragVisual[Mp_DragN]
+    set Mp_DragEffect[i] = Mp_DragEffect[Mp_DragN]
+    set Mp_DragGroup[i] = Mp_DragGroup[Mp_DragN]
+    set Mp_DragSX[i] = Mp_DragSX[Mp_DragN]
+    set Mp_DragSY[i] = Mp_DragSY[Mp_DragN]
+    set Mp_DragTX[i] = Mp_DragTX[Mp_DragN]
+    set Mp_DragTY[i] = Mp_DragTY[Mp_DragN]
+    set Mp_DragTime[i] = Mp_DragTime[Mp_DragN]
+    set Mp_DragOwner[Mp_DragN] = null
+    set Mp_DragVisual[Mp_DragN] = null
+    set Mp_DragEffect[Mp_DragN] = null
+    set Mp_DragGroup[Mp_DragN] = null
+    set Mp_DragN = Mp_DragN - 1
+    set u = null
+endfunction
+
+function Mp_MovePoint takes unit caster, real tx, real ty returns nothing
+    local group g = CreateGroup()
+    local group held = CreateGroup()
+    local unit u
+    local unit visual
+    local integer parent
+    local integer key
+    local real sx = GetUnitX(caster)
+    local real sy = GetUnitY(caster)
+    local real radius = 350.00 + 50.00 * I2R(GetUnitAbilityLevel(caster, 'A03W'))
+    set visual = Dummy_Get(GetOwningPlayer(caster), 'h012', sx, sy, Atan2(ty - sy, tx - sx) * bj_RADTODEG)
+    call UnitAddAbility(visual, 'Amrf')
+    call UnitRemoveAbility(visual, 'Amrf')
+    call SetUnitFlyHeight(visual, 50.00, 0.00)
+    call SetUnitScale(visual, radius / 180.00, radius / 180.00, radius / 180.00)
+    call PauseUnit(visual, true)
+    set parent = GetHandleId(visual)
+    call GroupEnumUnitsInRange(g, sx, sy, radius, null)
+    loop
+        set u = FirstOfGroup(g)
+        exitwhen u == null
+        call GroupRemoveUnit(g, u)
+        if GetWidgetLife(u) > 0.405 and not IsUnitType(u, UNIT_TYPE_STRUCTURE) and not Eng_IsDummyType(GetUnitTypeId(u)) then
+            call GroupAddUnit(held, u)
+            set key = GetHandleId(u)
+            call SaveReal(Eng_HT, parent, key * 2, GetUnitX(u) - sx)
+            call SaveReal(Eng_HT, parent, key * 2 + 1, GetUnitY(u) - sy)
+            call PauseUnit(u, true)
+            call SetUnitPathing(u, false)
+        endif
+    endloop
+    set Mp_DragN = Mp_DragN + 1
+    set Mp_DragOwner[Mp_DragN] = caster
+    set Mp_DragVisual[Mp_DragN] = visual
+    set Mp_DragEffect[Mp_DragN] = AddSpecialEffectTarget("Abilities\\Spells\\Human\\MassTeleport\\MassTeleportTo.mdl", visual, "origin")
+    set Mp_DragGroup[Mp_DragN] = held
+    set Mp_DragSX[Mp_DragN] = sx
+    set Mp_DragSY[Mp_DragN] = sy
+    set Mp_DragTX[Mp_DragN] = Tow_ClampX(tx)
+    set Mp_DragTY[Mp_DragN] = Tow_ClampY(ty)
+    set Mp_DragTime[Mp_DragN] = 1.25
+    call DestroyGroup(g)
+    set g = null
+    set held = null
+    set u = null
+    set visual = null
+endfunction
+
+function Mp_DragTick takes nothing returns nothing
+    local integer i = Mp_DragN
+    local real t
+    local real omt
+    local real mx
+    local real my
+    local real cx
+    local real cy
+    loop
+        exitwhen i < 1
+        set Mp_DragTime[i] = Mp_DragTime[i] - Eng_TickRate
+        set t = 1.00 - RMaxBJ(Mp_DragTime[i], 0.00) / 1.25
+        set omt = 1.00 - t
+        set mx = (Mp_DragSX[i] + Mp_DragTX[i]) * 0.50
+        set my = (Mp_DragSY[i] + Mp_DragTY[i]) * 0.50 + 320.00
+        set cx = omt * omt * Mp_DragSX[i] + 2.00 * omt * t * mx + t * t * Mp_DragTX[i]
+        set cy = omt * omt * Mp_DragSY[i] + 2.00 * omt * t * my + t * t * Mp_DragTY[i]
+        call SetUnitX(Mp_DragVisual[i], Tow_ClampX(cx))
+        call SetUnitY(Mp_DragVisual[i], Tow_ClampY(cy))
+        call SetUnitFacing(Mp_DragVisual[i], GetUnitFacing(Mp_DragVisual[i]) + 9.00)
+        set Mp_DragContext = i
+        set Mp_DragContextX = cx
+        set Mp_DragContextY = cy
+        call ForGroup(Mp_DragGroup[i], function Mp_DragMoveEnum)
+        if Mp_DragTime[i] <= 0.00 or Mp_DragOwner[i] == null or GetUnitTypeId(Mp_DragOwner[i]) == 0 then
+            call SFX_Point("Abilities\\Spells\\Orc\\WarStomp\\WarStompCaster.mdl", cx, cy)
+            call Mp_DragRemove(i)
+        endif
+        set i = i - 1
+    endloop
+endfunction
+
+//===========================================================================
+// Turtler overhaul - a seven-shell wedge, relay attacks, Testudo damage
+// conversion, and a World Turtle form that carries allies and crushes enemies.
+//===========================================================================
+function Tur_ShellRemove takes integer i returns nothing
+    if Tur_Shell[i] != null then
+        call ShowUnit(Tur_Shell[i], true)
+        call Dummy_Recycle(Tur_Shell[i])
+    endif
+    set Tur_Shell[i] = Tur_Shell[Tur_ShellN]
+    set Tur_ShellOwner[i] = Tur_ShellOwner[Tur_ShellN]
+    set Tur_ShellTime[i] = Tur_ShellTime[Tur_ShellN]
+    set Tur_ShellSlot[i] = Tur_ShellSlot[Tur_ShellN]
+    set Tur_Shell[Tur_ShellN] = null
+    set Tur_ShellOwner[Tur_ShellN] = null
+    set Tur_ShellN = Tur_ShellN - 1
+endfunction
+
+function Tur_ShellAdd takes unit caster, integer slot returns nothing
+    local unit shell = Dummy_Get(GetOwningPlayer(caster), 'h00M', GetUnitX(caster), GetUnitY(caster), GetUnitFacing(caster))
+    call SetUnitScale(shell, 0.72 + 0.04 * I2R(slot), 0.72 + 0.04 * I2R(slot), 0.72 + 0.04 * I2R(slot))
+    call SetUnitPathing(shell, false)
+    call PauseUnit(shell, true)
+    set Tur_ShellN = Tur_ShellN + 1
+    set Tur_Shell[Tur_ShellN] = shell
+    set Tur_ShellOwner[Tur_ShellN] = caster
+    set Tur_ShellTime[Tur_ShellN] = 15.00
+    set Tur_ShellSlot[Tur_ShellN] = slot
+    set shell = null
+endfunction
+
+function Tur_Muster takes unit caster returns nothing
+    local integer i = Tur_ShellN
+    local integer slot = 1
+    loop
+        exitwhen i < 1
+        if Tur_ShellOwner[i] == caster then
+            call Tur_ShellRemove(i)
+        endif
+        set i = i - 1
+    endloop
+    loop
+        exitwhen slot > 7
+        call Tur_ShellAdd(caster, slot)
+        set slot = slot + 1
+    endloop
+    call SFX_Point("Abilities\\Spells\\Human\\MassTeleport\\MassTeleportTarget.mdl", GetUnitX(caster), GetUnitY(caster))
+    call SFX_Unit("Abilities\\Spells\\Human\\Avatar\\AvatarCaster.mdl", caster, "origin")
+endfunction
+
+function Tur_ShellTick takes nothing returns nothing
+    local integer i = Tur_ShellN
+    local integer slot
+    local real f
+    local real fx
+    local real fy
+    local real sx
+    local real sy
+    local real forward
+    local real side
+    loop
+        exitwhen i < 1
+        set Tur_ShellTime[i] = Tur_ShellTime[i] - Eng_TickRate
+        if Tur_ShellOwner[i] != null and GetUnitTypeId(Tur_ShellOwner[i]) != 0 and Tur_Shell[i] != null and GetUnitTypeId(Tur_Shell[i]) != 0 then
+            if GetUnitTypeId(Tur_ShellOwner[i]) == 'H00N' then
+                call ShowUnit(Tur_Shell[i], false)
+                call SetUnitX(Tur_Shell[i], GetUnitX(Tur_ShellOwner[i]))
+                call SetUnitY(Tur_Shell[i], GetUnitY(Tur_ShellOwner[i]))
+            else
+                call ShowUnit(Tur_Shell[i], true)
+                set slot = Tur_ShellSlot[i]
+                if slot == 1 then
+                    set forward = 235.00
+                    set side = 0.00
+                elseif slot <= 3 then
+                    set forward = 135.00
+                    if slot == 2 then
+                        set side = 125.00
+                    else
+                        set side = -125.00
+                    endif
+                elseif slot <= 5 then
+                    set forward = 35.00
+                    if slot == 4 then
+                        set side = 225.00
+                    else
+                        set side = -225.00
+                    endif
+                else
+                    set forward = -65.00
+                    if slot == 6 then
+                        set side = 315.00
+                    else
+                        set side = -315.00
+                    endif
+                endif
+                set f = GetUnitFacing(Tur_ShellOwner[i]) * bj_DEGTORAD
+                set fx = Cos(f)
+                set fy = Sin(f)
+                set sx = Tow_ClampX(GetUnitX(Tur_ShellOwner[i]) + forward * fx - side * fy)
+                set sy = Tow_ClampY(GetUnitY(Tur_ShellOwner[i]) + forward * fy + side * fx)
+                call SetUnitX(Tur_Shell[i], sx)
+                call SetUnitY(Tur_Shell[i], sy)
+                call SetUnitFacing(Tur_Shell[i], GetUnitFacing(Tur_ShellOwner[i]))
+            endif
+        endif
+        if Tur_ShellTime[i] <= 0.00 or Tur_ShellOwner[i] == null or GetUnitTypeId(Tur_ShellOwner[i]) == 0 or Tur_Shell[i] == null or GetUnitTypeId(Tur_Shell[i]) == 0 then
+            call Tur_ShellRemove(i)
+        endif
+        set i = i - 1
+    endloop
+endfunction
+
+function Tur_Relay takes unit caster, unit target returns nothing
+    local integer slot = 1
+    local integer i
+    local integer count = 0
+    local real lastX = GetUnitX(caster)
+    local real lastY = GetUnitY(caster)
+    local real nextX
+    local real nextY
+    local lightning beam
+    loop
+        exitwhen slot > 7
+        set i = 1
+        loop
+            exitwhen i > Tur_ShellN
+            if Tur_ShellOwner[i] == caster and Tur_ShellSlot[i] == slot then
+                set nextX = GetUnitX(Tur_Shell[i])
+                set nextY = GetUnitY(Tur_Shell[i])
+                set beam = AddLightningEx("CLPB", true, lastX, lastY, 55.00, nextX, nextY, 45.00)
+                call DestroyLightning(beam)
+                call SFX_Point("Abilities\\Spells\\Other\\Monsoon\\MonsoonBoltTarget.mdl", nextX, nextY)
+                set lastX = nextX
+                set lastY = nextY
+                set count = count + 1
+                set i = Tur_ShellN + 1
+            endif
+            set i = i + 1
+        endloop
+        set slot = slot + 1
+    endloop
+    if target != null and GetUnitTypeId(target) != 0 and IsUnitEnemy(target, GetOwningPlayer(caster)) then
+        set beam = AddLightningEx("CLPB", true, lastX, lastY, 55.00, GetUnitX(target), GetUnitY(target), 45.00)
+        call SFX_Unit("war3mapImported\\Impact.mdx", target, "origin")
+        call Damage_Pure(caster, target, 90.00 + 0.70 * I2R(GetHeroStr(caster, true)) + 15.00 * I2R(count) + GetUnitState(target, UNIT_STATE_MAX_LIFE) * 0.02)
+        call DestroyLightning(beam)
+    endif
+    set beam = null
+endfunction
+
+function Tur_DamageEvent takes nothing returns boolean
+    local unit hero = udg_GDD_DamagedUnit
+    local unit source = udg_GDD_DamageSource
+    local integer i = 1
+    local integer count = 0
+    local real dx
+    local real dy
+    local real restore
+    if not Tur_DamageGuard and hero != null and (GetUnitTypeId(hero) == 'H004' or GetUnitTypeId(hero) == 'H00N') and GetUnitAbilityLevel(hero, 'A034') > 0 and udg_GDD_Damage > 0.00 then
+        loop
+            exitwhen i > Tur_ShellN
+            if Tur_ShellOwner[i] == hero then
+                set dx = GetUnitX(Tur_Shell[i]) - GetUnitX(hero)
+                set dy = GetUnitY(Tur_Shell[i]) - GetUnitY(hero)
+                if dx * dx + dy * dy <= 360000.00 then
+                    set count = count + 1
+                    call SFX_Point("Abilities\\Spells\\Items\\AIam\\AIamTarget.mdl", GetUnitX(Tur_Shell[i]), GetUnitY(Tur_Shell[i]))
+                endif
+            endif
+            set i = i + 1
+        endloop
+        if count > 0 then
+            set restore = udg_GDD_Damage * RMinBJ(0.60, 0.08 * I2R(count))
+            call SetWidgetLife(hero, GetWidgetLife(hero) + restore)
+            if source != null and GetUnitTypeId(source) != 0 and IsUnitEnemy(source, GetOwningPlayer(hero)) then
+                set Tur_DamageGuard = true
+                call Damage_Pure(hero, source, GetUnitState(source, UNIT_STATE_MAX_LIFE) * 0.004 * I2R(count))
+                set Tur_DamageGuard = false
+            endif
+            call SFX_Unit("Abilities\\Spells\\Human\\Defend\\DefendCaster.mdl", hero, "origin")
+        endif
+    endif
+    set hero = null
+    set source = null
+    return false
+endfunction
+
+function Tur_FormRemove takes integer i returns nothing
+    local integer s = 1
+    loop
+        exitwhen s > Tur_ShellN
+        if Tur_ShellOwner[s] == Tur_Form[i] then
+            call ShowUnit(Tur_Shell[s], true)
+        endif
+        set s = s + 1
+    endloop
+    set Tur_Form[i] = Tur_Form[Tur_FormN]
+    set Tur_FormTime[i] = Tur_FormTime[Tur_FormN]
+    set Tur_FormX[i] = Tur_FormX[Tur_FormN]
+    set Tur_FormY[i] = Tur_FormY[Tur_FormN]
+    set Tur_FormPulse[i] = Tur_FormPulse[Tur_FormN]
+    set Tur_FormSeen[i] = Tur_FormSeen[Tur_FormN]
+    set Tur_Form[Tur_FormN] = null
+    set Tur_FormN = Tur_FormN - 1
+endfunction
+
+function Tur_FormStart takes unit caster returns nothing
+    local integer i = Tur_FormN
+    local integer s = 1
+    loop
+        exitwhen i < 1
+        if Tur_Form[i] == caster then
+            call Tur_FormRemove(i)
+        endif
+        set i = i - 1
+    endloop
+    set Tur_FormN = Tur_FormN + 1
+    set Tur_Form[Tur_FormN] = caster
+    set Tur_FormTime[Tur_FormN] = 22.00
+    set Tur_FormX[Tur_FormN] = GetUnitX(caster)
+    set Tur_FormY[Tur_FormN] = GetUnitY(caster)
+    set Tur_FormPulse[Tur_FormN] = 0.70
+    set Tur_FormSeen[Tur_FormN] = GetUnitTypeId(caster) == 'H00N'
+    loop
+        exitwhen s > Tur_ShellN
+        if Tur_ShellOwner[s] == caster then
+            set Tur_ShellTime[s] = RMaxBJ(Tur_ShellTime[s], 22.00)
+        endif
+        set s = s + 1
+    endloop
+endfunction
+
+function Tur_FormTick takes nothing returns nothing
+    local integer i = Tur_FormN
+    local group g = CreateGroup()
+    local unit u
+    local unit hero
+    local player p
+    local real x
+    local real y
+    local real dx
+    local real dy
+    local real a
+    loop
+        exitwhen i < 1
+        set hero = Tur_Form[i]
+        set Tur_FormTime[i] = Tur_FormTime[i] - Eng_TickRate
+        if hero != null and GetUnitTypeId(hero) == 'H00N' then
+            set Tur_FormSeen[i] = true
+            set x = GetUnitX(hero)
+            set y = GetUnitY(hero)
+            set dx = x - Tur_FormX[i]
+            set dy = y - Tur_FormY[i]
+            set p = GetOwningPlayer(hero)
+            call GroupEnumUnitsInRange(g, x, y, 210.00, null)
+            loop
+                set u = FirstOfGroup(g)
+                exitwhen u == null
+                call GroupRemoveUnit(g, u)
+                if u != hero and GetWidgetLife(u) > 0.405 and IsUnitAlly(u, p) and not IsUnitType(u, UNIT_TYPE_STRUCTURE) and not Eng_IsDummyType(GetUnitTypeId(u)) then
+                    call SetUnitX(u, Tow_ClampX(GetUnitX(u) + dx))
+                    call SetUnitY(u, Tow_ClampY(GetUnitY(u) + dy))
+                endif
+            endloop
+            set Tur_FormPulse[i] = Tur_FormPulse[i] + Eng_TickRate
+            if Tur_FormPulse[i] >= 0.75 then
+                set Tur_FormPulse[i] = Tur_FormPulse[i] - 0.75
+                call SFX_Point("Abilities\\Spells\\Orc\\WarStomp\\WarStompCaster.mdl", x, y)
+                call GroupEnumUnitsInRange(g, x, y, 310.00, null)
+                loop
+                    set u = FirstOfGroup(g)
+                    exitwhen u == null
+                    call GroupRemoveUnit(g, u)
+                    if Eng_ValidTarget(u, p) and IsUnitEnemy(u, p) then
+                        set Tur_DamageGuard = true
+                        call Damage_Pure(hero, u, 35.00 + 0.45 * I2R(GetHeroStr(hero, true)) + GetUnitState(u, UNIT_STATE_MAX_LIFE) * 0.0125)
+                        set Tur_DamageGuard = false
+                        set a = Atan2(GetUnitY(u) - y, GetUnitX(u) - x)
+                        call SetUnitX(u, Tow_ClampX(GetUnitX(u) + 65.00 * Cos(a)))
+                        call SetUnitY(u, Tow_ClampY(GetUnitY(u) + 65.00 * Sin(a)))
+                    endif
+                endloop
+            endif
+            set Tur_FormX[i] = x
+            set Tur_FormY[i] = y
+        endif
+        if Tur_FormTime[i] <= 0.00 or hero == null or GetUnitTypeId(hero) == 0 or (Tur_FormSeen[i] and GetUnitTypeId(hero) != 'H00N') then
+            if hero != null and GetUnitTypeId(hero) != 0 then
+                call SFX_Point("Abilities\\Spells\\Other\\Volcano\\VolcanoDeath.mdl", GetUnitX(hero), GetUnitY(hero))
+            endif
+            call Tur_FormRemove(i)
+        endif
+        set i = i - 1
+    endloop
+    call DestroyGroup(g)
+    set g = null
+    set u = null
+    set hero = null
+    set p = null
+endfunction
+
+function Tur_SpellEffect takes nothing returns boolean
+    local unit caster = GetTriggerUnit()
+    local integer abil = GetSpellAbilityId()
+    if caster != null and (GetUnitTypeId(caster) == 'H004' or GetUnitTypeId(caster) == 'H00N') then
+        if abil == 'A033' then
+            call Tur_Muster(caster)
+        elseif abil == 'A035' then
+            call Tur_FormStart(caster)
+        endif
+    endif
+    set caster = null
+    return false
+endfunction
+
+function Tur_RemoveNativeShell takes nothing returns boolean
+    local unit summoner = GetSummoningUnit()
+    local unit summoned = GetSummonedUnit()
+    if summoner != null and summoned != null and (GetUnitTypeId(summoner) == 'H004' or GetUnitTypeId(summoner) == 'H00N') and GetUnitTypeId(summoned) == 'h00M' then
+        call RemoveUnit(summoned)
+    endif
+    set summoner = null
+    set summoned = null
+    return false
+endfunction
+
+//===========================================================================
+// KnockbackCore - universal displacement engine
+//===========================================================================
+function Knockback_Start takes unit target, real angleDeg, real distance, real duration, boolean destroyTrees, boolean pausePathing, string fxModel returns integer
+    local real angleRad = angleDeg * bj_DEGTORAD
+    local real speed
+    if target == null or GetWidgetLife(target) <= 0.405 or duration <= 0.00 then
+        return 0
+    endif
+    set speed = distance / RMaxBJ(duration, 0.01)
+    set Knb_N = Knb_N + 1
+    set Knb_Unit[Knb_N] = target
+    set Knb_Vx[Knb_N] = speed * Cos(angleRad)
+    set Knb_Vy[Knb_N] = speed * Sin(angleRad)
+    set Knb_Time[Knb_N] = duration
+    set Knb_Duration[Knb_N] = duration
+    set Knb_DestroyTrees[Knb_N] = destroyTrees
+    set Knb_PausePathing[Knb_N] = pausePathing
+    set Knb_Fx[Knb_N] = fxModel
+    if pausePathing then
+        call SetUnitPathing(target, false)
+    endif
+    if fxModel != "" and fxModel != null then
+        call SFX_Unit(fxModel, target, "origin")
+    endif
+    return Knb_N
+endfunction
+
+function Knb_Tick takes nothing returns nothing
+    local integer i = Knb_N
+    local unit u
+    local real nx
+    local real ny
+    loop
+        exitwhen i < 1
+        set u = Knb_Unit[i]
+        if u == null or GetWidgetLife(u) <= 0.405 then
+            if u != null and Knb_PausePathing[i] then
+                call SetUnitPathing(u, true)
+            endif
+            set Knb_Unit[i] = Knb_Unit[Knb_N]
+            set Knb_Vx[i] = Knb_Vx[Knb_N]
+            set Knb_Vy[i] = Knb_Vy[Knb_N]
+            set Knb_Time[i] = Knb_Time[Knb_N]
+            set Knb_Duration[i] = Knb_Duration[Knb_N]
+            set Knb_DestroyTrees[i] = Knb_DestroyTrees[Knb_N]
+            set Knb_PausePathing[i] = Knb_PausePathing[Knb_N]
+            set Knb_Fx[i] = Knb_Fx[Knb_N]
+            set Knb_Unit[Knb_N] = null
+            set Knb_N = Knb_N - 1
+        else
+            set Knb_Time[i] = Knb_Time[i] - Eng_TickRate
+            set nx = Tow_ClampX(GetUnitX(u) + Knb_Vx[i] * Eng_TickRate)
+            set ny = Tow_ClampY(GetUnitY(u) + Knb_Vy[i] * Eng_TickRate)
+            if Knb_DestroyTrees[i] then
+                call Eng_KillTreesAt(nx, ny, 128.00)
+            endif
+            call SetUnitX(u, nx)
+            call SetUnitY(u, ny)
+            if Knb_Time[i] <= 0.00 then
+                if Knb_PausePathing[i] then
+                    call SetUnitPathing(u, true)
+                endif
+                set Knb_Unit[i] = Knb_Unit[Knb_N]
+                set Knb_Vx[i] = Knb_Vx[Knb_N]
+                set Knb_Vy[i] = Knb_Vy[Knb_N]
+                set Knb_Time[i] = Knb_Time[Knb_N]
+                set Knb_Duration[i] = Knb_Duration[Knb_N]
+                set Knb_DestroyTrees[i] = Knb_DestroyTrees[Knb_N]
+                set Knb_PausePathing[i] = Knb_PausePathing[Knb_N]
+                set Knb_Fx[i] = Knb_Fx[Knb_N]
+                set Knb_Unit[Knb_N] = null
+                set Knb_N = Knb_N - 1
+            endif
+        endif
+        set u = null
+        set i = i - 1
+    endloop
+endfunction
+
+//===========================================================================
+// ParabolaCore - universal 3D arc movement engine
+//===========================================================================
+function Parabola_Start takes unit target, real targetX, real targetY, real maxHeight, real duration, trigger onLandTrig returns integer
+    if target == null or GetWidgetLife(target) <= 0.405 or duration <= 0.00 then
+        return 0
+    endif
+    set Prb_N = Prb_N + 1
+    set Prb_Unit[Prb_N] = target
+    set Prb_StartX[Prb_N] = GetUnitX(target)
+    set Prb_StartY[Prb_N] = GetUnitY(target)
+    set Prb_TargetX[Prb_N] = Tow_ClampX(targetX)
+    set Prb_TargetY[Prb_N] = Tow_ClampY(targetY)
+    set Prb_MaxHeight[Prb_N] = maxHeight
+    set Prb_Time[Prb_N] = 0.00
+    set Prb_MaxTime[Prb_N] = RMaxBJ(duration, 0.01)
+    set Prb_OnLand[Prb_N] = onLandTrig
+    call UnitAddAbility(target, 'Amrf')
+    call UnitRemoveAbility(target, 'Amrf')
+    return Prb_N
+endfunction
+
+function Prb_Tick takes nothing returns nothing
+    local integer i = Prb_N
+    local unit u
+    local real t
+    local real nx
+    local real ny
+    local real h
+    loop
+        exitwhen i < 1
+        set u = Prb_Unit[i]
+        if u == null or GetWidgetLife(u) <= 0.405 then
+            set Prb_Unit[i] = Prb_Unit[Prb_N]
+            set Prb_StartX[i] = Prb_StartX[Prb_N]
+            set Prb_StartY[i] = Prb_StartY[Prb_N]
+            set Prb_TargetX[i] = Prb_TargetX[Prb_N]
+            set Prb_TargetY[i] = Prb_TargetY[Prb_N]
+            set Prb_MaxHeight[i] = Prb_MaxHeight[Prb_N]
+            set Prb_Time[i] = Prb_Time[Prb_N]
+            set Prb_MaxTime[i] = Prb_MaxTime[Prb_N]
+            set Prb_OnLand[i] = Prb_OnLand[Prb_N]
+            set Prb_Unit[Prb_N] = null
+            set Prb_OnLand[Prb_N] = null
+            set Prb_N = Prb_N - 1
+        else
+            set Prb_Time[i] = Prb_Time[i] + Eng_TickRate
+            set t = Prb_Time[i] / Prb_MaxTime[i]
+            if t > 1.00 then
+                set t = 1.00
+            endif
+            set nx = Tow_ClampX(Prb_StartX[i] + (Prb_TargetX[i] - Prb_StartX[i]) * t)
+            set ny = Tow_ClampY(Prb_StartY[i] + (Prb_TargetY[i] - Prb_StartY[i]) * t)
+            set h = 4.00 * Prb_MaxHeight[i] * t * (1.00 - t)
+            call SetUnitX(u, nx)
+            call SetUnitY(u, ny)
+            call SetUnitFlyHeight(u, h, 0.00)
+            if t >= 1.00 then
+                call SetUnitFlyHeight(u, 0.00, 0.00)
+                if Prb_OnLand[i] != null then
+                    call TriggerEvaluate(Prb_OnLand[i])
+                endif
+                set Prb_Unit[i] = Prb_Unit[Prb_N]
+                set Prb_StartX[i] = Prb_StartX[Prb_N]
+                set Prb_StartY[i] = Prb_StartY[Prb_N]
+                set Prb_TargetX[i] = Prb_TargetX[Prb_N]
+                set Prb_TargetY[i] = Prb_TargetY[Prb_N]
+                set Prb_MaxHeight[i] = Prb_MaxHeight[Prb_N]
+                set Prb_Time[i] = Prb_Time[Prb_N]
+                set Prb_MaxTime[i] = Prb_MaxTime[Prb_N]
+                set Prb_OnLand[i] = Prb_OnLand[Prb_N]
+                set Prb_Unit[Prb_N] = null
+                set Prb_OnLand[Prb_N] = null
+                set Prb_N = Prb_N - 1
+            endif
+        endif
+        set u = null
+        set i = i - 1
+    endloop
+endfunction
+
+//===========================================================================
+// Reefwalk - 4-tide arc convergence
+//===========================================================================
+function Reefwalk_Launch takes unit caster, real tx, real ty returns nothing
+    local real cx = GetUnitX(caster)
+    local real cy = GetUnitY(caster)
+    local real angle = Atan2(ty - cy, tx - cx)
+    local integer lvl = GetUnitAbilityLevel(caster, 'A06O')
+    local real dmg
+    local unit t1
+    local unit t2
+    local unit t3
+    local unit t4
+    if lvl < 1 then
+        set lvl = GetUnitAbilityLevel(caster, 'A00W')
+    endif
+    if lvl < 1 then
+        set lvl = 1
+    endif
+    set dmg = 100.00 + 80.00 * I2R(lvl)
+    
+    set Rfw_N = Rfw_N + 1
+    set Rfw_Caster[Rfw_N] = caster
+    set Rfw_TargetX[Rfw_N] = Tow_ClampX(tx)
+    set Rfw_TargetY[Rfw_N] = Tow_ClampY(ty)
+    set Rfw_Time[Rfw_N] = 0.00
+    set Rfw_Duration[Rfw_N] = 0.70
+    set Rfw_Damage[Rfw_N] = dmg
+    set Rfw_Hit[Rfw_N] = CreateGroup()
+    
+    set Rfw_StartX1[Rfw_N] = Tow_ClampX(cx + 120.00 * Cos(angle - 0.7854))
+    set Rfw_StartY1[Rfw_N] = Tow_ClampY(cy + 120.00 * Sin(angle - 0.7854))
+    set Rfw_StartX2[Rfw_N] = Tow_ClampX(cx + 60.00 * Cos(angle - 0.2618))
+    set Rfw_StartY2[Rfw_N] = Tow_ClampY(cy + 60.00 * Sin(angle - 0.2618))
+    set Rfw_StartX3[Rfw_N] = Tow_ClampX(cx + 60.00 * Cos(angle + 0.2618))
+    set Rfw_StartY3[Rfw_N] = Tow_ClampY(cy + 60.00 * Sin(angle + 0.2618))
+    set Rfw_StartX4[Rfw_N] = Tow_ClampX(cx + 120.00 * Cos(angle + 0.7854))
+    set Rfw_StartY4[Rfw_N] = Tow_ClampY(cy + 120.00 * Sin(angle + 0.7854))
+    
+    set t1 = Dummy_Get(GetOwningPlayer(caster), 'h00V', Rfw_StartX1[Rfw_N], Rfw_StartY1[Rfw_N], angle * bj_RADTODEG)
+    set t2 = Dummy_Get(GetOwningPlayer(caster), 'h00V', Rfw_StartX2[Rfw_N], Rfw_StartY2[Rfw_N], angle * bj_RADTODEG)
+    set t3 = Dummy_Get(GetOwningPlayer(caster), 'h00V', Rfw_StartX3[Rfw_N], Rfw_StartY3[Rfw_N], angle * bj_RADTODEG)
+    set t4 = Dummy_Get(GetOwningPlayer(caster), 'h00V', Rfw_StartX4[Rfw_N], Rfw_StartY4[Rfw_N], angle * bj_RADTODEG)
+    
+    call SFX_Unit("Abilities\\Spells\\Other\\CrushingWave\\CrushingWaveMissile.mdl", t1, "origin")
+    call SFX_Unit("Abilities\\Spells\\Other\\CrushingWave\\CrushingWaveMissile.mdl", t2, "origin")
+    call SFX_Unit("Abilities\\Spells\\Other\\CrushingWave\\CrushingWaveMissile.mdl", t3, "origin")
+    call SFX_Unit("Abilities\\Spells\\Other\\CrushingWave\\CrushingWaveMissile.mdl", t4, "origin")
+    
+    set Rfw_Tide1[Rfw_N] = t1
+    set Rfw_Tide2[Rfw_N] = t2
+    set Rfw_Tide3[Rfw_N] = t3
+    set Rfw_Tide4[Rfw_N] = t4
+    
+    call ShowUnit(caster, false)
+    call SetUnitPathing(caster, false)
+    call PauseUnit(caster, true)
+    
+    set t1 = null
+    set t2 = null
+    set t3 = null
+    set t4 = null
+endfunction
+
+function Rfw_Tick takes nothing returns nothing
+    local integer i = Rfw_N
+    local unit caster
+    local real t
+    local real tx
+    local real ty
+    local real x1
+    local real y1
+    local real x2
+    local real y2
+    local real x3
+    local real y3
+    local real x4
+    local real y4
+    local unit u
+    loop
+        exitwhen i < 1
+        set caster = Rfw_Caster[i]
+        set Rfw_Time[i] = Rfw_Time[i] + Eng_TickRate
+        set t = Rfw_Time[i] / Rfw_Duration[i]
+        if t > 1.00 then
+            set t = 1.00
+        endif
+        set tx = Rfw_TargetX[i]
+        set ty = Rfw_TargetY[i]
+        
+        set x1 = Tow_ClampX(Rfw_StartX1[i] + (tx - Rfw_StartX1[i]) * t)
+        set y1 = Tow_ClampY(Rfw_StartY1[i] + (ty - Rfw_StartY1[i]) * t)
+        set x2 = Tow_ClampX(Rfw_StartX2[i] + (tx - Rfw_StartX2[i]) * t)
+        set y2 = Tow_ClampY(Rfw_StartY2[i] + (ty - Rfw_StartY2[i]) * t)
+        set x3 = Tow_ClampX(Rfw_StartX3[i] + (tx - Rfw_StartX3[i]) * t)
+        set y3 = Tow_ClampY(Rfw_StartY3[i] + (ty - Rfw_StartY3[i]) * t)
+        set x4 = Tow_ClampX(Rfw_StartX4[i] + (tx - Rfw_StartX4[i]) * t)
+        set y4 = Tow_ClampY(Rfw_StartY4[i] + (ty - Rfw_StartY4[i]) * t)
+        
+        call SetUnitX(Rfw_Tide1[i], x1)
+        call SetUnitY(Rfw_Tide1[i], y1)
+        call SetUnitX(Rfw_Tide2[i], x2)
+        call SetUnitY(Rfw_Tide2[i], y2)
+        call SetUnitX(Rfw_Tide3[i], x3)
+        call SetUnitY(Rfw_Tide3[i], y3)
+        call SetUnitX(Rfw_Tide4[i], x4)
+        call SetUnitY(Rfw_Tide4[i], y4)
+        
+        call GroupEnumUnitsInRange(Eng_Enum, x2, y2, 200.00, null)
+        loop
+            set u = FirstOfGroup(Eng_Enum)
+            exitwhen u == null
+            call GroupRemoveUnit(Eng_Enum, u)
+            if Eng_ValidTarget(u, GetOwningPlayer(caster)) and not IsUnitInGroup(u, Rfw_Hit[i]) and GetUnitAbilityLevel(u, 'A00A') < 1 then
+                call GroupAddUnit(Rfw_Hit[i], u)
+                call Damage_Magic(caster, u, Rfw_Damage[i])
+                call SFX_Unit("Abilities\\Spells\\Other\\CrushingWave\\CrushingWaveDamage.mdl", u, "origin")
+                call Knockback_Start(u, Atan2(y2 - GetUnitY(caster), x2 - GetUnitX(caster)) * bj_RADTODEG, 100.00, 0.30, false, true, "")
+            endif
+        endloop
+        call GroupClear(Eng_Enum)
+        
+        if t >= 1.00 then
+            call SFX_Point("Abilities\\Spells\\Other\\WaterElemental\\WaterElementalExplode.mdl", tx, ty)
+            call SetUnitX(caster, tx)
+            call SetUnitY(caster, ty)
+            call ShowUnit(caster, true)
+            call PauseUnit(caster, false)
+            call SetUnitPathing(caster, true)
+            
+            call Dummy_Recycle(Rfw_Tide1[i])
+            call Dummy_Recycle(Rfw_Tide2[i])
+            call Dummy_Recycle(Rfw_Tide3[i])
+            call Dummy_Recycle(Rfw_Tide4[i])
+            call DestroyGroup(Rfw_Hit[i])
+            
+            set Rfw_Caster[i] = Rfw_Caster[Rfw_N]
+            set Rfw_TargetX[i] = Rfw_TargetX[Rfw_N]
+            set Rfw_TargetY[i] = Rfw_TargetY[Rfw_N]
+            set Rfw_Time[i] = Rfw_Time[Rfw_N]
+            set Rfw_Duration[i] = Rfw_Duration[Rfw_N]
+            set Rfw_Damage[i] = Rfw_Damage[Rfw_N]
+            set Rfw_Tide1[i] = Rfw_Tide1[Rfw_N]
+            set Rfw_Tide2[i] = Rfw_Tide2[Rfw_N]
+            set Rfw_Tide3[i] = Rfw_Tide3[Rfw_N]
+            set Rfw_Tide4[i] = Rfw_Tide4[Rfw_N]
+            set Rfw_Hit[i] = Rfw_Hit[Rfw_N]
+            
+            set Rfw_Caster[Rfw_N] = null
+            set Rfw_Tide1[Rfw_N] = null
+            set Rfw_Tide2[Rfw_N] = null
+            set Rfw_Tide3[Rfw_N] = null
+            set Rfw_Tide4[Rfw_N] = null
+            set Rfw_Hit[Rfw_N] = null
+            set Rfw_N = Rfw_N - 1
+        endif
+        
+        set caster = null
+        set u = null
+        set i = i - 1
+    endloop
+endfunction
+
+//===========================================================================
+// Lone Hydra Drowned Garden & Ultimate
+//===========================================================================
+function HydraSummons_Launch takes unit caster, real tx, real ty returns nothing
+    local real x = Tow_ClampX(tx)
+    local real y = Tow_ClampY(ty)
+    local integer totalStats = GetHeroStr(caster, true) + GetHeroAgi(caster, true) + GetHeroInt(caster, true)
+    local real dmgPerStrike = I2R(totalStats) * 0.35
+    local unit t1
+    local unit t2
+    local player p = GetOwningPlayer(caster)
+    
+    call TerrainDeformCrater(x, y, 600.00, -120.00, 6000, false)
+    call SFX_Point("Abilities\\Spells\\Other\\WaterElemental\\WaterElementalExplode.mdl", x, y)
+    call SFX_Point("Abilities\\Spells\\Other\\ElementalFrenzy\\WaterWrath.mdl", x, y)
+    
+    set t1 = CreateUnit(p, 'h00M', x - 80.00, y, 0.00)
+    set t2 = CreateUnit(p, 'h00M', x + 80.00, y, 180.00)
+    call UnitApplyTimedLife(t1, 'BTLF', 12.00)
+    call UnitApplyTimedLife(t2, 'BTLF', 12.00)
+    
+    set Hyg_N = Hyg_N + 1
+    set Hyg_Caster[Hyg_N] = caster
+    set Hyg_X[Hyg_N] = x
+    set Hyg_Y[Hyg_N] = y
+    set Hyg_Time[Hyg_N] = 6.00
+    
+    set t1 = null
+    set t2 = null
+endfunction
+
+function Hyg_Tick takes nothing returns nothing
+    local integer i = Hyg_N
+    local unit u
+    local real dist
+    local real angle
+    loop
+        exitwhen i < 1
+        set Hyg_Time[i] = Hyg_Time[i] - Eng_TickRate
+        
+        call GroupEnumUnitsInRange(Eng_Enum, Hyg_X[i], Hyg_Y[i], 600.00, null)
+        loop
+            set u = FirstOfGroup(Eng_Enum)
+            exitwhen u == null
+            call GroupRemoveUnit(Eng_Enum, u)
+            if u != Hyg_Caster[i] and GetWidgetLife(u) > 0.405 and not Eng_IsDummyType(GetUnitTypeId(u)) and not IsUnitType(u, UNIT_TYPE_STRUCTURE) then
+                set dist = SquareRoot((GetUnitX(u) - Hyg_X[i]) * (GetUnitX(u) - Hyg_X[i]) + (GetUnitY(u) - Hyg_Y[i]) * (GetUnitY(u) - Hyg_Y[i]))
+                if dist < 580.00 then
+                    set angle = Atan2(GetUnitY(u) - Hyg_Y[i], GetUnitX(u) - Hyg_X[i])
+                    call SetUnitX(u, Tow_ClampX(Hyg_X[i] + 590.00 * Cos(angle)))
+                    call SetUnitY(u, Tow_ClampY(Hyg_Y[i] + 590.00 * Sin(angle)))
+                endif
+            endif
+        endloop
+        call GroupClear(Eng_Enum)
+        
+        if Hyg_Time[i] <= 0.00 then
+            set Hyg_Caster[i] = Hyg_Caster[Hyg_N]
+            set Hyg_X[i] = Hyg_X[Hyg_N]
+            set Hyg_Y[i] = Hyg_Y[Hyg_N]
+            set Hyg_Time[i] = Hyg_Time[Hyg_N]
+            set Hyg_Caster[Hyg_N] = null
+            set Hyg_N = Hyg_N - 1
+        endif
+        
+        set u = null
+        set i = i - 1
+    endloop
+endfunction
+
+function HydraUlt_Launch takes unit caster returns nothing
+    local integer lvl = GetUnitAbilityLevel(caster, 'A02Z')
+    local real baseDmg = 200.00 * I2R(lvl)
+    local real intBonus = I2R(GetHeroInt(caster, true)) * 0.30
+    local real totalDmg = baseDmg + intBonus
+    local group held = CreateGroup()
+    local unit u
+    
+    call UnitAddAbility(caster, 'A00A')
+    call PauseUnit(caster, true)
+    call SFX_Unit("Abilities\\Spells\\Other\\ElementalFrenzy\\WaterWrath.mdl", caster, "origin")
+    
+    call GroupEnumUnitsInRange(Eng_Enum, GetUnitX(caster), GetUnitY(caster), 1000.00, null)
+    loop
+        set u = FirstOfGroup(Eng_Enum)
+        exitwhen u == null
+        call GroupRemoveUnit(Eng_Enum, u)
+        if Eng_ValidTarget(u, GetOwningPlayer(caster)) and GetUnitAbilityLevel(u, 'A00A') < 1 then
+            call GroupAddUnit(held, u)
+            call PauseUnit(u, true)
+            call SetUnitPathing(u, false)
+            call SFX_Unit("Abilities\\Spells\\Other\\CrushingWave\\CrushingWaveDamage.mdl", u, "origin")
+            call Damage_Pure(caster, u, totalDmg)
+        endif
+    endloop
+    call GroupClear(Eng_Enum)
+    
+    set Hyu_N = Hyu_N + 1
+    set Hyu_Caster[Hyu_N] = caster
+    set Hyu_Time[Hyu_N] = 5.00
+    set Hyu_HeldUnits[Hyu_N] = held
+    set Hyu_Damage[Hyu_N] = totalDmg
+    
+    set held = null
+    set u = null
+endfunction
+
+function Hyu_Tick takes nothing returns nothing
+    local integer i = Hyu_N
+    local unit caster
+    local unit u
+    loop
+        exitwhen i < 1
+        set caster = Hyu_Caster[i]
+        set Hyu_Time[i] = Hyu_Time[i] - Eng_TickRate
+        
+        if Hyu_Time[i] <= 0.00 or caster == null or GetWidgetLife(caster) <= 0.405 then
+            if caster != null and GetWidgetLife(caster) > 0.405 then
+                call PauseUnit(caster, false)
+                call UnitRemoveAbility(caster, 'A00A')
+            endif
+            loop
+                set u = FirstOfGroup(Hyu_HeldUnits[i])
+                exitwhen u == null
+                call GroupRemoveUnit(Hyu_HeldUnits[i], u)
+                if GetWidgetLife(u) > 0.405 then
+                    call PauseUnit(u, false)
+                    call SetUnitPathing(u, true)
+                endif
+            endloop
+            call DestroyGroup(Hyu_HeldUnits[i])
+            
+            set Hyu_Caster[i] = Hyu_Caster[Hyu_N]
+            set Hyu_Time[i] = Hyu_Time[Hyu_N]
+            set Hyu_HeldUnits[i] = Hyu_HeldUnits[Hyu_N]
+            set Hyu_Damage[i] = Hyu_Damage[Hyu_N]
+            
+            set Hyu_Caster[Hyu_N] = null
+            set Hyu_HeldUnits[Hyu_N] = null
+            set Hyu_N = Hyu_N - 1
+        endif
+        
+        set caster = null
+        set u = null
+        set i = i - 1
+    endloop
+endfunction
+
+//===========================================================================
+// Magic Missile - chain bouncing missile
+//===========================================================================
+function MagicMissile_Launch takes unit caster, unit target returns nothing
+    local integer lvl = GetUnitAbilityLevel(caster, 'A008')
+    local real dmg = 250.00 + 2.00 * I2R(GetHeroAgi(caster, true))
+    local group g = CreateGroup()
+    local unit stn
+    
+    if target == null or GetWidgetLife(target) <= 0.405 then
+        call DestroyGroup(g)
+        set g = null
+        return
+    endif
+    
+    call GroupAddUnit(g, target)
+    call Damage_Pure(caster, target, dmg)
+    call SFX_Unit("Abilities\\Weapons\\DragonHawkMissile\\DragonHawkMissile.mdl", target, "chest")
+    
+    set stn = Dummy_Get(GetOwningPlayer(caster), 'h005', GetUnitX(target), GetUnitY(target), 0.00)
+    call UnitAddAbility(stn, 'A03Z')
+    call SetUnitAbilityLevel(stn, 'A03Z', lvl)
+    call IssueTargetOrderById(stn, Eng_OrdThunderbolt, target)
+    call Dummy_RecycleTimed(stn, 1.00, 'A03Z')
+    
+    set Mms_N = Mms_N + 1
+    set Mms_Caster[Mms_N] = caster
+    set Mms_CurrentTarget[Mms_N] = target
+    set Mms_X[Mms_N] = GetUnitX(target)
+    set Mms_Y[Mms_N] = GetUnitY(target)
+    set Mms_BouncesLeft[Mms_N] = 4
+    set Mms_Damage[Mms_N] = dmg
+    set Mms_Level[Mms_N] = lvl
+    set Mms_HitGroup[Mms_N] = g
+    
+    set g = null
+    set stn = null
+endfunction
+
+function Mms_Tick takes nothing returns nothing
+    local integer i = Mms_N
+    local unit caster
+    local unit curr
+    local unit nextTarget
+    local unit u
+    local unit stn
+    local real closestDist
+    local real d
+    loop
+        exitwhen i < 1
+        set caster = Mms_Caster[i]
+        set curr = Mms_CurrentTarget[i]
+        set nextTarget = null
+        
+        if Mms_BouncesLeft[i] <= 0 or curr == null or GetWidgetLife(curr) <= 0.405 then
+            call DestroyGroup(Mms_HitGroup[i])
+            set Mms_Caster[i] = Mms_Caster[Mms_N]
+            set Mms_CurrentTarget[i] = Mms_CurrentTarget[Mms_N]
+            set Mms_X[i] = Mms_X[Mms_N]
+            set Mms_Y[i] = Mms_Y[Mms_N]
+            set Mms_BouncesLeft[i] = Mms_BouncesLeft[Mms_N]
+            set Mms_Damage[i] = Mms_Damage[Mms_N]
+            set Mms_Level[i] = Mms_Level[Mms_N]
+            set Mms_HitGroup[i] = Mms_HitGroup[Mms_N]
+            
+            set Mms_Caster[Mms_N] = null
+            set Mms_CurrentTarget[Mms_N] = null
+            set Mms_HitGroup[Mms_N] = null
+            set Mms_N = Mms_N - 1
+        else
+            set closestDist = 800.00 * 800.00
+            call GroupEnumUnitsInRange(Eng_Enum, GetUnitX(curr), GetUnitY(curr), 800.00, null)
+            loop
+                set u = FirstOfGroup(Eng_Enum)
+                exitwhen u == null
+                call GroupRemoveUnit(Eng_Enum, u)
+                if Eng_ValidTarget(u, GetOwningPlayer(caster)) and u != curr and not IsUnitInGroup(u, Mms_HitGroup[i]) and GetUnitAbilityLevel(u, 'A00A') < 1 then
+                    set d = (GetUnitX(u) - GetUnitX(curr)) * (GetUnitX(u) - GetUnitX(curr)) + (GetUnitY(u) - GetUnitY(curr)) * (GetUnitY(u) - GetUnitY(curr))
+                    if d < closestDist then
+                        set closestDist = d
+                        set nextTarget = u
+                    endif
+                endif
+            endloop
+            call GroupClear(Eng_Enum)
+            
+            if nextTarget == null then
+                set closestDist = 800.00 * 800.00
+                call GroupEnumUnitsInRange(Eng_Enum, GetUnitX(curr), GetUnitY(curr), 800.00, null)
+                loop
+                    set u = FirstOfGroup(Eng_Enum)
+                    exitwhen u == null
+                    call GroupRemoveUnit(Eng_Enum, u)
+                    if Eng_ValidTarget(u, GetOwningPlayer(caster)) and u != curr and GetUnitAbilityLevel(u, 'A00A') < 1 then
+                        set d = (GetUnitX(u) - GetUnitX(curr)) * (GetUnitX(u) - GetUnitX(curr)) + (GetUnitY(u) - GetUnitY(curr)) * (GetUnitY(u) - GetUnitY(curr))
+                        if d < closestDist then
+                            set closestDist = d
+                            set nextTarget = u
+                        endif
+                    endif
+                endloop
+                call GroupClear(Eng_Enum)
+            endif
+            
+            if nextTarget != null then
+                call SFX_Point("Abilities\\Weapons\\DragonHawkMissile\\DragonHawkMissile.mdl", GetUnitX(nextTarget), GetUnitY(nextTarget))
+                call Damage_Pure(caster, nextTarget, Mms_Damage[i])
+                call GroupAddUnit(Mms_HitGroup[i], nextTarget)
+                
+                set stn = Dummy_Get(GetOwningPlayer(caster), 'h005', GetUnitX(nextTarget), GetUnitY(nextTarget), 0.00)
+                call UnitAddAbility(stn, 'A03Z')
+                call SetUnitAbilityLevel(stn, 'A03Z', Mms_Level[i])
+                call IssueTargetOrderById(stn, Eng_OrdThunderbolt, nextTarget)
+                call Dummy_RecycleTimed(stn, 1.00, 'A03Z')
+                
+                set Mms_CurrentTarget[i] = nextTarget
+                set Mms_BouncesLeft[i] = Mms_BouncesLeft[i] - 1
+            else
+                set Mms_BouncesLeft[i] = 0
+            endif
+        endif
+        
+        set caster = null
+        set curr = null
+        set nextTarget = null
+        set u = null
+        set stn = null
+        set i = i - 1
+    endloop
+endfunction
+
 function Eng_MasterTick takes nothing returns nothing
     call Rcy_Tick()
     call Msl_Tick()
@@ -3022,6 +6556,26 @@ function Eng_MasterTick takes nothing returns nothing
     call Trm_Tick()
     call LightningGrip_Tick()
     call MeltingStrike_Tick()
+    call Knb_Tick()
+    call Prb_Tick()
+    call Jmp_Tick()
+    call Rfw_Tick()
+    call Hyg_Tick()
+    call Hyu_Tick()
+    call Mms_Tick()
+    call TowA_Tick()
+    call TowW_Tick()
+    call Esh_NodeTick()
+    call Aw_SeedTick()
+    call Aw_MoveTick()
+    call Hmr_NodeTick()
+    call Hmr_FallTick()
+    call Mp_AnchorTick()
+    call Mp_PortalTick()
+    call Mp_ErrorTick()
+    call Mp_DragTick()
+    call Tur_ShellTick()
+    call Tur_FormTick()
 endfunction
 
 function WaterClone_ClearState takes nothing returns boolean
@@ -3030,7 +6584,16 @@ function WaterClone_ClearState takes nothing returns boolean
 endfunction
 
 function Engine_Init takes nothing returns nothing
+    local integer preload = 0
     local trigger waterCloneDeath = CreateTrigger()
+    local trigger tilesSpell = CreateTrigger()
+    local trigger tilesSummon = CreateTrigger()
+    local trigger ancientDamage = CreateTrigger()
+    local trigger hammerSpell = CreateTrigger()
+    local trigger hammerDamage = CreateTrigger()
+    local trigger turtleSpell = CreateTrigger()
+    local trigger turtleDamage = CreateTrigger()
+    local trigger turtleSummon = CreateTrigger()
     set Eng_HT = InitHashtable()
     set Wcl_HT = InitHashtable()
     set Eng_Enum = CreateGroup()
@@ -3063,10 +6626,50 @@ function Engine_Init takes nothing returns nothing
     call TriggerAddCondition(Csh_OnTick, Condition(function ChainShock_OnTick))
     set Csh_OnEnd = CreateTrigger()
     call TriggerAddCondition(Csh_OnEnd, Condition(function ChainShock_OnEnd))
+    set Lea_OnLand = CreateTrigger()
+    call TriggerAddCondition(Lea_OnLand, Condition(function Leap_OnLand))
+    set Esv_OnLand = CreateTrigger()
+    call TriggerAddCondition(Esv_OnLand, Condition(function Esh_VaultLand))
     call TriggerRegisterAnyUnitEventBJ(waterCloneDeath, EVENT_PLAYER_UNIT_DEATH)
     call TriggerAddCondition(waterCloneDeath, Condition(function WaterClone_ClearState))
+    call TriggerRegisterAnyUnitEventBJ(tilesSpell, EVENT_PLAYER_UNIT_SPELL_EFFECT)
+    call TriggerAddCondition(tilesSpell, Condition(function Tow_SpellEffect))
+    call TriggerRegisterAnyUnitEventBJ(tilesSummon, EVENT_PLAYER_UNIT_SUMMON)
+    call TriggerAddCondition(tilesSummon, Condition(function Tow_RemoveLegacyStatue))
+    call TriggerRegisterVariableEvent(ancientDamage, "udg_GDD_Event", EQUAL, 1.00)
+    call TriggerAddCondition(ancientDamage, Condition(function Aw_DamageEvent))
+    call TriggerRegisterAnyUnitEventBJ(hammerSpell, EVENT_PLAYER_UNIT_SPELL_EFFECT)
+    call TriggerAddCondition(hammerSpell, Condition(function Hmr_SpellEffect))
+    call TriggerRegisterVariableEvent(hammerDamage, "udg_GDD_Event", EQUAL, 1.00)
+    call TriggerAddCondition(hammerDamage, Condition(function Hmr_DamageEvent))
+    call TriggerRegisterAnyUnitEventBJ(turtleSpell, EVENT_PLAYER_UNIT_SPELL_EFFECT)
+    call TriggerAddCondition(turtleSpell, Condition(function Tur_SpellEffect))
+    call TriggerRegisterVariableEvent(turtleDamage, "udg_GDD_Event", EQUAL, 1.00)
+    call TriggerAddCondition(turtleDamage, Condition(function Tur_DamageEvent))
+    call TriggerRegisterAnyUnitEventBJ(turtleSummon, EVENT_PLAYER_UNIT_SUMMON)
+    call TriggerAddCondition(turtleSummon, Condition(function Tur_RemoveNativeShell))
+    // DummyCore preload (from the classic Dummy recycler resource): warm one
+    // hook chain link per 30-degree facing bucket plus a few universal
+    // casters and a hook head, so first casts never create units mid-combat.
+    loop
+        exitwhen preload > 11
+        call Dummy_Recycle(Dummy_Get(Player(PLAYER_NEUTRAL_PASSIVE), 'h00R', Eng_PoolX, Eng_PoolY, I2R(preload) * 30.00))
+        if preload < 4 then
+            call Dummy_Recycle(Dummy_Get(Player(PLAYER_NEUTRAL_PASSIVE), 'h005', Eng_PoolX, Eng_PoolY, 0.00))
+        endif
+        set preload = preload + 1
+    endloop
+    call Dummy_Recycle(Dummy_Get(Player(PLAYER_NEUTRAL_PASSIVE), 'h00Q', Eng_PoolX, Eng_PoolY, 0.00))
     call TimerStart(Eng_Timer, Eng_TickRate, true, function Eng_MasterTick)
     set waterCloneDeath = null
+    set tilesSpell = null
+    set tilesSummon = null
+    set ancientDamage = null
+    set hammerSpell = null
+    set hammerDamage = null
+    set turtleSpell = null
+    set turtleDamage = null
+    set turtleSummon = null
 endfunction
 
 function InitGlobals takes nothing returns nothing
@@ -7281,17 +10884,12 @@ endfunction
 //===========================================================================
 // Trigger: Jump
 //===========================================================================
+// Migrated to TIDES ENGINE JumpCore: 1000-range east launch pad, same
+// 0.30-ratio arc (height 300) and 25/0.02 = 1250 speed as the old JD system.
 function Trig_Jump_Actions takes nothing returns nothing
-    set udg_JDA_JumpHigh_Distance = 0.30
-    set udg_JDA_DestroyTrees_Dash = false
-    set udg_JDA_Collusion = false
-    set udg_JDA_Unit = GetTriggerUnit()
-    set udg_JDA_TargetPoint = PolarProjectionBJ(GetUnitLoc(udg_JDA_Unit), 1000.00, 0.00)
-    set udg_JDA_Speed = 25.00
-    set udg_JDA_Animation = "death"
-    set udg_JDA_AnimationSpeed = 1.00
-    call ConditionalTriggerExecute( gg_trg_Set_Leap )
-        call RemoveLocation(udg_JDA_TargetPoint)
+    local unit u = GetTriggerUnit()
+    call Jump_Launch(u, GetUnitX(u) + 1000.00, GetUnitY(u), 300.00, 1250.00, false, "death", 1.00, "", null)
+    set u = null
 endfunction
 
 //===========================================================================
@@ -7304,17 +10902,11 @@ endfunction
 //===========================================================================
 // Trigger: Jump2
 //===========================================================================
+// Migrated to TIDES ENGINE JumpCore: 1000-range west launch pad.
 function Trig_Jump2_Actions takes nothing returns nothing
-    set udg_JDA_JumpHigh_Distance = 0.30
-    set udg_JDA_DestroyTrees_Dash = false
-    set udg_JDA_Collusion = false
-    set udg_JDA_Unit = GetTriggerUnit()
-    set udg_JDA_TargetPoint = PolarProjectionBJ(GetUnitLoc(udg_JDA_Unit), 1000.00, 180.00)
-    set udg_JDA_Speed = 25.00
-    set udg_JDA_Animation = "death"
-    set udg_JDA_AnimationSpeed = 1.00
-    call ConditionalTriggerExecute( gg_trg_Set_Leap )
-        call RemoveLocation(udg_JDA_TargetPoint)
+    local unit u = GetTriggerUnit()
+    call Jump_Launch(u, GetUnitX(u) - 1000.00, GetUnitY(u), 300.00, 1250.00, false, "death", 1.00, "", null)
+    set u = null
 endfunction
 
 //===========================================================================
@@ -7596,27 +11188,7 @@ function Trig_ReefWalk_Castb_Func016001 takes nothing returns boolean
 endfunction
 
 function Trig_ReefWalk_Castb_Actions takes nothing returns nothing
-    set udg_Caster = GetTriggerUnit()
-    set udg_Points[1] = GetUnitLoc(udg_Caster)
-    set udg_Points[2] = GetSpellTargetLoc()
-    set udg_Real[1] = DistanceBetweenPoints(udg_Points[1], udg_Points[2])
-    set udg_Real[2] = 100.00
-    set udg_Real[3] = AngleBetweenPoints(udg_Points[1], udg_Points[2])
-    set udg_Real[4] = ( 90.00 * I2R(GetUnitAbilityLevelSwapped('A00W', udg_Caster)) )
-    call SetUnitPathing( udg_Caster, false )
-    call SaveRealBJ( udg_Real[1], StringHashBJ("R_Distance"), GetHandleIdBJ(GetTriggerUnit()), udg_Repel_Hash )
-    call SaveRealBJ( udg_Real[2], StringHashBJ("R_OneHundred"), GetHandleIdBJ(GetTriggerUnit()), udg_Repel_Hash )
-    call SaveRealBJ( udg_Real[3], StringHashBJ("R_Angle"), GetHandleIdBJ(GetTriggerUnit()), udg_Repel_Hash )
-    call SaveRealBJ( udg_Real[4], StringHashBJ("R_Damage"), GetHandleIdBJ(GetTriggerUnit()), udg_Repel_Hash )
-    call SaveRealBJ( ( udg_Real[1] / 2.00 ), StringHashBJ("R_Distance_T"), GetHandleIdBJ(GetTriggerUnit()), udg_Repel_Hash )
-    if ( Trig_ReefWalk_Castb_Func016001() ) then
-        call TriggerExecute( gg_trg_ReekWalkb )
-    else
-        call DoNothing(  )
-    endif
-    call GroupAddUnitSimple( udg_Caster, udg_Tides )
-    call RemoveLocation(udg_Points[1])
-    call RemoveLocation(udg_Points[2])
+    call Reefwalk_Launch(GetTriggerUnit(), GetSpellTargetX(), GetSpellTargetY())
 endfunction
 
 //===========================================================================
@@ -8256,51 +11828,7 @@ function Trig_Fissure_Func014Func003002003 takes nothing returns boolean
 endfunction
 
 function Trig_Fissure_Actions takes nothing returns nothing
-    set udg_Fissure_Caster = GetTriggerUnit()
-    set udg_Fissure_Caster_Loc = GetUnitLoc(udg_Fissure_Caster)
-    set udg_Fissure_Level = GetUnitAbilityLevelSwapped(GetSpellAbilityId(), udg_Fissure_Caster)
-    set udg_DamageEventType = 1
-    call UnitDamageTargetBJ( GetTriggerUnit(), GetSpellTargetUnit(), 0.10, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_NORMAL )
-    if ( Trig_Fissure_Func006C() ) then
-        set udg_FiCustomValue = ( udg_FiCustomValue + 1 )
-    else
-        set udg_FiCustomValue = 1
-    endif
-    set udg_TempPoint = GetUnitLoc(GetTriggerUnit())
-    set udg_Fissure_TargetPoint = GetSpellTargetLoc()
-    set udg_FiTargetPoint = GetSpellTargetLoc()
-    set udg_FiRealDistance = 0.00
-    set udg_TempReal = AngleBetweenPoints(udg_TempPoint, udg_FiTargetPoint)
-    set udg_Fissure_Offset[GetForLoopIndexA()] = PolarProjectionBJ(udg_TempPoint, udg_FiRealDistance, udg_TempReal)
-    call SetUnitFacingToFaceLocTimed( udg_Fissure_Caster, udg_FiTargetPoint, 0.01 )
-    set bj_forLoopAIndex = 1
-    set bj_forLoopAIndexEnd = 19
-    loop
-        exitwhen bj_forLoopAIndex > bj_forLoopAIndexEnd
-        set udg_FiRealDistance = ( udg_FiRealDistance + 70.00 )
-        set udg_TempOffset = PolarProjectionBJ(udg_TempPoint, udg_FiRealDistance, udg_TempReal)
-        set udg_Fissure_Group = GetUnitsInRangeOfLocMatching(275.00, udg_Fissure_Offset[GetForLoopIndexA()], Condition(function Trig_Fissure_Func014Func003002003))
-        call AddSpecialEffectLocBJ( udg_TempOffset, "Objects\\Spawnmodels\\Undead\\ImpaleTargetDust\\ImpaleTargetDust.mdl" )
-        call DestroyEffectBJ( GetLastCreatedEffectBJ() )
-        call AddSpecialEffectLocBJ( udg_TempOffset, "Abilities\\Spells\\Other\\Volcano\\VolcanoDeath.mdl" )
-        call DestroyEffectBJ( GetLastCreatedEffectBJ() )
-        call CreateNUnitsAtLoc( 1, 'hfoo', GetOwningPlayer(GetTriggerUnit()), udg_TempOffset, bj_UNIT_FACING )
-        call UnitApplyTimedLifeBJ( 8.00, 'BTLF', GetLastCreatedUnit() )
-        call CreateNUnitsAtLoc( 1, 'h005', GetOwningPlayer(GetTriggerUnit()), GetUnitLoc(GetTriggerUnit()), bj_UNIT_FACING )
-        call UnitAddAbilityBJ( 'A072', GetLastCreatedUnit() )
-        call IssuePointOrderLocBJ( GetLastCreatedUnit(), "impale", GetSpellTargetLoc() )
-        call UnitApplyTimedLifeBJ( 1.00, 'BTLF', GetLastCreatedUnit() )
-        set udg_FiDestructible[( ( udg_FiCustomValue * 20 ) + GetForLoopIndexA() )] = GetLastCreatedDestructable()
-        call RemoveLocation(udg_TempOffset)
-        set bj_forLoopAIndex = bj_forLoopAIndex + 1
-    endloop
-    call GroupAddUnitSimple( GetLastCreatedUnit(), udg_FiDummyGroup )
-    call DestroyGroup(udg_Fissure_Group)
-    call RemoveLocation(udg_FiTargetPoint)
-    call RemoveLocation(udg_TempPoint)
-    call RemoveLocation (udg_Fissure_TargetPoint)
-    call RemoveLocation (udg_Fissure_Caster_Loc)
-        call RemoveLocation(udg_Fissure_Offset[GetForLoopIndexA()])
+    call Esh_Fissure(GetTriggerUnit(), GetSpellTargetX(), GetSpellTargetY())
 endfunction
 
 //===========================================================================
@@ -8315,33 +11843,7 @@ endfunction
 // Rewritten on TIDES ENGINE: native terrain deformation, pooled casters, and
 // one reused enumeration group replace every temporary location/group.
 function Trig_Echo_Slam_Actions takes nothing returns nothing
-    local unit caster = GetTriggerUnit()
-    local player p = GetOwningPlayer(caster)
-    local unit u
-    local unit d
-    local real x = GetUnitX(caster)
-    local real y = GetUnitY(caster)
-    set bj_lastCreatedTerrainDeformation = TerrainDeformRipple(x, y, 400.00, 70.00, 2000, 1, 2.00, 13.333333, 1.00, false)
-    set d = Dummy_Get(p, 'h005', x, y, bj_UNIT_FACING)
-    call UnitAddAbility(d, 'A070')
-    call IssueImmediateOrder(d, "fanofknives")
-    call Dummy_RecycleTimed(d, 1.00, 'A070')
-    call GroupEnumUnitsInRange(Eng_Enum, x, y, 400.00, null)
-    loop
-        set u = FirstOfGroup(Eng_Enum)
-        exitwhen u == null
-        call GroupRemoveUnit(Eng_Enum, u)
-        if GetWidgetLife(u) > 0.405 and not IsUnitType(u, UNIT_TYPE_STRUCTURE) and GetUnitAbilityLevel(u, 'A00A') < 1 then
-            set d = Dummy_Get(p, 'h005', GetUnitX(u), GetUnitY(u), bj_UNIT_FACING)
-            call UnitAddAbility(d, 'A101')
-            call IssueImmediateOrder(d, "fanofknives")
-            call Dummy_RecycleTimed(d, 1.00, 'A101')
-        endif
-    endloop
-    set caster = null
-    set p = null
-    set u = null
-    set d = null
+    call Esh_EchoSlam(GetTriggerUnit())
 endfunction
 
 //===========================================================================
@@ -8353,32 +11855,8 @@ endfunction
 //===========================================================================
 // Trigger: ET
 //===========================================================================
-function Trig_ET_Actions takes nothing returns nothing
-    call SetUnitVertexColorBJ( GetTriggerUnit(), 100, 100, 80.00, 30.00 )
-    set udg_JUMP_UNIT = GetTriggerUnit()
-    set udg_JUMP_AOE = 200.00
-    set udg_JUMP_TREE = true
-    set udg_JUMP_COLLISION = false
-    set udg_JUMP_HEIGHT = 350.00
-    set udg_JUMP_POINTA = GetUnitLoc(udg_JUMP_UNIT)
-    set udg_JUMP_POINTB = PolarProjectionBJ(GetUnitLoc(GetTriggerUnit()), 400.00, GetUnitFacing(GetTriggerUnit()))
-    set udg_JUMP_TIME = 1.10
-    set udg_JUMP_SFXATTACHMENT = ""
-    set udg_JUMP_SFXPM = ""
-    set udg_JUMP_SFXPMATTACHMENT = "overhead"
-    set udg_JUMP_ATTACHMENT = "origin"
-    call TriggerExecute( gg_trg_JUMP_INSTALL )
-    call TriggerSleepAction( 0.60 )
-    call SetUnitFlyHeightBJ( GetTriggerUnit(), 0.00, 99999.00 )
-    call SetUnitVertexColorBJ( GetTriggerUnit(), 100, 100, 100, 0 )
-        call RemoveLocation(udg_JUMP_POINTA)
-            call RemoveLocation(udg_JUMP_POINTB)
-endfunction
-
 //===========================================================================
 function InitTrig_ET takes nothing returns nothing
-    set gg_trg_ET = CreateTrigger(  )
-    call TriggerAddAction( gg_trg_ET, function Trig_ET_Actions )
 endfunction
 
 //===========================================================================
@@ -8415,12 +11893,10 @@ function Trig_After_Shock_Conditions takes nothing returns boolean
 endfunction
 
 function Trig_After_Shock_Actions takes nothing returns nothing
-    set udg_Sample_Point = GetUnitLoc(GetTriggerUnit())
-    call CreateNUnitsAtLoc( 1, 'h005', GetOwningPlayer(GetTriggerUnit()), udg_Sample_Point, bj_UNIT_FACING )
-    call UnitAddAbilityBJ( 'AAss', GetLastCreatedUnit() )
-    call IssueImmediateOrderBJ( GetLastCreatedUnit(), "stomp" )
-    call UnitApplyTimedLifeBJ( 1.00, 'BTLF', GetLastCreatedUnit() )
-    call RemoveLocation(udg_Sample_Point)
+    if GetSpellAbilityId() == 'AEET' then
+        call Esh_TotemVault(GetTriggerUnit())
+    endif
+    call Esh_Aftershock(GetTriggerUnit())
 endfunction
 
 //===========================================================================
@@ -8629,37 +12105,7 @@ function Trig_MM_Conditions takes nothing returns boolean
 endfunction
 
 function Trig_MM_Actions takes nothing returns nothing
-    local unit caster = GetTriggerUnit()
-    local unit target = GetSpellTargetUnit()
-    local unit u
-    local unit d
-    local player p = GetOwningPlayer(caster)
-    local group g = CreateGroup()
-    local integer lvl = GetUnitAbilityLevel(caster, 'A008')
-    local real damage = 250.00 + 2.00 * I2R(GetHeroAgi(caster, true))
-    call DestroyEffect(AddSpecialEffectTarget("Abilities\\Weapons\\DragonHawkMissile\\DragonHawkMissile.mdl", caster, "hand,right"))
-    call UnitDamageTarget(caster, target, damage, true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_NORMAL, WEAPON_TYPE_WHOKNOWS)
-    call GroupEnumUnitsInRange(g, GetUnitX(target), GetUnitY(target), 500.00, null)
-    loop
-        set u = FirstOfGroup(g)
-        exitwhen u == null
-        call GroupRemoveUnit(g, u)
-        if not IsUnitType(u, UNIT_TYPE_STRUCTURE) and GetWidgetLife(u) > 0.405 and u != target and GetUnitAbilityLevel(u, 'A00A') < 1 then
-            call UnitDamageTarget(caster, u, damage, true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_NORMAL, WEAPON_TYPE_WHOKNOWS)
-            set d = Dummy_Get(p, 'h005', GetUnitX(caster), GetUnitY(caster), bj_UNIT_FACING)
-            call UnitAddAbility(d, 'A03Z')
-            call SetUnitAbilityLevel(d, 'A03Z', lvl)
-            call IssueTargetOrderById(d, Eng_OrdThunderbolt, u)
-            call Dummy_RecycleTimed(d, 1.00, 'A03Z')
-        endif
-    endloop
-    call DestroyGroup(g)
-    set caster = null
-    set target = null
-    set u = null
-    set d = null
-    set p = null
-    set g = null
+    call MagicMissile_Launch(GetTriggerUnit(), GetSpellTargetUnit())
 endfunction
 
 //===========================================================================
@@ -8937,11 +12383,22 @@ function Trig_Smite_Loop_Func001Func003Func009Func008001001003 takes nothing ret
 endfunction
 
 function Trig_Smite_Loop_Func001Func003Func009C takes nothing returns boolean
-    set bj_wantDestroyGroup = true
-    if ( not ( CountUnitsInGroupBJ(GetUnitsInRangeOfLocMatching(udg_Smite_AOE, udg_Smite_Point2, Condition(function Trig_Smite_Loop_Func001Func003Func009Func008001001003))) == 0 ) ) then
-        return false
-    endif
-    return true
+    local group g = CreateGroup()
+    local unit u
+    local boolean empty = true
+    call GroupEnumUnitsInRange(g, GetLocationX(udg_Smite_Point2), GetLocationY(udg_Smite_Point2), udg_Smite_AOE, null)
+    loop
+        set u = FirstOfGroup(g)
+        exitwhen u == null
+        call GroupRemoveUnit(g, u)
+        if IsUnitEnemy(u, GetOwningPlayer(udg_Smite_Projectile)) then
+            set empty = false
+        endif
+    endloop
+    call DestroyGroup(g)
+    set g = null
+    set u = null
+    return empty
 endfunction
 
 function Trig_Smite_Loop_Func001Func003C takes nothing returns boolean
@@ -9083,13 +12540,21 @@ endfunction
 // Trigger: Glacial Freeze
 //===========================================================================
 function Trig_Glacial_Freeze_Actions takes nothing returns nothing
-    call GlacialFreeze_Launch(GetTriggerUnit())
+    call HydraUlt_Launch(GetTriggerUnit())
 endfunction
 
-//===========================================================================
 function InitTrig_Glacial_Freeze takes nothing returns nothing
     set gg_trg_Glacial_Freeze = CreateTrigger(  )
     call TriggerAddAction( gg_trg_Glacial_Freeze, function Trig_Glacial_Freeze_Actions )
+endfunction
+
+function Trig_Hydra_Summons_Actions takes nothing returns nothing
+    call HydraSummons_Launch(GetTriggerUnit(), GetSpellTargetX(), GetSpellTargetY())
+endfunction
+
+function InitTrig_Hydra_Summons takes nothing returns nothing
+    set gg_trg_Hydra_Summons = CreateTrigger()
+    call TriggerAddAction(gg_trg_Hydra_Summons, function Trig_Hydra_Summons_Actions)
 endfunction
 
 //===========================================================================
@@ -9138,34 +12603,15 @@ function Trig_Cast_GB_Func001C takes nothing returns boolean
 endfunction
 
 function Trig_Cast_GB_Actions takes nothing returns nothing
-    if ( Trig_Cast_GB_Func001C() ) then
-        call EnableTrigger( gg_trg_Drag )
+    local unit caster = GetTriggerUnit()
+    local unit target = GetSpellTargetUnit()
+    if target != null then
+        call Aw_ContinentalRoll(caster, GetUnitX(target), GetUnitY(target))
     else
+        call Aw_ContinentalRoll(caster, GetSpellTargetX(), GetSpellTargetY())
     endif
-    set udg_EC_PNum = GetConvertedPlayerId(GetOwningPlayer(GetTriggerUnit()))
-    set udg_EC_Caster[udg_EC_PNum] = GetTriggerUnit()
-    set udg_EC_Times = ( udg_EC_Times + 1 )
-    set udg_EC_Skip = ( udg_EC_Skip + 1 )
-    set udg_EC_Off[udg_EC_Times] = true
-    set udg_EC_Target[udg_EC_Times] = GetSpellTargetUnit()
-    set udg_EC_Point[0] = GetUnitLoc(udg_EC_Caster[udg_EC_PNum])
-    set udg_EC_Point[1] = GetUnitLoc(udg_EC_Target[udg_EC_Times])
-    set udg_EC_Part[udg_EC_Times] = 0
-    set udg_EC_Distance[udg_EC_Times] = ( DistanceBetweenPoints(udg_EC_Point[0], udg_EC_Point[1]) - 75.00 )
-    set udg_EC_Max_Distance[udg_EC_Times] = udg_EC_Distance[udg_EC_Times]
-    set udg_EC_Speed[udg_EC_Times] = ( 45.00 + ( 5.00 * I2R(GetUnitAbilityLevelSwapped('A016', udg_EC_Caster[udg_EC_PNum])) ) )
-    set udg_EC_Anlge[udg_EC_Times] = ( AngleBetweenPoints(udg_EC_Point[0], udg_EC_Point[1]) + GetRandomReal(3.00, 9.00) )
-    set udg_EC_Height[udg_EC_Times] = 600.00
-    set udg_EC_Weight[udg_EC_Times] = 7.00
-    call CreateNUnitsAtLoc( 1, 'h008', GetOwningPlayer(GetSpellAbilityUnit()), udg_EC_Point[0], bj_UNIT_FACING )
-    call UnitAddAbilityBJ( 'Arav', GetLastCreatedUnit() )
-    call UnitRemoveAbilityBJ( 'Arav', GetLastCreatedUnit() )
-    set udg_EC_Dummy1[udg_EC_Times] = GetLastCreatedUnit()
-    call SetUnitScalePercent( udg_EC_Dummy1[udg_EC_Times], 300.00, 300.00, 300.00 )
-    set udg_EC_Size[udg_EC_PNum] = 300
-    call SetUnitUserData( udg_EC_Dummy1[udg_EC_Times], udg_EC_Size[udg_EC_PNum] )
-    call RemoveLocation(udg_EC_Point[0])
-    call RemoveLocation(udg_EC_Point[1])
+    set caster = null
+    set target = null
 endfunction
 
 //===========================================================================
@@ -9422,9 +12868,6 @@ endfunction
 //===========================================================================
 function InitTrig_Drag takes nothing returns nothing
     set gg_trg_Drag = CreateTrigger(  )
-    call DisableTrigger( gg_trg_Drag )
-    call TriggerRegisterTimerEventPeriodic( gg_trg_Drag, 0.02 )
-    call TriggerAddAction( gg_trg_Drag, function Trig_Drag_Actions )
 endfunction
 
 //===========================================================================
@@ -9451,25 +12894,9 @@ function Trig_TR_Cast_Func001C takes nothing returns boolean
 endfunction
 
 function Trig_TR_Cast_Actions takes nothing returns nothing
-    if ( Trig_TR_Cast_Func001C() ) then
-        call EnableTrigger( gg_trg_Bounce )
-    else
-    endif
-    set udg_BB_Index = ( udg_BB_Index + 1 )
-    set udg_BB_Index2 = ( udg_BB_Index2 + 1 )
-    set udg_BB_Caster[udg_BB_Index2] = GetTriggerUnit()
-    set udg_BB_Angle[udg_BB_Index2] = GetRandomReal(0.00, 360.00)
-    set udg_BB_Speed[udg_BB_Index2] = 8.00
-    set udg_BB_Distance[udg_BB_Index2] = GetRandomReal(150.00, 300.00)
-    set udg_BB_MaxHeight[udg_BB_Index2] = 200.00
-    set udg_BB_Expire[udg_BB_Index2] = udg_BB_Distance[udg_BB_Index2]
-    set udg_BB_Jumps[udg_BB_Index2] = 10
-    set udg_BB_Point = GetSpellTargetLoc()
-    call CreateNUnitsAtLoc( 1, 'h00B', GetOwningPlayer(udg_BB_Caster[udg_BB_Index2]), udg_BB_Point, bj_UNIT_FACING )
-    set udg_BB_Dummy[udg_BB_Index2] = GetLastCreatedUnit()
-    call SetUnitScalePercent( udg_BB_Dummy[udg_BB_Index2], 300.00, 300.00, 300.00 )
-    call UnitAddAbilityBJ( 'Amrf', udg_BB_Dummy[udg_BB_Index2] )
-    call RemoveLocation(udg_BB_Point)
+    local unit caster = GetTriggerUnit()
+    call Aw_TossRock(caster, GetSpellTargetX(), GetSpellTargetY())
+    set caster = null
 endfunction
 
 //===========================================================================
@@ -9561,16 +12988,15 @@ endfunction
 //===========================================================================
 function InitTrig_Bounce takes nothing returns nothing
     set gg_trg_Bounce = CreateTrigger(  )
-    call DisableTrigger( gg_trg_Bounce )
-    call TriggerRegisterTimerEventPeriodic( gg_trg_Bounce, 0.03 )
-    call TriggerAddAction( gg_trg_Bounce, function Trig_Bounce_Actions )
 endfunction
 
 //===========================================================================
 // Trigger: Tremor
 //===========================================================================
 function Trig_Tremor_Actions takes nothing returns nothing
-    call Tremor_Launch(GetTriggerUnit(), GetSpellTargetX(), GetSpellTargetY())
+    local unit caster = GetTriggerUnit()
+    call Aw_TectonicAssembly(caster, GetSpellTargetX(), GetSpellTargetY())
+    set caster = null
 endfunction
 
 //===========================================================================
@@ -10065,17 +13491,14 @@ endfunction
 //===========================================================================
 // Trigger: Leap
 //===========================================================================
+// Migrated to TIDES ENGINE JumpCore: 830-range leap along the caster's
+// facing, 0.40-ratio arc (height 332), 30/0.02 = 1500 speed, triple-speed
+// walk animation. The A058 empowered landing runs in Leap_OnLand.
 function Trig_Leap_Actions takes nothing returns nothing
-    set udg_JDA_JumpHigh_Distance = 0.40
-    set udg_JDA_DestroyTrees_Dash = false
-    set udg_JDA_Collusion = false
-    set udg_JDA_Unit = GetTriggerUnit()
-    set udg_JDA_TargetPoint = PolarProjectionBJ(GetUnitLoc(udg_JDA_Unit), 830.00, GetUnitFacing(udg_JDA_Unit))
-    set udg_JDA_Speed = 30.00
-    set udg_JDA_Animation = "walk"
-    set udg_JDA_AnimationSpeed = 3.00
-    call ConditionalTriggerExecute( gg_trg_Set_Leap )
-        call RemoveLocation(udg_JDA_TargetPoint)
+    local unit u = GetTriggerUnit()
+    local real a = GetUnitFacing(u) * bj_DEGTORAD
+    call Jump_Launch(u, GetUnitX(u) + 830.00 * Cos(a), GetUnitY(u) + 830.00 * Sin(a), 332.00, 1500.00, false, "walk", 3.00, "", Lea_OnLand)
+    set u = null
 endfunction
 
 //===========================================================================
@@ -10087,197 +13510,26 @@ endfunction
 //===========================================================================
 // Trigger: Set Leap
 //===========================================================================
-function Trig_Set_Leap_Func001C takes nothing returns boolean
-    if ( not ( udg_JD_Integers[1] == 0 ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_Set_Leap_Actions takes nothing returns nothing
-    if ( Trig_Set_Leap_Func001C() ) then
-        call EnableTrigger( gg_trg_Leap_Ef )
-    else
-    endif
-    set udg_JD_Integers[1] = ( udg_JD_Integers[1] + 1 )
-    set udg_JD_Integers[2] = ( udg_JD_Integers[2] + 1 )
-    set udg_JD_TempPoint[1] = GetUnitLoc(udg_JDA_Unit)
-    set udg_JD_Distances[udg_JD_Integers[2]] = DistanceBetweenPoints(udg_JD_TempPoint[1], udg_JDA_TargetPoint)
-    set udg_JD_ReachedDistance[udg_JD_Integers[2]] = 0.00
-    set udg_JD_SpeedUnits[udg_JD_Integers[2]] = udg_JDA_Speed
-    set udg_JD_Unit[udg_JD_Integers[2]] = udg_JDA_Unit
-    set udg_JD_Angle[udg_JD_Integers[2]] = AngleBetweenPoints(udg_JD_TempPoint[1], udg_JDA_TargetPoint)
-    set udg_JD_Effect[udg_JD_Integers[2]] = udg_JDA_SpecialEffect
-    set udg_JD_Animations[udg_JD_Integers[2]] = udg_JDA_Animation
-    set udg_JD_TreesDestroy[udg_JD_Integers[2]] = udg_JDA_DestroyTrees_Dash
-    set udg_JD_HighSettings[udg_JD_Integers[2]] = ( udg_JDA_JumpHigh_Distance * udg_JD_Distances[udg_JD_Integers[2]] )
-    call SetUnitPathing( udg_JDA_Unit, false )
-    call SetUnitTimeScalePercent( udg_JDA_Unit, ( udg_JDA_AnimationSpeed * 100.00 ) )
-    call SetUnitAnimation( udg_JDA_Unit, udg_JDA_Animation )
-    call GroupAddUnitSimple( udg_JDA_Unit, udg_JD_Group )
-    call UnitAddAbilityBJ( 'Arav', udg_JDA_Unit )
-    call UnitRemoveAbilityBJ( 'Arav', udg_JDA_Unit )
-    call RemoveLocation (udg_JD_TempPoint[1])
-    call RemoveLocation (udg_JDA_TargetPoint)
-endfunction
-
 //===========================================================================
 function InitTrig_Set_Leap takes nothing returns nothing
-    set gg_trg_Set_Leap = CreateTrigger(  )
-    call TriggerAddAction( gg_trg_Set_Leap, function Trig_Set_Leap_Actions )
 endfunction
 
 //===========================================================================
 // Trigger: Leap Ef
 //===========================================================================
-function Trig_Leap_Ef_Func001Func001Func001Func002Func003001003001 takes nothing returns boolean
-    return ( IsUnitType(GetFilterUnit(), UNIT_TYPE_STRUCTURE) == false )
-endfunction
-
-function Trig_Leap_Ef_Func001Func001Func001Func002Func003001003002001 takes nothing returns boolean
-    return ( IsUnitAliveBJ(GetFilterUnit()) == true )
-endfunction
-
-function Trig_Leap_Ef_Func001Func001Func001Func002Func003001003002002 takes nothing returns boolean
-    return ( IsUnitAlly(GetFilterUnit(), GetOwningPlayer(udg_JD_Unit[udg_JD_Integers[3]])) == true )
-endfunction
-
-function Trig_Leap_Ef_Func001Func001Func001Func002Func003001003002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Leap_Ef_Func001Func001Func001Func002Func003001003002001(), Trig_Leap_Ef_Func001Func001Func001Func002Func003001003002002() )
-endfunction
-
-function Trig_Leap_Ef_Func001Func001Func001Func002Func003001003 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Leap_Ef_Func001Func001Func001Func002Func003001003001(), Trig_Leap_Ef_Func001Func001Func001Func002Func003001003002() )
-endfunction
-
-function Trig_Leap_Ef_Func001Func001Func001Func002Func003A takes nothing returns nothing
-    local unit caster = udg_JD_Unit[udg_JD_Integers[3]]
-    local unit target = GetEnumUnit()
-    local unit d = Dummy_Get(GetOwningPlayer(caster), 'hgry', GetUnitX(target), GetUnitY(target), bj_UNIT_FACING)
-    call UnitAddAbility(d, 'A02T')
-    call SetUnitAbilityLevel(d, 'A02T', GetUnitAbilityLevel(caster, 'A02Y'))
-    call IssueTargetOrderById(d, Eng_OrdBloodlust, target)
-    call Dummy_RecycleTimed(d, 0.50, 'A02T')
-    set caster = null
-    set target = null
-    set d = null
-endfunction
-
-function Trig_Leap_Ef_Func001Func001Func001Func002C takes nothing returns boolean
-    if ( not ( GetUnitAbilityLevelSwapped('A058', udg_JD_Unit[udg_JD_Integers[3]]) >= 1 ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_Leap_Ef_Func001Func001Func001Func010C takes nothing returns boolean
-    if ( not ( udg_JD_Integers[1] == 0 ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_Leap_Ef_Func001Func001Func001Func013Func001003 takes nothing returns nothing
-    call KillDestructable( GetEnumDestructable() )
-endfunction
-
-function Trig_Leap_Ef_Func001Func001Func001Func013C takes nothing returns boolean
-    if ( not ( udg_JD_TreesDestroy[udg_JD_Integers[3]] == true ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_Leap_Ef_Func001Func001Func001C takes nothing returns boolean
-    if ( not ( udg_JD_ReachedDistance[udg_JD_Integers[3]] < udg_JD_Distances[udg_JD_Integers[3]] ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_Leap_Ef_Func001Func001C takes nothing returns boolean
-    if ( not ( IsUnitInGroup(udg_JD_Unit[udg_JD_Integers[3]], udg_JD_Group) == true ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_Leap_Ef_Actions takes nothing returns nothing
-    local group landingGroup = null
-    set udg_JD_Integers[3] = 1
-    loop
-        exitwhen udg_JD_Integers[3] > udg_JD_Integers[2]
-        if ( Trig_Leap_Ef_Func001Func001C() ) then
-            if ( Trig_Leap_Ef_Func001Func001Func001C() ) then
-                call QueueUnitAnimationBJ( udg_JD_Unit[udg_JD_Integers[3]], udg_JD_Animations[udg_JD_Integers[3]] )
-                set udg_JD_TempPoint[1] = GetUnitLoc(udg_JD_Unit[udg_JD_Integers[3]])
-                set udg_JD_TempPoint[2] = PolarProjectionBJ(udg_JD_TempPoint[1], udg_JD_SpeedUnits[udg_JD_Integers[3]], udg_JD_Angle[udg_JD_Integers[3]])
-                if ( Trig_Leap_Ef_Func001Func001Func001Func013C() ) then
-                    call EnumDestructablesInCircleBJ( 150.00, udg_JD_TempPoint[2], function Trig_Leap_Ef_Func001Func001Func001Func013Func001003 )
-                else
-                endif
-                call SetUnitX(udg_JD_Unit[udg_JD_Integers[3]], GetLocationX(udg_JD_TempPoint[2]))
-                call SetUnitY(udg_JD_Unit[udg_JD_Integers[3]], GetLocationY(udg_JD_TempPoint[2]))
-                set udg_JD_ReachedDistance[udg_JD_Integers[3]] = ( udg_JD_ReachedDistance[udg_JD_Integers[3]] + udg_JD_SpeedUnits[udg_JD_Integers[3]] )
-                set udg_JD_RealTimer[udg_JD_Integers[3]] = udg_JD_RealTimer[udg_JD_Integers[3]] + 180.00 * udg_JD_SpeedUnits[udg_JD_Integers[3]] / RMaxBJ(udg_JD_Distances[udg_JD_Integers[3]], 0.01)
-                set udg_JD_JumpHigh[udg_JD_Integers[3]] = ( SinBJ(udg_JD_RealTimer[udg_JD_Integers[3]]) * udg_JD_HighSettings[udg_JD_Integers[3]] )
-                call SetUnitFlyHeightBJ( udg_JD_Unit[udg_JD_Integers[3]], udg_JD_JumpHigh[udg_JD_Integers[3]], 1000000000.00 )
-                call RemoveLocation (udg_JD_TempPoint[1])
-                call RemoveLocation (udg_JD_TempPoint[2])
-            else
-                call SetUnitPathing( udg_JD_Unit[udg_JD_Integers[3]], true )
-                if ( Trig_Leap_Ef_Func001Func001Func001Func002C() ) then
-                    set landingGroup = CreateGroup()
-                    call GroupEnumUnitsInRange(landingGroup, GetUnitX(udg_JD_Unit[udg_JD_Integers[3]]), GetUnitY(udg_JD_Unit[udg_JD_Integers[3]]), 500.00, Condition(function Trig_Leap_Ef_Func001Func001Func001Func002Func003001003))
-                    call ForGroup(landingGroup, function Trig_Leap_Ef_Func001Func001Func001Func002Func003A)
-                    call DestroyGroup(landingGroup)
-                    set landingGroup = null
-                else
-                endif
-                call GroupRemoveUnitSimple( udg_JD_Unit[udg_JD_Integers[3]], udg_JD_Group )
-                call SetUnitFlyHeightBJ( udg_JD_Unit[udg_JD_Integers[3]], 0.00, 1000000000.00 )
-                call SetUnitTimeScalePercent( udg_JD_Unit[udg_JD_Integers[3]], 100.00 )
-                call ResetUnitAnimation( udg_JD_Unit[udg_JD_Integers[3]] )
-                set udg_JD_RealTimer[udg_JD_Integers[3]] = 0.00
-                set udg_JD_Integers[1] = ( udg_JD_Integers[1] - 1 )
-                if ( Trig_Leap_Ef_Func001Func001Func001Func010C() ) then
-                    set udg_JD_Integers[2] = 0
-                    call DisableTrigger( GetTriggeringTrigger() )
-                else
-                endif
-            endif
-        else
-        endif
-        set udg_JD_Integers[3] = udg_JD_Integers[3] + 1
-    endloop
-    set landingGroup = null
-endfunction
-
 //===========================================================================
 function InitTrig_Leap_Ef takes nothing returns nothing
-    set gg_trg_Leap_Ef = CreateTrigger(  )
-    call DisableTrigger( gg_trg_Leap_Ef )
-    call TriggerRegisterTimerEventPeriodic( gg_trg_Leap_Ef, 0.02 )
-    call TriggerAddAction( gg_trg_Leap_Ef, function Trig_Leap_Ef_Actions )
 endfunction
 
 //===========================================================================
 // Trigger: TAb
 //===========================================================================
 function Trig_TAb_Actions takes nothing returns nothing
-    set udg_TA_Stats = ( ( GetHeroStatBJ(bj_HEROSTAT_STR, GetTriggerUnit(), true) + GetHeroStatBJ(bj_HEROSTAT_AGI, GetTriggerUnit(), true) ) + GetHeroStatBJ(bj_HEROSTAT_INT, GetTriggerUnit(), true) )
-    set udg_TA = 200
-    set udg_TA_Damage = ( I2R(udg_TA) + I2R(udg_TA_Stats) )
-    call UnitDamageTargetBJ( GetTriggerUnit(), GetSpellTargetUnit(), udg_TA_Damage, ATTACK_TYPE_CHAOS, DAMAGE_TYPE_FIRE )
-    set udg_CenterPoint = GetUnitLoc(GetTriggerUnit())
-    set udg_TargetPoint = GetUnitLoc(GetSpellTargetUnit())
-    set udg_Knockback2DAngle = AngleBetweenPoints(udg_CenterPoint, udg_TargetPoint)
-    call RemoveLocation(udg_CenterPoint)
-    call RemoveLocation(udg_TargetPoint)
-    set udg_Knockback2DTime = 0.80
-    set udg_Knockback2DDistance = 250.00
-    set udg_Knockback2DUnit = GetSpellTargetUnit()
-    call TriggerExecute( gg_trg_Knockback_2D )
+    local unit caster = GetTriggerUnit()
+    local unit target = GetSpellTargetUnit()
+    call Tur_Relay(caster, target)
+    set caster = null
+    set target = null
 endfunction
 
 //===========================================================================
@@ -10469,10 +13721,17 @@ endfunction
 // Trigger: Ancient Hide
 //===========================================================================
 function Trig_Ancient_Hide_Func001C takes nothing returns boolean
+    local integer t = GetUnitTypeId(udg_GDD_DamagedUnit)
+    if Tow_PlatingGuard then
+        return false
+    endif
     if ( not ( udg_GDD_Damage > 0.00 ) ) then
         return false
     endif
     if ( not ( UnitHasBuffBJ(udg_GDD_DamagedUnit, 'B00V') == true ) ) then
+        return false
+    endif
+    if t != 'H00O' and t != 'E001' then
         return false
     endif
     return true
@@ -10486,25 +13745,34 @@ function Trig_Ancient_Hide_Conditions takes nothing returns boolean
 endfunction
 
 function Trig_Ancient_Hide_Actions takes nothing returns nothing
-    call SetUnitLifeBJ( udg_GDD_DamagedUnit, ( GetUnitStateSwap(UNIT_STATE_LIFE, udg_GDD_DamagedUnit) + ( udg_GDD_Damage * 2.00 ) ) )
-    call CreateTextTagUnitBJ( ( "+|cff7cfc00" + I2S(R2I(udg_GDD_Damage)) ), udg_GDD_DamagedUnit, 0.00, 13.00, 100.00, 100.00, 100.00, 0 )
-    call SetTextTagVelocityBJ( GetLastCreatedTextTag(), 120.00, 90.00 )
-    call SetTextTagPermanentBJ( GetLastCreatedTextTag(), false )
-    call SetTextTagLifespanBJ( GetLastCreatedTextTag(), udg_Text_Duration )
-    call SetTextTagFadepointBJ( GetLastCreatedTextTag(), 0.65 )
-    call AddSpecialEffectTargetUnitBJ( "chest", udg_GDD_DamageSource, "Abilities\\Weapons\\AncientProtectorMissile\\AncientProtectorMissile.mdl" )
-    call DestroyEffectBJ( GetLastCreatedEffectBJ() )
-    set udg_KBA_Caster = udg_GDD_DamagedUnit
-    set udg_KBA_TargetUnit = udg_GDD_DamageSource
-    set udg_KBA_Level = 1
-    set udg_KBA_StartingPosition = GetUnitLoc(udg_KBA_Caster)
-    set udg_KBA_Speed = 10.00
-    set udg_KBA_DistancePerLevel = 350.00
-    set udg_KBA_SpecialEffects[1] = "Abilities\\Weapons\\AncientProtectorMissile\\AncientProtectorMissile.mdl"
-    set udg_KBA_SpecialEffects[2] = "Abilities\\Weapons\\AncientProtectorMissile\\AncientProtectorMissile.mdl"
-    set udg_KBA_DestroyTrees = true
-    call ConditionalTriggerExecute( gg_trg_Cast_KB )
-        call RemoveLocation(udg_KBA_StartingPosition)
+    local unit defender = udg_GDD_DamagedUnit
+    local unit attacker = udg_GDD_DamageSource
+    local real dx
+    local real dy
+    local real d2
+    local real a
+    local real reflected
+    // Reactive Plating absorbs 75% of the registered hit. GDD fires after
+    // damage, so absorption is implemented as an immediate life restoration.
+    call SetWidgetLife(defender, GetWidgetLife(defender) + udg_GDD_Damage * 0.75)
+    call SFX_Unit("Abilities\\Spells\\Human\\Defend\\DefendCaster.mdl", defender, "origin")
+    if attacker != null and GetUnitTypeId(attacker) != 0 and GetWidgetLife(attacker) > 0.405 and not IsUnitType(attacker, UNIT_TYPE_STRUCTURE) and IsUnitEnemy(attacker, GetOwningPlayer(defender)) then
+        set reflected = RMaxBJ(25.00, GetUnitState(attacker, UNIT_STATE_MAX_LIFE) * 0.02)
+        set Tow_PlatingGuard = true
+        call Damage_Pure(defender, attacker, reflected)
+        set Tow_PlatingGuard = false
+        set dx = GetUnitX(attacker) - GetUnitX(defender)
+        set dy = GetUnitY(attacker) - GetUnitY(defender)
+        set d2 = dx * dx + dy * dy
+        if d2 > 1.00 and d2 <= 250000.00 then
+            set a = Atan2(dy, dx)
+            call SetUnitX(attacker, Tow_ClampX(GetUnitX(attacker) + 120.00 * Cos(a)))
+            call SetUnitY(attacker, Tow_ClampY(GetUnitY(attacker) + 120.00 * Sin(a)))
+        endif
+        call SFX_Unit("Abilities\\Weapons\\AncientProtectorMissile\\AncientProtectorMissile.mdl", attacker, "chest")
+    endif
+    set defender = null
+    set attacker = null
 endfunction
 
 //===========================================================================
@@ -11605,25 +14873,9 @@ function Trig_Dimensional_Objects_Func003002003 takes nothing returns boolean
 endfunction
 
 function Trig_Dimensional_Objects_Actions takes nothing returns nothing
-    set udg_TempPoint = GetSpellTargetLoc()
-    set bj_wantDestroyGroup = true
-    set udg_Temp_Group = GetUnitsInRangeOfLocMatching(500.00, udg_TempPoint, Condition(function Trig_Dimensional_Objects_Func003002003))
-    call CreateNUnitsAtLoc( 1, 'hkni', GetOwningPlayer(GetTriggerUnit()), udg_TempPoint, bj_UNIT_FACING )
-    call UnitAddAbilityBJ( 'A03G', GetLastCreatedUnit() )
-    call SetUnitAbilityLevelSwapped( 'A03G', GetLastCreatedUnit(), GetUnitAbilityLevelSwapped('A03H', GetTriggerUnit()) )
-    call IssueImmediateOrderBJ( GetLastCreatedUnit(), "thunderclap" )
-    call UnitApplyTimedLifeBJ( 2.00, 'BTLF', GetLastCreatedUnit() )
-    set udg_JDA_JumpHigh_Distance = 0.70
-    set udg_JDA_DestroyTrees_Dash = true
-    set udg_JDA_Collusion = false
-    set udg_JDA_Unit = GroupPickRandomUnit(udg_Temp_Group)
-    set udg_JDA_TargetPoint = udg_TempPoint
-    set udg_JDA_Speed = 26.00
-    set udg_JDA_Animation = "death"
-    set udg_JDA_AnimationSpeed = 2.00
-    call ConditionalTriggerExecute( gg_trg_Set_Leap )
-    call DestroyGroup(udg_Temp_Group)
-    call RemoveLocation(udg_TempPoint)
+    local unit caster = GetTriggerUnit()
+    call Mp_AnchorAdd(caster, GetSpellTargetX(), GetSpellTargetY())
+    set caster = null
 endfunction
 
 //===========================================================================
@@ -11643,32 +14895,11 @@ function Trig_Warp_Func001C takes nothing returns boolean
 endfunction
 
 function Trig_Warp_Actions takes nothing returns nothing
-    if ( Trig_Warp_Func001C() ) then
-        call EnableTrigger( gg_trg_Warp_Ef )
-    else
-    endif
-    set udg_GC_Integers[0] = ( udg_GC_Integers[0] + 1 )
-    set udg_GC_Integers[1] = ( udg_GC_Integers[1] + 1 )
-    set udg_GC_Cast[udg_GC_Integers[1]] = GetTriggerUnit()
-    set udg_GC_Target[udg_GC_Integers[1]] = GetSpellTargetUnit()
-    set udg_MVC_Point[0] = GetUnitLoc(udg_GC_Target[udg_GC_Integers[1]])
-    set udg_GC_Counter[udg_GC_Integers[1]] = 0.00
-    set udg_GC_Check[udg_GC_Integers[1]] = false
-    set udg_GC_AOE[udg_GC_Integers[1]] = 300.00
-    set udg_GC_Damage[udg_GC_Integers[1]] = 0.00
-    set udg_GC_Speed[udg_GC_Integers[1]] = 60.00
-    set udg_GC_Delay[udg_GC_Integers[1]] = 1.50
-    set udg_MVC_UnitType[1] = 'h011'
-    set udg_MVC_UnitType[2] = 'h012'
-    set udg_MVC_UnitType[3] = 'h00Y'
-    set udg_MVC_UnitType[4] = 'h00Y'
-    call CreateNUnitsAtLoc( 1, udg_MVC_UnitType[1], GetOwningPlayer(udg_GC_Target[1]), udg_MVC_Point[0], GetUnitFacing(udg_GC_Target[1]) )
-    set udg_GC_Dummy[udg_GC_Integers[1]] = GetLastCreatedUnit()
-    call SelectUnitForPlayerSingle( udg_GC_Dummy[udg_GC_Integers[1]], GetOwningPlayer(udg_GC_Dummy[udg_GC_Integers[1]]) )
-    call PauseUnitBJ( true, udg_GC_Target[udg_GC_Integers[1]] )
-    call ShowUnitHide( udg_GC_Target[udg_GC_Integers[1]] )
-    call GroupAddUnitSimple( udg_GC_Target[udg_GC_Integers[1]], udg_GC_Group )
-    call RemoveLocation (udg_MVC_Point[0])
+    local unit caster = GetTriggerUnit()
+    local unit target = GetSpellTargetUnit()
+    call Mp_Fold(caster, target)
+    set caster = null
+    set target = null
 endfunction
 
 //===========================================================================
@@ -11836,9 +15067,6 @@ endfunction
 //===========================================================================
 function InitTrig_Warp_Ef takes nothing returns nothing
     set gg_trg_Warp_Ef = CreateTrigger(  )
-    call DisableTrigger( gg_trg_Warp_Ef )
-    call TriggerRegisterTimerEventPeriodic( gg_trg_Warp_Ef, 0.04 )
-    call TriggerAddAction( gg_trg_Warp_Ef, function Trig_Warp_Ef_Actions )
 endfunction
 
 //===========================================================================
@@ -11852,7 +15080,9 @@ function Trig_Unstable_Motion_Conditions takes nothing returns boolean
 endfunction
 
 function Trig_Unstable_Motion_Actions takes nothing returns nothing
-    call PingMinimapForForce(bj_FORCE_ALL_PLAYERS, GetSpellTargetX(), GetSpellTargetY(), 2.00)
+    local unit caster = GetTriggerUnit()
+    call Mp_ErrorLaunch(caster, GetSpellTargetX(), GetSpellTargetY())
+    set caster = null
 endfunction
 
 //===========================================================================
@@ -11907,22 +15137,14 @@ function Trig_Move_Point_Func003A takes nothing returns nothing
 endfunction
 
 function Trig_Move_Point_Actions takes nothing returns nothing
-    set udg_MP_Loc = GetSpellTargetLoc()
-    set bj_wantDestroyGroup = true
-    call ForGroupBJ( GetUnitsInRangeOfLocMatching(( 350.00 + ( 150.00 * I2R(GetUnitAbilityLevelSwapped('A03W', GetTriggerUnit())) ) ), udg_MP_Loc, Condition(function Trig_Move_Point_Func003001003)), function Trig_Move_Point_Func003A )
-    call CreateNUnitsAtLoc( 1, 'h005', GetOwningPlayer(GetTriggerUnit()), udg_MP_Loc, bj_UNIT_FACING )
-    call UnitAddAbilityBJ( 'A03X', GetLastCreatedUnit() )
-    call SetUnitAbilityLevelSwapped( 'A03X', GetLastCreatedUnit(), GetUnitAbilityLevelSwapped('A03W', GetTriggerUnit()) )
-    call IssueImmediateOrderBJ( GetLastCreatedUnit(), "stomp" )
-    call UnitApplyTimedLifeBJ( 2.00, 'BTLF', GetLastCreatedUnit() )
-    call RemoveLocation(udg_MP_Loc)
+    local unit caster = GetTriggerUnit()
+    call Mp_MovePoint(caster, GetSpellTargetX(), GetSpellTargetY())
+    set caster = null
 endfunction
 
 //===========================================================================
 function InitTrig_Move_Point takes nothing returns nothing
     set gg_trg_Move_Point = CreateTrigger(  )
-    call TriggerRegisterAnyUnitEventBJ( gg_trg_Move_Point, EVENT_PLAYER_UNIT_SPELL_EFFECT )
-    call TriggerAddCondition( gg_trg_Move_Point, Condition( function Trig_Move_Point_Conditions ) )
     call TriggerAddAction( gg_trg_Move_Point, function Trig_Move_Point_Actions )
 endfunction
 
@@ -12615,9 +15837,6 @@ endfunction
 //===========================================================================
 function InitTrig_Hammer_Mastery takes nothing returns nothing
     set gg_trg_Hammer_Mastery = CreateTrigger(  )
-    call TriggerRegisterVariableEvent( gg_trg_Hammer_Mastery, "udg_GDD_Event", EQUAL, 1.00 )
-    call TriggerAddCondition( gg_trg_Hammer_Mastery, Condition( function Trig_Hammer_Mastery_Conditions ) )
-    call TriggerAddAction( gg_trg_Hammer_Mastery, function Trig_Hammer_Mastery_Actions )
 endfunction
 
 //===========================================================================
@@ -12641,8 +15860,7 @@ function Trig_Hammer_Mastery_ef_Conditions takes nothing returns boolean
 endfunction
 
 function Trig_Hammer_Mastery_ef_Actions takes nothing returns nothing
-    DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Human\\ThunderClap\\ThunderClapCaster.mdl", GetUnitX(udg_GDD_DamagedUnit), GetUnitY(udg_GDD_DamagedUnit)))
-    call DestroyEffectBJ( GetLastCreatedEffectBJ() )
+    call SFX_Point("Abilities\\Spells\\Human\\ThunderClap\\ThunderClapCaster.mdl", GetUnitX(udg_GDD_DamagedUnit), GetUnitY(udg_GDD_DamagedUnit))
     call UnitDamageTargetBJ( udg_GDD_DamageSource, udg_GDD_DamagedUnit, ( GetUnitStateSwap(UNIT_STATE_LIFE, udg_GDD_DamagedUnit) * 0.12 ), ATTACK_TYPE_CHAOS, DAMAGE_TYPE_FIRE )
     set udg_Hammer_Mastery[GetConvertedPlayerId(GetOwningPlayer(udg_GDD_DamageSource))] = 0
     call UnitRemoveAbilityBJ( 'A05T', udg_GDD_DamageSource )
@@ -12651,9 +15869,6 @@ endfunction
 //===========================================================================
 function InitTrig_Hammer_Mastery_ef takes nothing returns nothing
     set gg_trg_Hammer_Mastery_ef = CreateTrigger(  )
-    call TriggerRegisterVariableEvent( gg_trg_Hammer_Mastery_ef, "udg_GDD_Event", EQUAL, 1.00 )
-    call TriggerAddCondition( gg_trg_Hammer_Mastery_ef, Condition( function Trig_Hammer_Mastery_ef_Conditions ) )
-    call TriggerAddAction( gg_trg_Hammer_Mastery_ef, function Trig_Hammer_Mastery_ef_Actions )
 endfunction
 
 //===========================================================================
@@ -12702,21 +15917,21 @@ endfunction
 //===========================================================================
 function InitTrig_Overload takes nothing returns nothing
     set gg_trg_Overload = CreateTrigger(  )
-    call TriggerRegisterVariableEvent( gg_trg_Overload, "udg_GDD_Event", EQUAL, 1.00 )
-    call TriggerAddCondition( gg_trg_Overload, Condition( function Trig_Overload_Conditions ) )
-    call TriggerAddAction( gg_trg_Overload, function Trig_Overload_Actions )
 endfunction
 
 //===========================================================================
 // Trigger: Trent Hammer
 //===========================================================================
 function Trig_Trent_Hammer_Actions takes nothing returns nothing
-    call UnitDamageTargetBJ( GetTriggerUnit(), GetSpellTargetUnit(), ( 400.00 + ( 0.50 * ( GetUnitStateSwap(UNIT_STATE_MAX_LIFE, GetSpellTargetUnit()) - GetUnitStateSwap(UNIT_STATE_LIFE, GetSpellTargetUnit()) ) ) ), ATTACK_TYPE_NORMAL, DAMAGE_TYPE_NORMAL )
-    call CreateTextTagUnitBJ( ( udg_PlayerColors[GetConvertedPlayerId(GetOwningPlayer(udg_GDD_DamageSource))] + "IT'S HAMMER TIME!!!!!!" ), GetTriggerUnit(), 0.00, 13.00, 100.00, 100.00, 100.00, 0 )
-    call SetTextTagVelocityBJ( GetLastCreatedTextTag(), 130.00, 90.00 )
-    call SetTextTagPermanentBJ( GetLastCreatedTextTag(), false )
-    call SetTextTagLifespanBJ( GetLastCreatedTextTag(), udg_Text_Duration )
-    call SetTextTagFadepointBJ( GetLastCreatedTextTag(), 1.00 )
+    local unit caster = GetTriggerUnit()
+    local unit target = GetSpellTargetUnit()
+    if target != null then
+        call Hmr_Foundry(caster, GetUnitX(target), GetUnitY(target))
+    else
+        call Hmr_Foundry(caster, GetSpellTargetX(), GetSpellTargetY())
+    endif
+    set caster = null
+    set target = null
 endfunction
 
 //===========================================================================
@@ -14705,7 +17920,7 @@ endfunction
 
 function Trig_Create_Multiboard_Actions takes nothing returns nothing
     local force tempForce = null
-    set tempForce = GetPlayersMatching(Condition(function Trig_Create_Multiboard_Func001002001001)
+    set tempForce = GetPlayersMatching(Condition(function Trig_Create_Multiboard_Func001002001001))
     set udg_Player_Count = CountPlayersInForceBJ(tempForce)
     call DestroyForce(tempForce)
     set tempForce = null
@@ -15122,28 +18337,28 @@ function Trig_Pick_Actions takes nothing returns nothing
     if ( Trig_Pick_Func006C() ) then
         call UnitRemoveItemSwapped( GetItemOfTypeFromUnitBJ(GetSoldUnit(), 'I00I'), GetSoldUnit() )
         call RemoveItem( GetLastRemovedItem() )
-        call CreateItem('I00L', GetUnitX(GetSoldUnit(), GetUnitY(GetSoldUnit()) )
+        set bj_lastCreatedItem = CreateItem('I00L', GetUnitX(GetSoldUnit()), GetUnitY(GetSoldUnit()))
         call UnitAddItemSwapped( GetLastCreatedItem(), GetSoldUnit() )
     else
     endif
     if ( Trig_Pick_Func007C() ) then
         call UnitRemoveItemSwapped( GetItemOfTypeFromUnitBJ(GetSoldUnit(), 'I00L'), GetSoldUnit() )
         call RemoveItem( GetLastRemovedItem() )
-        call CreateItem('I00I', GetUnitX(GetSoldUnit(), GetUnitY(GetSoldUnit()) )
+        set bj_lastCreatedItem = CreateItem('I00I', GetUnitX(GetSoldUnit()), GetUnitY(GetSoldUnit()))
         call UnitAddItemSwapped( GetLastCreatedItem(), GetSoldUnit() )
     else
     endif
     if ( Trig_Pick_Func008C() ) then
         call UnitRemoveItemSwapped( GetItemOfTypeFromUnitBJ(GetSoldUnit(), 'I00A'), GetSoldUnit() )
         call RemoveItem( GetLastRemovedItem() )
-        call CreateItem('I00C', GetUnitX(GetSoldUnit(), GetUnitY(GetSoldUnit()) )
+        set bj_lastCreatedItem = CreateItem('I00C', GetUnitX(GetSoldUnit()), GetUnitY(GetSoldUnit()))
         call UnitAddItemSwapped( GetLastCreatedItem(), GetSoldUnit() )
     else
     endif
     if ( Trig_Pick_Func009C() ) then
         call UnitRemoveItemSwapped( GetItemOfTypeFromUnitBJ(GetSoldUnit(), 'I00C'), GetSoldUnit() )
         call RemoveItem( GetLastRemovedItem() )
-        call CreateItem('I00A', GetUnitX(GetSoldUnit(), GetUnitY(GetSoldUnit()) )
+        set bj_lastCreatedItem = CreateItem('I00A', GetUnitX(GetSoldUnit()), GetUnitY(GetSoldUnit()))
         call UnitAddItemSwapped( GetLastCreatedItem(), GetSoldUnit() )
     else
     endif
@@ -16634,6 +19849,7 @@ function Trig_Init_Trigger_Actions takes nothing returns nothing
     set udg_SpellEventAbility[53] = 'A077'
     set udg_SpellEventAbility[54] = 'A06X'
     set udg_SpellEventAbility[55] = 'A07F'
+    set udg_SpellEventAbility[56] = 'A00N'
     // -
     set udg_SpellEventTrigger[1] = gg_trg_Torpedo
     set udg_SpellEventTrigger[2] = gg_trg_Tidal_Orbs_AW
@@ -16690,6 +19906,7 @@ function Trig_Init_Trigger_Actions takes nothing returns nothing
     set udg_SpellEventTrigger[53] = gg_trg_Bash
     set udg_SpellEventTrigger[54] = gg_trg_Valor
     set udg_SpellEventTrigger[55] = gg_trg_Explosive_Shots
+    set udg_SpellEventTrigger[56] = gg_trg_Hydra_Summons
     // -
     call TriggerExecute( gg_trg_GUI_SpellEvent )
 endfunction
@@ -17143,14 +20360,12 @@ endfunction
 function Trig_INTIALIZATION_Actions takes nothing returns nothing
     set udg_DUMMY = 'h005'
     set udg_TEMP_LOC = Location(0.00, 0)
-    set udg_JUMP_LOOP = 0.02
     set udg_UnitIndexerEnabled = false
     call CreateNUnitsAtLoc( 1, 'hpea', Player(PLAYER_NEUTRAL_PASSIVE), udg_TEMP_LOC, 0.00 )
     set udg_HARVESTER = GetLastCreatedUnit()
     call ShowUnitHide( udg_HARVESTER )
     call SetUnitInvulnerable( udg_HARVESTER, true )
     set udg_UnitIndexerEnabled = true
-    call TriggerRegisterTimerEventPeriodic( gg_trg_JUMP_LOOP, udg_JUMP_LOOP )
         call RemoveLocation(udg_TEMP_LOC)
 endfunction
 
@@ -17163,186 +20378,15 @@ endfunction
 //===========================================================================
 // Trigger: JUMP INSTALL
 //===========================================================================
-function Trig_JUMP_INSTALL_Func022C takes nothing returns boolean
-    if ( not ( udg_JUMP_ATTACHMENT != "" ) ) then
-        return false
-    endif
-    if ( not ( udg_JUMP_SFXPMATTACHMENT != "" ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_JUMP_INSTALL_Actions takes nothing returns nothing
-    call UnitAddAbilityBJ( 'Arav', udg_JUMP_UNIT )
-    call UnitRemoveAbilityBJ( 'Arav', udg_JUMP_UNIT )
-    call CreateNUnitsAtLoc( 1, udg_DUMMY, Player(PLAYER_NEUTRAL_PASSIVE), udg_JUMP_POINTA, bj_UNIT_FACING )
-    call UnitApplyTimedLifeBJ( udg_JUMP_TIME, 'BTLF', GetLastCreatedUnit() )
-    set udg_JUMP_VALUE = GetUnitUserData(GetLastCreatedUnit())
-    call GroupAddUnitSimple( GetLastCreatedUnit(), udg_JUMP_GROUP )
-    set udg_Jump_UNIT[udg_JUMP_VALUE] = udg_JUMP_UNIT
-    set udg_Jump_COUNT[udg_JUMP_VALUE] = R2I(( udg_JUMP_TIME / udg_JUMP_LOOP ))
-    set udg_Jump_HEIGHT[udg_JUMP_VALUE] = udg_JUMP_HEIGHT
-    set udg_Jump_AOE[udg_JUMP_VALUE] = udg_JUMP_AOE
-    set udg_Jump_AX[udg_JUMP_VALUE] = GetLocationX(udg_JUMP_POINTA)
-    set udg_Jump_AY[udg_JUMP_VALUE] = GetLocationY(udg_JUMP_POINTA)
-    set udg_Jump_BX[udg_JUMP_VALUE] = GetLocationX(udg_JUMP_POINTB)
-    set udg_Jump_BY[udg_JUMP_VALUE] = GetLocationY(udg_JUMP_POINTB)
-    set udg_Jump_SPEED[udg_JUMP_VALUE] = ( DistanceBetweenPoints(udg_JUMP_POINTA, udg_JUMP_POINTB) / I2R(udg_Jump_COUNT[udg_JUMP_VALUE]) )
-    set udg_Jump_DEFAULTHEIGHT[udg_JUMP_VALUE] = GetUnitDefaultFlyHeight(udg_JUMP_UNIT)
-    set udg_Jump_D[udg_JUMP_VALUE] = ( 180.00 / I2R(udg_Jump_COUNT[udg_JUMP_VALUE]) )
-    set udg_Jump_COLLISION[udg_JUMP_VALUE] = udg_JUMP_COLLISION
-    set udg_Jump_TREE[udg_JUMP_VALUE] = udg_JUMP_TREE
-    set udg_Jump_SFXPM[udg_JUMP_VALUE] = udg_JUMP_SFXPM
-    set udg_Jump_SFXPMATTACHMENT[udg_JUMP_VALUE] = udg_JUMP_SFXPMATTACHMENT
-    if ( Trig_JUMP_INSTALL_Func022C() ) then
-        call AddSpecialEffectTargetUnitBJ( udg_JUMP_ATTACHMENT, udg_JUMP_UNIT, udg_JUMP_SFXATTACHMENT )
-        set udg_Jump_SFXATTACHMENT[udg_JUMP_VALUE] = GetLastCreatedEffectBJ()
-    else
-    endif
-    call EnableTrigger( gg_trg_JUMP_LOOP )
-    set udg_JUMP_AOE = 0.00
-    set udg_JUMP_HEIGHT = 0.00
-    set udg_JUMP_COLLISION = true
-    set udg_JUMP_TREE = false
-    set udg_JUMP_SFXATTACHMENT = ""
-    set udg_JUMP_SFXPM = ""
-    set udg_JUMP_ATTACHMENT = ""
-    set udg_JUMP_SFXPMATTACHMENT = ""
-    call RemoveLocation(udg_JUMP_POINTA)
-    call RemoveLocation(udg_JUMP_POINTB)
-endfunction
-
 //===========================================================================
 function InitTrig_JUMP_INSTALL takes nothing returns nothing
-    set gg_trg_JUMP_INSTALL = CreateTrigger(  )
-    call TriggerAddAction( gg_trg_JUMP_INSTALL, function Trig_JUMP_INSTALL_Actions )
 endfunction
 
 //===========================================================================
 // Trigger: JUMP LOOP
 //===========================================================================
-function Trig_JUMP_LOOP_Func001Func003Func007Func002Func002Func001Func003C takes nothing returns boolean
-    if ( not ( GetUnitCurrentOrder(udg_HARVESTER) == String2OrderIdBJ("harvest") ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_JUMP_LOOP_Func001Func003Func007Func002Func002Func001C takes nothing returns boolean
-    if ( not ( GetDestructableLife(GetEnumDestructable()) > 0.00 ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_JUMP_LOOP_Func001Func003Func007Func002Func002A takes nothing returns nothing
-    if ( Trig_JUMP_LOOP_Func001Func003Func007Func002Func002Func001C() ) then
-        call IssueTargetDestructableOrder( udg_HARVESTER, "harvest", GetEnumDestructable() )
-        if ( Trig_JUMP_LOOP_Func001Func003Func007Func002Func002Func001Func003C() ) then
-            call KillDestructable( GetEnumDestructable() )
-        else
-        endif
-    else
-        call IssueImmediateOrderBJ( udg_HARVESTER, "stop" )
-    endif
-endfunction
-
-function Trig_JUMP_LOOP_Func001Func003Func007Func002C takes nothing returns boolean
-    if ( not ( udg_Jump_TREE[udg_JUMP_VALUE] == true ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_JUMP_LOOP_Func001Func003Func007C takes nothing returns boolean
-    if ( not ( udg_Jump_COUNT[udg_JUMP_VALUE] <= 0 ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_JUMP_LOOP_Func001Func003Func012Func001C takes nothing returns boolean
-    if ( not ( udg_Jump_SFXPMATTACHMENT[udg_JUMP_VALUE] == "" ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_JUMP_LOOP_Func001Func003Func012C takes nothing returns boolean
-    if ( not ( udg_Jump_SFXPM[udg_JUMP_VALUE] != "" ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_JUMP_LOOP_Func001Func003Func013C takes nothing returns boolean
-    if ( not ( udg_Jump_COLLISION[udg_JUMP_VALUE] == true ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_JUMP_LOOP_Func001Func003A takes nothing returns nothing
-    set udg_JUMP_VALUE = GetUnitUserData(GetEnumUnit())
-    set udg_JUMP_UNIT = udg_Jump_UNIT[udg_JUMP_VALUE]
-    set udg_JUMP_POINTA = Location(udg_Jump_AX[udg_JUMP_VALUE], udg_Jump_AY[udg_JUMP_VALUE])
-    set udg_JUMP_POINTB = Location(udg_Jump_BX[udg_JUMP_VALUE], udg_Jump_BY[udg_JUMP_VALUE])
-    set udg_TEMP_LOC = GetUnitLoc(udg_JUMP_UNIT)
-    set udg_TEMP_LOC2 = PolarProjectionBJ(udg_TEMP_LOC, udg_Jump_SPEED[udg_JUMP_VALUE], AngleBetweenPoints(udg_JUMP_POINTA, udg_JUMP_POINTB))
-    if ( Trig_JUMP_LOOP_Func001Func003Func007C() ) then
-        call SetUnitPathing( udg_JUMP_UNIT, true )
-        if ( Trig_JUMP_LOOP_Func001Func003Func007Func002C() ) then
-            call EnumDestructablesInCircleBJ( udg_Jump_AOE[udg_JUMP_VALUE], udg_TEMP_LOC2, function Trig_JUMP_LOOP_Func001Func003Func007Func002Func002A )
-        else
-        endif
-        call DestroyEffectBJ( udg_Jump_SFXATTACHMENT[udg_JUMP_VALUE] )
-    else
-    endif
-    call SetUnitPositionLoc( udg_JUMP_UNIT, udg_TEMP_LOC2 )
-    set udg_TEMP_REAL = ( udg_Jump_HEIGHT[udg_JUMP_VALUE] * SinBJ(( I2R(udg_Jump_COUNT[udg_JUMP_VALUE]) * udg_Jump_D[udg_JUMP_VALUE] )) )
-    set udg_TEMP_REAL = ( udg_TEMP_REAL + udg_Jump_DEFAULTHEIGHT[udg_JUMP_VALUE] )
-    call SetUnitFlyHeightBJ( udg_JUMP_UNIT, udg_TEMP_REAL, 0.00 )
-    if ( Trig_JUMP_LOOP_Func001Func003Func012C() ) then
-        if ( Trig_JUMP_LOOP_Func001Func003Func012Func001C() ) then
-            call AddSpecialEffectLocBJ( udg_TEMP_LOC2, udg_Jump_SFXPM[udg_JUMP_VALUE] )
-        else
-            call AddSpecialEffectTargetUnitBJ( udg_Jump_SFXPMATTACHMENT[udg_JUMP_VALUE], udg_JUMP_UNIT, udg_Jump_SFXPM[udg_JUMP_VALUE] )
-        endif
-    else
-    endif
-    if ( Trig_JUMP_LOOP_Func001Func003Func013C() ) then
-        call SetUnitPathing( udg_JUMP_UNIT, true )
-    else
-        call SetUnitPathing( udg_JUMP_UNIT, false )
-    endif
-    set udg_Jump_COUNT[udg_JUMP_VALUE] = ( udg_Jump_COUNT[udg_JUMP_VALUE] - 1 )
-    call RemoveLocation(udg_TEMP_LOC)
-    call RemoveLocation(udg_TEMP_LOC2)
-    call RemoveLocation(udg_JUMP_POINTA)
-    call RemoveLocation(udg_JUMP_POINTB)
-endfunction
-
-function Trig_JUMP_LOOP_Func001C takes nothing returns boolean
-    if ( not ( IsUnitGroupEmptyBJ(udg_JUMP_GROUP) != true ) ) then
-        return false
-    endif
-    return true
-endfunction
-
-function Trig_JUMP_LOOP_Actions takes nothing returns nothing
-    if ( Trig_JUMP_LOOP_Func001C() ) then
-        call ForGroupBJ( udg_JUMP_GROUP, function Trig_JUMP_LOOP_Func001Func003A )
-    else
-        call DisableTrigger( GetTriggeringTrigger() )
-    endif
-endfunction
-
 //===========================================================================
 function InitTrig_JUMP_LOOP takes nothing returns nothing
-    set gg_trg_JUMP_LOOP = CreateTrigger(  )
-    call DisableTrigger( gg_trg_JUMP_LOOP )
-    call TriggerAddAction( gg_trg_JUMP_LOOP, function Trig_JUMP_LOOP_Actions )
 endfunction
 
 //===========================================================================
@@ -20968,8 +24012,7 @@ function Trig_The_Triforce_Actions takes nothing returns nothing
         call RemoveItem( GetItemOfTypeFromUnitBJ(udg_Item_Holder, 'I00Z') )
         call RemoveItem( GetItemOfTypeFromUnitBJ(udg_Item_Holder, 'I011') )
         call RemoveItem( GetItemOfTypeFromUnitBJ(udg_Item_Holder, 'I010') )
-        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\AIem\\AIemTarget.mdl", GetUnitX(udg_Item_Holder), GetUnitY(udg_Item_Holder)))
-        call DestroyEffectBJ( GetLastCreatedEffectBJ() )
+        call SFX_Point("Abilities\\Spells\\Items\\AIem\\AIemTarget.mdl", GetUnitX(udg_Item_Holder), GetUnitY(udg_Item_Holder))
         call UnitAddItemByIdSwapped( 'I012', udg_Item_Holder )
     else
     endif
@@ -21010,15 +24053,13 @@ function Trig_Divine_Impaler_Actions takes nothing returns nothing
     if ( Trig_Divine_Impaler_Func002C() ) then
         call RemoveItem( GetItemOfTypeFromUnitBJ(udg_Item_Holder, 'I006') )
         call RemoveItem( GetItemOfTypeFromUnitBJ(udg_Item_Holder, 'I00A') )
-        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\AIem\\AIemTarget.mdl", GetUnitX(udg_Item_Holder), GetUnitY(udg_Item_Holder)))
-        call DestroyEffectBJ( GetLastCreatedEffectBJ() )
+        call SFX_Point("Abilities\\Spells\\Items\\AIem\\AIemTarget.mdl", GetUnitX(udg_Item_Holder), GetUnitY(udg_Item_Holder))
         call UnitAddItemByIdSwapped( 'I00I', udg_Item_Holder )
     else
         if ( Trig_Divine_Impaler_Func002Func001C() ) then
             call RemoveItem( GetItemOfTypeFromUnitBJ(udg_Item_Holder, 'I006') )
             call RemoveItem( GetItemOfTypeFromUnitBJ(udg_Item_Holder, 'I00C') )
-            DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\AIem\\AIemTarget.mdl", GetUnitX(udg_Item_Holder), GetUnitY(udg_Item_Holder)))
-            call DestroyEffectBJ( GetLastCreatedEffectBJ() )
+            call SFX_Point("Abilities\\Spells\\Items\\AIem\\AIemTarget.mdl", GetUnitX(udg_Item_Holder), GetUnitY(udg_Item_Holder))
             call UnitAddItemByIdSwapped( 'I00L', udg_Item_Holder )
         else
         endif
@@ -21068,8 +24109,7 @@ function Trig_Dragon_Slayer_Actions takes nothing returns nothing
         call RemoveItem( GetItemOfTypeFromUnitBJ(udg_Item_Holder, 'ratf') )
         call RemoveItem( GetItemOfTypeFromUnitBJ(udg_Item_Holder, 'modt') )
         call RemoveItem( GetItemOfTypeFromUnitBJ(udg_Item_Holder, 'I00B') )
-        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\AIem\\AIemTarget.mdl", GetUnitX(udg_Item_Holder), GetUnitY(udg_Item_Holder)))
-        call DestroyEffectBJ( GetLastCreatedEffectBJ() )
+        call SFX_Point("Abilities\\Spells\\Items\\AIem\\AIemTarget.mdl", GetUnitX(udg_Item_Holder), GetUnitY(udg_Item_Holder))
         if ( Trig_Dragon_Slayer_Func002Func006C() ) then
             call UnitAddItemByIdSwapped( 'I00A', udg_Item_Holder )
         else
@@ -21111,8 +24151,7 @@ function Trig_Cloak_of_Magi_Actions takes nothing returns nothing
         call RemoveItem( GetItemOfTypeFromUnitBJ(udg_Item_Holder, 'I00G') )
         call RemoveItem( GetItemOfTypeFromUnitBJ(udg_Item_Holder, 'I00H') )
         call RemoveItem( GetItemOfTypeFromUnitBJ(udg_Item_Holder, 'I00F') )
-        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\AIem\\AIemTarget.mdl", GetUnitX(udg_Item_Holder), GetUnitY(udg_Item_Holder)))
-        call DestroyEffectBJ( GetLastCreatedEffectBJ() )
+        call SFX_Point("Abilities\\Spells\\Items\\AIem\\AIemTarget.mdl", GetUnitX(udg_Item_Holder), GetUnitY(udg_Item_Holder))
         call UnitAddItemByIdSwapped( 'I00E', udg_Item_Holder )
     else
     endif
@@ -21147,8 +24186,7 @@ function Trig_Rubber_Boots_Actions takes nothing returns nothing
         call RemoveItem( GetItemOfTypeFromUnitBJ(udg_Item_Holder, 'bspd') )
         call RemoveItem( GetItemOfTypeFromUnitBJ(udg_Item_Holder, 'gcel') )
         call RemoveItem( GetItemOfTypeFromUnitBJ(udg_Item_Holder, 'I00M') )
-        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\AIem\\AIemTarget.mdl", GetUnitX(udg_Item_Holder), GetUnitY(udg_Item_Holder)))
-        call DestroyEffectBJ( GetLastCreatedEffectBJ() )
+        call SFX_Point("Abilities\\Spells\\Items\\AIem\\AIemTarget.mdl", GetUnitX(udg_Item_Holder), GetUnitY(udg_Item_Holder))
         call UnitAddItemByIdSwapped( 'I00N', udg_Item_Holder )
     else
     endif
@@ -21241,8 +24279,7 @@ function Trig_Denkis_Shock_Tazer_Actions takes nothing returns nothing
         call RemoveItem( GetItemOfTypeFromUnitBJ(udg_Item_Holder, 'I00S') )
         call RemoveItem( GetItemOfTypeFromUnitBJ(udg_Item_Holder, 'bgst') )
         call RemoveItem( GetItemOfTypeFromUnitBJ(udg_Item_Holder, 'I00Q') )
-        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\AIem\\AIemTarget.mdl", GetUnitX(udg_Item_Holder), GetUnitY(udg_Item_Holder)))
-        call DestroyEffectBJ( GetLastCreatedEffectBJ() )
+        call SFX_Point("Abilities\\Spells\\Items\\AIem\\AIemTarget.mdl", GetUnitX(udg_Item_Holder), GetUnitY(udg_Item_Holder))
         call UnitAddItemByIdSwapped( 'I00T', udg_Item_Holder )
     else
     endif
@@ -21277,8 +24314,7 @@ function Trig_Grand_Bracer_Actions takes nothing returns nothing
         call RemoveItem( GetItemOfTypeFromUnitBJ(udg_Item_Holder, 'cnob') )
         call RemoveItem( GetItemOfTypeFromUnitBJ(udg_Item_Holder, 'rst1') )
         call RemoveItem( GetItemOfTypeFromUnitBJ(udg_Item_Holder, 'I00R') )
-        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\AIem\\AIemTarget.mdl", GetUnitX(udg_Item_Holder), GetUnitY(udg_Item_Holder)))
-        call DestroyEffectBJ( GetLastCreatedEffectBJ() )
+        call SFX_Point("Abilities\\Spells\\Items\\AIem\\AIemTarget.mdl", GetUnitX(udg_Item_Holder), GetUnitY(udg_Item_Holder))
         call UnitAddItemByIdSwapped( 'I00S', udg_Item_Holder )
     else
     endif
@@ -21313,8 +24349,7 @@ function Trig_Staff_of_Wuulgarath_Actions takes nothing returns nothing
         call RemoveItem( GetItemOfTypeFromUnitBJ(udg_Item_Holder, 'rag1') )
         call RemoveItem( GetItemOfTypeFromUnitBJ(udg_Item_Holder, 'afac') )
         call RemoveItem( GetItemOfTypeFromUnitBJ(udg_Item_Holder, 'I00U') )
-        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\AIem\\AIemTarget.mdl", GetUnitX(udg_Item_Holder), GetUnitY(udg_Item_Holder)))
-        call DestroyEffectBJ( GetLastCreatedEffectBJ() )
+        call SFX_Point("Abilities\\Spells\\Items\\AIem\\AIemTarget.mdl", GetUnitX(udg_Item_Holder), GetUnitY(udg_Item_Holder))
         call UnitAddItemByIdSwapped( 'I00V', udg_Item_Holder )
     else
     endif
@@ -21328,9 +24363,9 @@ function InitTrig_Staff_of_Wuulgarath takes nothing returns nothing
 endfunction
 
 //===========================================================================
-// Trigger: Ninjaruels Niggastick
+// Trigger: Ninjaruels Staff
 //===========================================================================
-function Trig_Ninjaruels_Niggastick_Func002C takes nothing returns boolean
+function Trig_Ninjaruels_Staff_Func002C takes nothing returns boolean
     if ( not ( UnitHasItemOfTypeBJ(udg_Item_Holder, 'afac') == true ) ) then
         return false
     endif
@@ -21343,24 +24378,23 @@ function Trig_Ninjaruels_Niggastick_Func002C takes nothing returns boolean
     return true
 endfunction
 
-function Trig_Ninjaruels_Niggastick_Actions takes nothing returns nothing
+function Trig_Ninjaruels_Staff_Actions takes nothing returns nothing
     set udg_Item_Holder = GetManipulatingUnit()
-    if ( Trig_Ninjaruels_Niggastick_Func002C() ) then
+    if ( Trig_Ninjaruels_Staff_Func002C() ) then
         call RemoveItem( GetItemOfTypeFromUnitBJ(udg_Item_Holder, 'afac') )
         call RemoveItem( GetItemOfTypeFromUnitBJ(udg_Item_Holder, 'rst1') )
         call RemoveItem( GetItemOfTypeFromUnitBJ(udg_Item_Holder, 'I00X') )
-        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\AIem\\AIemTarget.mdl", GetUnitX(udg_Item_Holder), GetUnitY(udg_Item_Holder)))
-        call DestroyEffectBJ( GetLastCreatedEffectBJ() )
+        call SFX_Point("Abilities\\Spells\\Items\\AIem\\AIemTarget.mdl", GetUnitX(udg_Item_Holder), GetUnitY(udg_Item_Holder))
         call UnitAddItemByIdSwapped( 'I00Y', udg_Item_Holder )
     else
     endif
 endfunction
 
 //===========================================================================
-function InitTrig_Ninjaruels_Niggastick takes nothing returns nothing
-    set gg_trg_Ninjaruels_Niggastick = CreateTrigger(  )
-    call TriggerRegisterAnyUnitEventBJ( gg_trg_Ninjaruels_Niggastick, EVENT_PLAYER_UNIT_PICKUP_ITEM )
-    call TriggerAddAction( gg_trg_Ninjaruels_Niggastick, function Trig_Ninjaruels_Niggastick_Actions )
+function InitTrig_Ninjaruels_Staff takes nothing returns nothing
+    set gg_trg_Ninjaruels_Staff = CreateTrigger(  )
+    call TriggerRegisterAnyUnitEventBJ( gg_trg_Ninjaruels_Staff, EVENT_PLAYER_UNIT_PICKUP_ITEM )
+    call TriggerAddAction( gg_trg_Ninjaruels_Staff, function Trig_Ninjaruels_Staff_Actions )
 endfunction
 
 //===========================================================================
@@ -21389,8 +24423,7 @@ function Trig_Armor_of_Terror_Actions takes nothing returns nothing
         call RemoveItem( GetItemOfTypeFromUnitBJ(udg_Item_Holder, 'rat9') )
         call RemoveItem( GetItemOfTypeFromUnitBJ(udg_Item_Holder, 'I00G') )
         call RemoveItem( GetItemOfTypeFromUnitBJ(udg_Item_Holder, 'I016') )
-        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\AIem\\AIemTarget.mdl", GetUnitX(udg_Item_Holder), GetUnitY(udg_Item_Holder)))
-        call DestroyEffectBJ( GetLastCreatedEffectBJ() )
+        call SFX_Point("Abilities\\Spells\\Items\\AIem\\AIemTarget.mdl", GetUnitX(udg_Item_Holder), GetUnitY(udg_Item_Holder))
         call UnitAddItemByIdSwapped( 'I015', udg_Item_Holder )
     else
     endif
@@ -21429,8 +24462,7 @@ function Trig_Derping_Axe_Actions takes nothing returns nothing
         call RemoveItem( GetItemOfTypeFromUnitBJ(udg_Item_Holder, 'I00S') )
         call RemoveItem( GetItemOfTypeFromUnitBJ(udg_Item_Holder, 'I00G') )
         call RemoveItem( GetItemOfTypeFromUnitBJ(udg_Item_Holder, 'I018') )
-        DestroyEffect(AddSpecialEffect("Abilities\\Spells\\Items\\AIem\\AIemTarget.mdl", GetUnitX(udg_Item_Holder), GetUnitY(udg_Item_Holder)))
-        call DestroyEffectBJ( GetLastCreatedEffectBJ() )
+        call SFX_Point("Abilities\\Spells\\Items\\AIem\\AIemTarget.mdl", GetUnitX(udg_Item_Holder), GetUnitY(udg_Item_Holder))
         call UnitAddItemByIdSwapped( 'I019', udg_Item_Holder )
     else
     endif
@@ -22103,7 +25135,7 @@ endfunction
 function Trig_BD_Replace_Func003A takes nothing returns nothing
     call UnitRemoveItemSwapped( GetItemOfTypeFromUnitBJ(GetEnumUnit(), 'I00W'), GetEnumUnit() )
     call RemoveItem( GetLastRemovedItem() )
-    call CreateItem('I000', GetUnitX(GetEnumUnit(), GetUnitY(GetEnumUnit()) )
+    set bj_lastCreatedItem = CreateItem('I000', GetUnitX(GetEnumUnit()), GetUnitY(GetEnumUnit()))
     call UnitAddItemSwapped( GetLastCreatedItem(), GetEnumUnit() )
 endfunction
 
@@ -22583,6 +25615,7 @@ function InitCustomTriggers takes nothing returns nothing
     call InitTrig_RW(  )
     call InitTrig_ReefWalk_Castb(  )
     call InitTrig_ReekWalkb(  )
+    call InitTrig_Hydra_Summons(  )
     call InitTrig_Torpedo(  )
     call InitTrig_Torpedo_on(  )
     call InitTrig_Cold_Touch(  )
@@ -22819,7 +25852,7 @@ function InitCustomTriggers takes nothing returns nothing
     call InitTrig_Denkis_Shock_Tazer(  )
     call InitTrig_Grand_Bracer(  )
     call InitTrig_Staff_of_Wuulgarath(  )
-    call InitTrig_Ninjaruels_Niggastick(  )
+    call InitTrig_Ninjaruels_Staff(  )
     call InitTrig_Armor_of_Terror(  )
     call InitTrig_Derping_Axe(  )
     call InitTrig_Mortar_fire(  )

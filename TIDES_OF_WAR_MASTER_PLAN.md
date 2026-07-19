@@ -415,7 +415,7 @@ Ordered so each batch exercises the newest engine layer, hardest risk first. **N
 | B8 — AI cutover | All `Trig_Player_*`, `P*_Att`, `P*_Skill`, Wander, Behavior1–3, KS, Retreat, Cast_KB, Pickup_Lines | WarMind replaces all of it |
 | B9 — Game systems polish | Combat/PS/Revive/Duel/Multiboard/Bomb mode leak-scrub & EventBus adoption | Cleanup |
 
-One item in B7 needs a content note: the item trigger named `Trig_Ninjaruels_Niggastick` contains a racial slur. **Rename the item and trigger during migration** — it has no place in the map.
+The legacy item trigger with an offensive name was renamed to `Trig_Ninjaruels_Staff` during the compile-repair pass. The object-data item name should be reviewed again during B7.
 
 ---
 
