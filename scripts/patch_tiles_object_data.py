@@ -335,7 +335,10 @@ ABILITY_TEXT = {
             "its nearest neighbor with erupting fault lines, and detonates the "
             "entire network. Enemies struck take 140 + 25 per seed + 4.5% maximum "
             "life as Pure damage and are stunned. Creates an 8-monolith ring if "
-            "no seeds exist."
+            "no seeds exist.|n|nThe epicenter then convulses: |cffffcc008 "
+            "aftershocks|r over 4 seconds, each dealing |cffffcc0055 + 20% "
+            "Strength + 1.2% maximum life|r Pure damage in 650 range and "
+            "|cffff5050slowing|r everything caught in the quake."
         ),
         b"aret": "Learn Tectonic Assembly [|cffffcc00R|r]",
         b"arut": "Builds a temporary polygon of stone, then ruptures every edge at once.",
@@ -912,15 +915,20 @@ def build_wave_of_terror() -> ObjectRecord:
             int_mod(b"Ncl5", 0, 1),
             string_mod(b"Ncl6", "shockwave", 1),
             real_mod(b"acdn", EXPLICIT_COOLDOWNS["A02D"], 1),
-            int_mod(b"amcs", 90, 1),
+            int_mod(b"amcs", 0, 1),
             real_mod(b"aran", 1300.0, 1),
         ],
     )
 
 
 def build_nether_swap() -> ObjectRecord:
-    """A00B rebuilt from Storm Bolt: an instant, unit-target soul swap that can
-    grab allies and enemies alike; all mechanics live in JASS."""
+    """A00B rebuilt from Channel (unit-target, base order "absorb"): all swap
+    mechanics live in JASS.
+
+    IMPORTANT: this was previously rebuilt on Storm Bolt (AHtb) - but Grudge
+    Bolt (A008) is ALSO Storm Bolt-based, and two abilities sharing the base
+    order id "thunderbolt" on the same hero cross-fire: casting one triggers
+    or blocks the other. Channel with a unique order id ends the conflict."""
     tooltip = (
         "Rips two souls through the nether, instantly trading places with any "
         "hero - friend or foe. A swapped enemy takes |cffffcc00100 + 300% "
@@ -938,15 +946,16 @@ def build_nether_swap() -> ObjectRecord:
         string_mod(b"ahky", "R"),
         string_mod(b"arhk", "R"),
         string_mod(b"aani", "spell"),
-        string_mod(b"amat", ""),
-        int_mod(b"amsp", 10000),
         string_mod(b"atp1", "Nether Swap [|cffffcc00R|r]", 1),
         string_mod(b"aub1", tooltip, 1),
-        real_mod(b"Htb1", 0.0, 1),
-        real_mod(b"adur", 0.01, 1),
-        real_mod(b"ahdu", 0.01, 1),
+        real_mod(b"Ncl1", 0.0, 1),
+        int_mod(b"Ncl2", 1, 1),
+        int_mod(b"Ncl3", 1, 1),
+        real_mod(b"Ncl4", 0.0, 1),
+        int_mod(b"Ncl5", 0, 1),
+        string_mod(b"Ncl6", "absorb", 1),
         real_mod(b"acdn", EXPLICIT_COOLDOWNS["A00B"], 1),
-        int_mod(b"amcs", 100, 1),
+        int_mod(b"amcs", 0, 1),
         real_mod(b"aran", 1100.0, 1),
         string_mod(
             b"atar",
@@ -954,7 +963,7 @@ def build_nether_swap() -> ObjectRecord:
             1,
         ),
     ]
-    return ObjectRecord(b"AHtb", b"A00B", mods)
+    return ObjectRecord(b"ANcl", b"A00B", mods)
 
 
 def build_nether_chill() -> ObjectRecord:
@@ -1293,6 +1302,43 @@ def patch_units(input_path: Path, output_path: Path) -> int:
     return changes
 
 
+def zero_mana_costs(
+    original: list[ObjectRecord],
+    custom: list[ObjectRecord],
+    hero_spells: "set[str]",
+) -> int:
+    """Arena rule: NO ability costs mana, ever.
+
+    Pass 1 zeroes every existing amcs modification in both tables (covers all
+    custom abilities that ever set a mana cost). Pass 2 force-writes amcs=0
+    for levels 1-4 of every hero-carried ability, creating original-table
+    records for standard-ability rawcodes (e.g. 'Aadm') the editor never
+    touched - those otherwise keep their nonzero Blizzard defaults."""
+    changes = 0
+    zero = struct.pack("<i", 0)
+    for record in original + custom:
+        for mod in record.modifications:
+            if mod.field_id == b"amcs" and mod.value != zero:
+                mod.value_type = 0
+                mod.value = zero
+                changes += 1
+    known = {record.rawcode for record in original + custom}
+    for record in original + custom:
+        if record.rawcode in hero_spells:
+            for lv in (1, 2, 3, 4):
+                changes += upsert_field(record, b"amcs", 0, lv, 0)
+    for code in sorted(hero_spells - known):
+        original.append(
+            ObjectRecord(
+                code.encode("latin-1"),
+                b"\x00\x00\x00\x00",
+                [int_mod(b"amcs", 0, lv) for lv in (1, 2, 3, 4)],
+            )
+        )
+        changes += 1
+    return changes
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("input", type=Path)
@@ -1315,15 +1361,18 @@ def main() -> int:
     field_changes = apply_field_patches(original) + apply_field_patches(custom)
 
     rebalanced = 0
+    hero_spells: "set[str]" = set()
     if args.unit_input is not None:
         unit_data = args.unit_input.read_bytes()
         unit_version, unit_offset = read_i32(unit_data, 0)
         unit_original, unit_offset = read_simple_table(unit_data, unit_offset)
         unit_custom, unit_offset = read_simple_table(unit_data, unit_offset)
         basics, ults = collect_hero_ability_tiers(unit_original + unit_custom)
+        hero_spells = basics | ults
         # The rebuilt kit abilities keep their explicit cooldowns.
         rebalanced = rebalance_cooldowns(original, basics, ults)
         rebalanced += rebalance_cooldowns(custom, basics, ults)
+    zeroed = zero_mana_costs(original, custom, hero_spells)
 
     if changes == 0 and not added_citadel and rebuilt == 0 and field_changes == 0:
         raise ValueError("No hero-overhaul ability fields were patched")
@@ -1335,7 +1384,8 @@ def main() -> int:
         f"Patched {changes} hero-overhaul ability text fields"
         f"{' and added A07I Citadel of War' if added_citadel else ''}, "
         f"rebuilt {rebuilt} kit records, applied {field_changes} kit fields, "
-        f"rebalanced {rebalanced} cooldown entries "
+        f"rebalanced {rebalanced} cooldown entries, "
+        f"zeroed {zeroed} mana-cost entries "
         f"({len(data)} -> {len(output)} bytes)"
     )
     if (args.unit_input is None) != (args.unit_output is None):

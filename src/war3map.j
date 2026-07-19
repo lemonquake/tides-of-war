@@ -1742,6 +1742,51 @@ globals
     integer array           Hyu_Chain
     integer array           Hyu_Count
     real array              Hyu_PulseAcc
+    // --- Elune's Arrow rework: styled MissileCore flight
+    trigger                 Eaw_OnTick                   = null
+    trigger                 Eaw_OnEnd                    = null
+    // --- Ancient Wanderer: Tectonic Assembly epicenter quakes
+    integer                 Awq_N                        = 0
+    unit array              Awq_Caster
+    real array              Awq_X
+    real array              Awq_Y
+    real array              Awq_Time
+    integer array           Awq_Left
+    // --- NeutralCore: proximity-grouped creep camps, respawn on full wipe
+    boolean                 Ncr_Ready                    = false
+    real                    Ncr_Acc                      = 0.00
+    integer                 Ncr_MemN                     = 0
+    integer                 Ncr_CampN                    = 0
+    unit array              Ncr_MemUnit
+    integer array           Ncr_MemType
+    integer array           Ncr_MemCamp
+    real array              Ncr_MemX
+    real array              Ncr_MemY
+    real array              Ncr_MemFace
+    real array              Ncr_CampX
+    real array              Ncr_CampY
+    real array              Ncr_CampRespawnAt
+    // --- DuelCore: countdown, arena dressing, rewards and duel records
+    integer                 Duel_State                   = 0
+    unit                    Duel_A                       = null
+    unit                    Duel_B                       = null
+    real                    Duel_AX                      = 0.00
+    real                    Duel_AY                      = 0.00
+    real                    Duel_BX                      = 0.00
+    real                    Duel_BY                      = 0.00
+    real                    Duel_AHp                     = 0.00
+    real                    Duel_BHp                     = 0.00
+    real                    Duel_Timer                   = 0.00
+    real                    Duel_FxAcc                   = 0.00
+    integer                 Duel_Count                   = 0
+    fogmodifier array       Duel_FogArr
+    multiboard              Duel_Board                   = null
+    multiboard              Duel_PrevBoard               = null
+    unit                    Duel_PickTmp                 = null
+    integer array           Duel_Wins
+    integer array           Duel_Losses
+    integer array           Duel_GoldWon
+    integer array           Duel_BoardRow
 endglobals
 
 function Tow_ClampX takes real x returns real
@@ -2733,27 +2778,56 @@ function SoulStrike_Launch takes unit caster, real tx, real ty returns nothing
 endfunction
 
 //===========================================================================
-// Energy Arrow "EA" (ability 'A02P') - line missile that grows stronger the
-// farther it flies (+35 damage / +1 stun level per 270 range, max 3000).
-// On striking an enemy it detonates: 250-radius AoE damage + leveled stun.
+// Elune's Arrow "EA" (ability 'A02P') - the sacred arrow, rebuilt clean on
+// MissileCore. One pooled engine dummy carries the moon-glaive missile in a
+// dead-straight, terrain-ignoring flight: nothing can snag it, nothing can
+// target it, it simply flies. It grows in power and size the farther it
+// travels (+35 damage / +1 stun level per 270 range, max 3000), sheds a
+// moonlit sparkle trail, and detonates on the first enemy struck: a starfall
+// burst, 250-radius damage and a leveled stun. Reaching max range fizzles in
+// a soft moonlight shimmer.
 //===========================================================================
+function EA_OnTick takes nothing returns boolean
+    local integer i = EV_MISSILE
+    set Msl_Data[i] = Msl_Data[i] + 1
+    // The arrow visibly grows as the grudge of distance builds.
+    call SetUnitScale(Msl_Dummy[i], 1.00 + Msl_Dist[i] * 0.00030, 1.00, 1.00)
+    if Msl_Data[i] - (Msl_Data[i] / 4) * 4 == 0 then
+        call SFX_Point("Abilities\\Weapons\\FaerieDragonMissile\\FaerieDragonMissile.mdl", Msl_X[i], Msl_Y[i])
+    endif
+    return false
+endfunction
+
+function EA_OnEnd takes nothing returns boolean
+    call SFX_Point("Abilities\\Spells\\NightElf\\Starfall\\StarfallTarget.mdl", Msl_X[EV_MISSILE], Msl_Y[EV_MISSILE])
+    return false
+endfunction
+
 function EA_OnHit takes nothing returns boolean
     local integer i = EV_MISSILE
     local integer lvl
     local player p
     local unit u
+    local group g
     if (not IsUnitEnemy(EV_UNIT, GetOwningPlayer(Msl_Owner[i]))) or GetUnitAbilityLevel(EV_UNIT, 'A00A') > 0 then
         return false
     endif
     set p = GetOwningPlayer(Msl_Owner[i])
     set lvl = R2I(Msl_Dist[i] / 270.00)
-    call GroupEnumUnitsInRange(Eng_Enum, GetUnitX(EV_UNIT), GetUnitY(EV_UNIT), 250.00, null)
+    // Impact spectacle: the moon answers.
+    call SFX_Point("Abilities\\Spells\\NightElf\\Starfall\\StarfallTarget.mdl", GetUnitX(EV_UNIT), GetUnitY(EV_UNIT))
+    call SFX_Unit("Abilities\\Weapons\\MoonPriestessMissile\\MoonPriestessMissile.mdl", EV_UNIT, "chest")
+    call SFX_Unit("Abilities\\Spells\\NightElf\\ManaFlare\\ManaFlareBoltImpact.mdl", EV_UNIT, "overhead")
+    // Isolated group: this runs inside MissileCore's own Eng_Enum iteration.
+    set g = CreateGroup()
+    call GroupEnumUnitsInRange(g, GetUnitX(EV_UNIT), GetUnitY(EV_UNIT), 250.00, null)
     loop
-        set u = FirstOfGroup(Eng_Enum)
+        set u = FirstOfGroup(g)
         exitwhen u == null
-        call GroupRemoveUnit(Eng_Enum, u)
+        call GroupRemoveUnit(g, u)
         if GetWidgetLife(u) > 0.405 and not IsUnitType(u, UNIT_TYPE_STRUCTURE) and not Eng_IsDummyType(GetUnitTypeId(u)) and IsUnitAlly(u, GetOwningPlayer(EV_UNIT)) and GetUnitAbilityLevel(u, 'A00A') == 0 then
             call UnitDamageTarget(Msl_Owner[i], u, 500.00 + 35.00 * I2R(lvl), true, false, ATTACK_TYPE_NORMAL, DAMAGE_TYPE_NORMAL, WEAPON_TYPE_WHOKNOWS)
+            call SFX_Unit("Abilities\\Spells\\NightElf\\Starfall\\StarfallTarget.mdl", u, "origin")
             if lvl > 1 then
                 call Dummy_CastTargetLevel(p, 'A059', lvl, Eng_OrdThunderbolt, u)
             else
@@ -2761,14 +2835,18 @@ function EA_OnHit takes nothing returns boolean
             endif
         endif
     endloop
+    call DestroyGroup(g)
+    set g = null
     set u = null
     set p = null
     return true
 endfunction
 
 function EA_Launch takes unit caster, real tx, real ty returns nothing
-    local integer i = Missile_LaunchXY(caster, GetUnitX(caster), GetUnitY(caster), tx, ty, 1000.00, 3000.00, 125.00, 'e000', "", Eaw_OnHit, null)
-    call SetUnitFlyHeight(Msl_Dummy[i], 70.00, 0.00)
+    local integer i = Missile_LaunchXY(caster, GetUnitX(caster), GetUnitY(caster), tx, ty, 1100.00, 3000.00, 110.00, 'h005', "Abilities\\Weapons\\MoonPriestessMissile\\MoonPriestessMissile.mdl", Eaw_OnHit, Eaw_OnEnd)
+    call SetUnitFlyHeight(Msl_Dummy[i], 90.00, 0.00)
+    call Missile_SetOnTick(i, Eaw_OnTick)
+    call SFX_Unit("Abilities\\Spells\\NightElf\\ManaFlare\\ManaFlareBoltImpact.mdl", caster, "weapon")
 endfunction
 
 //===========================================================================
@@ -4543,6 +4621,72 @@ function Esh_EchoSlam takes unit caster returns nothing
 endfunction
 
 //===========================================================================
+//===========================================================================
+// Tectonic Assembly epicenter quakes - the ground at the target point keeps
+// convulsing after the monolith network fires: 8 aftershocks, one every half
+// second, each dealing Strength + max-life PURE damage in 650 range and
+// slowing every enemy caught in the shudder (A07J Nether Chill, refreshed
+// per quake). This is what makes the ultimate FELT at the epicenter instead
+// of only along the fault lines.
+//===========================================================================
+function Awq_Start takes unit caster, real x, real y returns nothing
+    set Awq_N = Awq_N + 1
+    set Awq_Caster[Awq_N] = caster
+    set Awq_X[Awq_N] = x
+    set Awq_Y[Awq_N] = y
+    set Awq_Time[Awq_N] = 0.10
+    set Awq_Left[Awq_N] = 8
+endfunction
+
+function Awq_Tick takes nothing returns nothing
+    local integer i = Awq_N
+    local unit caster
+    local unit u
+    local player p
+    local real dmg
+    loop
+        exitwhen i < 1
+        set Awq_Time[i] = Awq_Time[i] - Eng_TickRate
+        if Awq_Time[i] <= 0.00 then
+            set caster = Awq_Caster[i]
+            if Awq_Left[i] <= 0 or caster == null or GetUnitTypeId(caster) == 0 then
+                set Awq_Caster[i] = Awq_Caster[Awq_N]
+                set Awq_X[i] = Awq_X[Awq_N]
+                set Awq_Y[i] = Awq_Y[Awq_N]
+                set Awq_Time[i] = Awq_Time[Awq_N]
+                set Awq_Left[i] = Awq_Left[Awq_N]
+                set Awq_Caster[Awq_N] = null
+                set Awq_N = Awq_N - 1
+            else
+                set Awq_Left[i] = Awq_Left[i] - 1
+                set Awq_Time[i] = 0.50
+                set p = GetOwningPlayer(caster)
+                set dmg = 55.00 + 0.20 * I2R(GetHeroStr(caster, true))
+                set bj_lastCreatedTerrainDeformation = TerrainDeformRipple(Awq_X[i], Awq_Y[i], 650.00, 48.00, 900, 1, 1.50, 9.00, 1.00, false)
+                call SFX_Point("Abilities\\Spells\\Orc\\WarStomp\\WarStompCaster.mdl", Awq_X[i], Awq_Y[i])
+                call SFX_Point("Objects\\Spawnmodels\\Undead\\ImpaleTargetDust\\ImpaleTargetDust.mdl", Awq_X[i] + GetRandomReal(-300.00, 300.00), Awq_Y[i] + GetRandomReal(-300.00, 300.00))
+                call GroupEnumUnitsInRange(Eng_Enum, Awq_X[i], Awq_Y[i], 650.00, null)
+                loop
+                    set u = FirstOfGroup(Eng_Enum)
+                    exitwhen u == null
+                    call GroupRemoveUnit(Eng_Enum, u)
+                    if Eng_ValidTarget(u, p) and IsUnitEnemy(u, p) then
+                        call Damage_Pure(caster, u, dmg + GetUnitState(u, UNIT_STATE_MAX_LIFE) * 0.012)
+                        call Dummy_CastTarget(p, 'A07J', Eng_OrdSlow, u)
+                        call SFX_Unit("Objects\\Spawnmodels\\Undead\\ImpaleTargetDust\\ImpaleTargetDust.mdl", u, "origin")
+                    endif
+                endloop
+                call GroupClear(Eng_Enum)
+            endif
+            set caster = null
+        endif
+        set i = i - 1
+    endloop
+    set u = null
+    set p = null
+endfunction
+
+//===========================================================================
 // Ancient Wanderer overhaul - persistent Meteor Seeds, ricocheting boulders,
 // Lithic Heart counterwaves, and a battlefield-wide Tectonic Assembly.
 //===========================================================================
@@ -4876,6 +5020,8 @@ function Aw_TectonicAssembly takes unit caster, real tx, real ty returns nothing
     endif
     set bj_lastCreatedTerrainDeformation = TerrainDeformRipple(tx, ty, 1000.00, 120.00, 2500, 1, 2.00, 12.00, 1.00, false)
     call SFX_Point("Abilities\\Spells\\Other\\Volcano\\VolcanoDeath.mdl", tx, ty)
+    // The epicenter itself now aftershocks: 8 damaging, slowing quakes.
+    call Awq_Start(caster, tx, ty)
     set i = 1
     loop
         exitwhen i > Aw_SeedN
@@ -6564,7 +6710,9 @@ function HydraUlt_Launch takes unit caster returns nothing
         set u = FirstOfGroup(Eng_Enum)
         exitwhen u == null
         call GroupRemoveUnit(Eng_Enum, u)
-        if Eng_ValidTarget(u, GetOwningPlayer(caster)) and GetUnitAbilityLevel(u, 'A00A') < 1 then
+        // Only living ENEMY non-structures belong in the abyss - Eng_ValidTarget
+        // alone lets allied-team units through (it only excludes the caster's own).
+        if Eng_ValidTarget(u, GetOwningPlayer(caster)) and IsUnitEnemy(u, GetOwningPlayer(caster)) and GetUnitAbilityLevel(u, 'A00A') < 1 then
             call GroupAddUnit(held, u)
             call PauseUnit(u, true)
             call SetUnitPathing(u, false)
@@ -7398,6 +7546,637 @@ function Eng_GoreDeath takes nothing returns boolean
     return false
 endfunction
 
+//===========================================================================
+// NeutralCore - proximity-grouped creep camps with respawn-on-wipe.
+// At engine boot every living neutral-aggressive non-dummy is recorded with
+// its ORIGINAL position and facing, then flood-filled into camps: members
+// within 500 units of each other share one camp. A camp only respawns when
+// EVERY member is dead or gone (30-second delay), and politely waits while
+// an enemy hero is standing on the camp (re-check every 5 seconds) or while
+// a duel has the world paused. Respawns recreate every member at its exact
+// original spot and facing with a moonless-summoning flourish.
+//===========================================================================
+function Ncr_Init takes nothing returns nothing
+    local group g = CreateGroup()
+    local unit u
+    local integer i
+    local integer j
+    local integer k
+    local integer qTail
+    local integer qHead
+    local real dx
+    local real dy
+    local real sx
+    local real sy
+    call GroupEnumUnitsOfPlayer(g, Player(PLAYER_NEUTRAL_AGGRESSIVE), null)
+    loop
+        set u = FirstOfGroup(g)
+        exitwhen u == null
+        call GroupRemoveUnit(g, u)
+        if not Eng_IsDummyType(GetUnitTypeId(u)) and GetUnitAbilityLevel(u, 'Aloc') == 0 and GetWidgetLife(u) > 0.405 and not IsUnitType(u, UNIT_TYPE_STRUCTURE) then
+            set Ncr_MemN = Ncr_MemN + 1
+            set Ncr_MemUnit[Ncr_MemN] = u
+            set Ncr_MemType[Ncr_MemN] = GetUnitTypeId(u)
+            set Ncr_MemX[Ncr_MemN] = GetUnitX(u)
+            set Ncr_MemY[Ncr_MemN] = GetUnitY(u)
+            set Ncr_MemFace[Ncr_MemN] = GetUnitFacing(u)
+            set Ncr_MemCamp[Ncr_MemN] = 0
+        endif
+    endloop
+    call DestroyGroup(g)
+    // Breadth-first proximity clustering via Eng_HT scratch queue
+    // (parent 8500000): members within 500 of any camp member join the camp.
+    set i = 1
+    loop
+        exitwhen i > Ncr_MemN
+        if Ncr_MemCamp[i] == 0 then
+            set Ncr_CampN = Ncr_CampN + 1
+            set Ncr_MemCamp[i] = Ncr_CampN
+            call SaveInteger(Eng_HT, 8500000, 1, i)
+            set qHead = 1
+            set qTail = 1
+            loop
+                exitwhen qHead > qTail
+                set k = LoadInteger(Eng_HT, 8500000, qHead)
+                set qHead = qHead + 1
+                set j = 1
+                loop
+                    exitwhen j > Ncr_MemN
+                    if Ncr_MemCamp[j] == 0 then
+                        set dx = Ncr_MemX[j] - Ncr_MemX[k]
+                        set dy = Ncr_MemY[j] - Ncr_MemY[k]
+                        if dx * dx + dy * dy <= 250000.00 then
+                            set Ncr_MemCamp[j] = Ncr_CampN
+                            set qTail = qTail + 1
+                            call SaveInteger(Eng_HT, 8500000, qTail, j)
+                        endif
+                    endif
+                    set j = j + 1
+                endloop
+            endloop
+        endif
+        set i = i + 1
+    endloop
+    call FlushChildHashtable(Eng_HT, 8500000)
+    // Camp centers = member average; deadline 0 means "camp is alive".
+    set i = 1
+    loop
+        exitwhen i > Ncr_CampN
+        set sx = 0.00
+        set sy = 0.00
+        set k = 0
+        set j = 1
+        loop
+            exitwhen j > Ncr_MemN
+            if Ncr_MemCamp[j] == i then
+                set sx = sx + Ncr_MemX[j]
+                set sy = sy + Ncr_MemY[j]
+                set k = k + 1
+            endif
+            set j = j + 1
+        endloop
+        set Ncr_CampX[i] = sx / I2R(k)
+        set Ncr_CampY[i] = sy / I2R(k)
+        set Ncr_CampRespawnAt[i] = 0.00
+        set i = i + 1
+    endloop
+    set Ncr_Ready = true
+    set u = null
+    set g = null
+endfunction
+
+function Ncr_CampWiped takes integer c returns boolean
+    local integer j = 1
+    loop
+        exitwhen j > Ncr_MemN
+        if Ncr_MemCamp[j] == c and Ncr_MemUnit[j] != null and GetUnitTypeId(Ncr_MemUnit[j]) != 0 and GetWidgetLife(Ncr_MemUnit[j]) > 0.405 then
+            return false
+        endif
+        set j = j + 1
+    endloop
+    return true
+endfunction
+
+function Ncr_CampBlocked takes integer c returns boolean
+    local unit u
+    local boolean blocked = false
+    call GroupEnumUnitsInRange(Eng_Enum, Ncr_CampX[c], Ncr_CampY[c], 900.00, null)
+    loop
+        set u = FirstOfGroup(Eng_Enum)
+        exitwhen u == null
+        call GroupRemoveUnit(Eng_Enum, u)
+        if (not blocked) and IsUnitType(u, UNIT_TYPE_HERO) and GetWidgetLife(u) > 0.405 and GetOwningPlayer(u) != Player(PLAYER_NEUTRAL_AGGRESSIVE) then
+            set blocked = true
+        endif
+    endloop
+    set u = null
+    return blocked
+endfunction
+
+function Ncr_RespawnCamp takes integer c returns nothing
+    local integer j = 1
+    loop
+        exitwhen j > Ncr_MemN
+        if Ncr_MemCamp[j] == c then
+            set Ncr_MemUnit[j] = CreateUnit(Player(PLAYER_NEUTRAL_AGGRESSIVE), Ncr_MemType[j], Ncr_MemX[j], Ncr_MemY[j], Ncr_MemFace[j])
+            call SFX_Point("Abilities\\Spells\\NightElf\\Blink\\BlinkTarget.mdl", Ncr_MemX[j], Ncr_MemY[j])
+            call SFX_Point("Objects\\Spawnmodels\\Undead\\ImpaleTargetDust\\ImpaleTargetDust.mdl", Ncr_MemX[j], Ncr_MemY[j])
+        endif
+        set j = j + 1
+    endloop
+endfunction
+
+function Ncr_Tick takes nothing returns nothing
+    local integer c = 1
+    if not Ncr_Ready then
+        return
+    endif
+    set Ncr_Acc = Ncr_Acc + Eng_TickRate
+    if Ncr_Acc < 1.00 then
+        return
+    endif
+    set Ncr_Acc = Ncr_Acc - 1.00
+    loop
+        exitwhen c > Ncr_CampN
+        if Ncr_CampRespawnAt[c] == 0.00 then
+            if Ncr_CampWiped(c) then
+                set Ncr_CampRespawnAt[c] = Eng_Now + 30.00
+            endif
+        elseif Eng_Now >= Ncr_CampRespawnAt[c] then
+            if Duel_State != 0 or Ncr_CampBlocked(c) then
+                set Ncr_CampRespawnAt[c] = Eng_Now + 5.00
+            else
+                call Ncr_RespawnCamp(c)
+                set Ncr_CampRespawnAt[c] = 0.00
+            endif
+        endif
+        set c = c + 1
+    endloop
+endfunction
+
+//===========================================================================
+// DuelCore - the arena duel as an engine channel.
+// State machine on the master tick: 0 idle, 1 countdown, 2 fight,
+// 3 aftermath. The 180-second udg_DUEL timer still schedules duels and the
+// A076 marker still tags active duelers, but everything else is new: a real
+// 3-2-1-FIGHT countdown with giant text tags, a living lightning ring that
+// sweeps the arena rim, corner light pillars, timeout draws, gold rewards
+// scaled by the loser's level, winner glory effects, and a persistent DUEL
+// RECORDS multiboard shown to everyone for the length of the duel.
+//===========================================================================
+function Duel_PickHero takes player alignTo returns unit
+    local group g = CreateGroup()
+    local unit u
+    local unit pick = null
+    local integer count = 0
+    call GroupEnumUnitsInRect(g, bj_mapInitialPlayableArea, null)
+    loop
+        set u = FirstOfGroup(g)
+        exitwhen u == null
+        call GroupRemoveUnit(g, u)
+        if IsUnitType(u, UNIT_TYPE_HERO) and GetWidgetLife(u) > 0.405 and (not IsUnitHidden(u)) and IsUnitAlly(u, alignTo) and GetUnitAbilityLevel(u, 'Aloc') == 0 and not Eng_IsDummyType(GetUnitTypeId(u)) then
+            set count = count + 1
+            if GetRandomInt(1, count) == 1 then
+                set pick = u
+            endif
+        endif
+    endloop
+    call DestroyGroup(g)
+    set Duel_PickTmp = pick
+    set pick = null
+    set g = null
+    set u = null
+    return Duel_PickTmp
+endfunction
+
+function Duel_MarkAll takes boolean protect returns nothing
+    local group g = CreateGroup()
+    local unit u
+    call GroupEnumUnitsInRect(g, bj_mapInitialPlayableArea, null)
+    loop
+        set u = FirstOfGroup(g)
+        exitwhen u == null
+        call GroupRemoveUnit(g, u)
+        if protect then
+            if GetUnitAbilityLevel(u, 'Avul') < 1 and GetOwningPlayer(u) != Player(PLAYER_NEUTRAL_AGGRESSIVE) then
+                call UnitAddAbility(u, 'Avul')
+            endif
+        else
+            if GetUnitAbilityLevel(u, 'Avul') == 1 and GetOwningPlayer(u) != Player(PLAYER_NEUTRAL_PASSIVE) then
+                call UnitRemoveAbility(u, 'Avul')
+            endif
+        endif
+    endloop
+    call DestroyGroup(g)
+    set g = null
+    set u = null
+endfunction
+
+function Duel_Announce takes string s, real size, real dy returns nothing
+    local texttag t = CreateTextTag()
+    local real cx = GetRectCenterX(gg_rct_Duel_Grounds)
+    local real cy = GetRectCenterY(gg_rct_Duel_Grounds)
+    call SetTextTagText(t, s, size)
+    call SetTextTagPos(t, cx - 128.00, cy + dy, 220.00)
+    call SetTextTagVelocity(t, 0.00, 0.014)
+    call SetTextTagPermanent(t, false)
+    call SetTextTagLifespan(t, 1.60)
+    call SetTextTagFadepoint(t, 0.90)
+    set t = null
+endfunction
+
+function Duel_RingPulse takes nothing returns nothing
+    local real cx = GetRectCenterX(gg_rct_Duel_Grounds)
+    local real cy = GetRectCenterY(gg_rct_Duel_Grounds)
+    local real spin = Eng_Now * 0.45
+    local integer s = 0
+    local real a1
+    local real a2
+    loop
+        exitwhen s > 11
+        set a1 = spin + I2R(s) * bj_PI / 6.00
+        set a2 = spin + I2R(s + 1) * bj_PI / 6.00
+        call Ltg_Add(AddLightningEx("CLPB", false, cx + 620.00 * Cos(a1), cy + 620.00 * Sin(a1), 40.00, cx + 620.00 * Cos(a2), cy + 620.00 * Sin(a2), 40.00), 1.90)
+        set s = s + 1
+    endloop
+endfunction
+
+function Duel_BoardRefresh takes nothing returns nothing
+    local integer pid = 0
+    local multiboarditem mi
+    if Duel_Board == null then
+        return
+    endif
+    loop
+        exitwhen pid > 9
+        if Duel_BoardRow[pid] > 0 then
+            set mi = MultiboardGetItem(Duel_Board, Duel_BoardRow[pid], 1)
+            call MultiboardSetItemValue(mi, I2S(Duel_Wins[pid]))
+            call MultiboardReleaseItem(mi)
+            set mi = MultiboardGetItem(Duel_Board, Duel_BoardRow[pid], 2)
+            call MultiboardSetItemValue(mi, I2S(Duel_Losses[pid]))
+            call MultiboardReleaseItem(mi)
+            set mi = MultiboardGetItem(Duel_Board, Duel_BoardRow[pid], 3)
+            call MultiboardSetItemValue(mi, I2S(Duel_GoldWon[pid]))
+            call MultiboardReleaseItem(mi)
+        endif
+        set pid = pid + 1
+    endloop
+    set mi = null
+endfunction
+
+function Duel_BoardInit takes nothing returns nothing
+    local integer pid = 0
+    local integer row = 1
+    local integer rows = 1
+    local integer col
+    local multiboarditem mi
+    if Duel_Board != null then
+        return
+    endif
+    loop
+        exitwhen pid > 9
+        if GetPlayerSlotState(Player(pid)) == PLAYER_SLOT_STATE_PLAYING then
+            set rows = rows + 1
+        endif
+        set pid = pid + 1
+    endloop
+    set Duel_Board = CreateMultiboard()
+    call MultiboardSetTitleText(Duel_Board, "|cffffcc00DUEL RECORDS|r")
+    call MultiboardSetColumnCount(Duel_Board, 4)
+    call MultiboardSetRowCount(Duel_Board, rows)
+    call MultiboardSetItemsStyle(Duel_Board, true, false)
+    // Header row.
+    set mi = MultiboardGetItem(Duel_Board, 0, 0)
+    call MultiboardSetItemValue(mi, "|cffffcc00Duelist|r")
+    call MultiboardReleaseItem(mi)
+    set mi = MultiboardGetItem(Duel_Board, 0, 1)
+    call MultiboardSetItemValue(mi, "|cff00ff00W|r")
+    call MultiboardReleaseItem(mi)
+    set mi = MultiboardGetItem(Duel_Board, 0, 2)
+    call MultiboardSetItemValue(mi, "|cffff5050L|r")
+    call MultiboardReleaseItem(mi)
+    set mi = MultiboardGetItem(Duel_Board, 0, 3)
+    call MultiboardSetItemValue(mi, "|cffffcc00Gold|r")
+    call MultiboardReleaseItem(mi)
+    set pid = 0
+    loop
+        exitwhen pid > 9
+        if GetPlayerSlotState(Player(pid)) == PLAYER_SLOT_STATE_PLAYING then
+            set Duel_BoardRow[pid] = row
+            set mi = MultiboardGetItem(Duel_Board, row, 0)
+            call MultiboardSetItemValue(mi, udg_PlayerColors[pid + 1] + GetPlayerName(Player(pid)) + "|r")
+            call MultiboardReleaseItem(mi)
+            set row = row + 1
+        else
+            set Duel_BoardRow[pid] = 0
+        endif
+        set pid = pid + 1
+    endloop
+    // Column widths (screen fractions) applied to every cell.
+    set row = 0
+    loop
+        exitwhen row >= rows
+        set col = 0
+        loop
+            exitwhen col > 3
+            set mi = MultiboardGetItem(Duel_Board, row, col)
+            if col == 0 then
+                call MultiboardSetItemWidth(mi, 0.10)
+            elseif col == 3 then
+                call MultiboardSetItemWidth(mi, 0.05)
+            else
+                call MultiboardSetItemWidth(mi, 0.03)
+            endif
+            call MultiboardReleaseItem(mi)
+            set col = col + 1
+        endloop
+        set row = row + 1
+    endloop
+    call MultiboardDisplay(Duel_Board, false)
+    call Duel_BoardRefresh()
+    set mi = null
+endfunction
+
+function Duel_CameraToArena takes nothing returns nothing
+    local integer pid = 0
+    loop
+        exitwhen pid > 9
+        if GetPlayerSlotState(Player(pid)) == PLAYER_SLOT_STATE_PLAYING then
+            call CameraSetupApplyForPlayer(true, gg_cam_DUEL, Player(pid), 0)
+            call SetCameraTargetControllerNoZForPlayer(Player(pid), gg_unit_h00Y_0027, 0, 0, false)
+            call SetCameraBoundsToRectForPlayerBJ(Player(pid), gg_rct_Duel_Grounds)
+            set Duel_FogArr[pid] = CreateFogModifierRect(Player(pid), FOG_OF_WAR_VISIBLE, gg_rct_Duel_Grounds, true, false)
+            call FogModifierStart(Duel_FogArr[pid])
+        endif
+        set pid = pid + 1
+    endloop
+endfunction
+
+function Duel_CameraHome takes nothing returns nothing
+    local integer pid = 0
+    local group g
+    local unit u
+    local unit hero
+    loop
+        exitwhen pid > 9
+        if GetPlayerSlotState(Player(pid)) == PLAYER_SLOT_STATE_PLAYING then
+            call ResetToGameCameraForPlayer(Player(pid), 0)
+            call SetCameraBoundsToRectForPlayerBJ(Player(pid), bj_mapInitialPlayableArea)
+            if Duel_FogArr[pid] != null then
+                call DestroyFogModifier(Duel_FogArr[pid])
+                set Duel_FogArr[pid] = null
+            endif
+            set g = CreateGroup()
+            call GroupEnumUnitsOfPlayer(g, Player(pid), null)
+            set hero = null
+            loop
+                set u = FirstOfGroup(g)
+                exitwhen u == null
+                call GroupRemoveUnit(g, u)
+                if hero == null and IsUnitType(u, UNIT_TYPE_HERO) and not IsUnitHidden(u) then
+                    set hero = u
+                endif
+            endloop
+            call DestroyGroup(g)
+            if hero != null then
+                call SelectUnitForPlayerSingle(hero, Player(pid))
+                call PanCameraToTimedForPlayer(Player(pid), GetUnitX(hero), GetUnitY(hero), 0.00)
+            endif
+        endif
+        set pid = pid + 1
+    endloop
+    set g = null
+    set u = null
+    set hero = null
+endfunction
+
+function Duel_ReturnAll takes nothing returns nothing
+    call EnableTrigger(gg_trg_Repick1)
+    call EnableTrigger(gg_trg_Repick_h)
+    if Duel_A != null and GetUnitTypeId(Duel_A) != 0 then
+        call UnitRemoveAbility(Duel_A, 'A076')
+        if GetWidgetLife(Duel_A) > 0.405 then
+            call SetUnitX(Duel_A, Duel_AX)
+            call SetUnitY(Duel_A, Duel_AY)
+            call SFX_Unit("Abilities\\Spells\\NightElf\\Blink\\BlinkTarget.mdl", Duel_A, "origin")
+        endif
+    endif
+    if Duel_B != null and GetUnitTypeId(Duel_B) != 0 then
+        call UnitRemoveAbility(Duel_B, 'A076')
+        if GetWidgetLife(Duel_B) > 0.405 then
+            call SetUnitX(Duel_B, Duel_BX)
+            call SetUnitY(Duel_B, Duel_BY)
+            call SFX_Unit("Abilities\\Spells\\NightElf\\Blink\\BlinkTarget.mdl", Duel_B, "origin")
+        endif
+    endif
+    call PauseAllUnitsBJ(false)
+    call Duel_MarkAll(false)
+    call Duel_CameraHome()
+    call StartTimerBJ(udg_DUEL, false, 180.00)
+    call CreateTimerDialogBJ(udg_DUEL, "TRIGSTR_3468")
+    set udg_Duel_T = GetLastCreatedTimerDialogBJ()
+endfunction
+
+function Duel_ShowBoard takes nothing returns nothing
+    call Duel_BoardInit()
+    set Duel_PrevBoard = bj_lastCreatedMultiboard
+    if Duel_PrevBoard != null then
+        call MultiboardDisplay(Duel_PrevBoard, false)
+    endif
+    call Duel_BoardRefresh()
+    call MultiboardDisplay(Duel_Board, true)
+    call MultiboardMinimize(Duel_Board, false)
+endfunction
+
+function Duel_HideBoard takes nothing returns nothing
+    if Duel_Board != null then
+        call MultiboardDisplay(Duel_Board, false)
+    endif
+    if Duel_PrevBoard != null then
+        call MultiboardDisplay(Duel_PrevBoard, true)
+        set Duel_PrevBoard = null
+    endif
+endfunction
+
+function Duel_Begin takes nothing returns nothing
+    local real c1x = GetRectCenterX(gg_rct_Duel1)
+    local real c1y = GetRectCenterY(gg_rct_Duel1)
+    local real c2x = GetRectCenterX(gg_rct_Duel2)
+    local real c2y = GetRectCenterY(gg_rct_Duel2)
+    local real gx = GetRectCenterX(gg_rct_Duel_Grounds)
+    local real gy = GetRectCenterY(gg_rct_Duel_Grounds)
+    if Duel_State != 0 then
+        return
+    endif
+    set Duel_A = Duel_PickHero(Player(0))
+    set Duel_B = Duel_PickHero(Player(5))
+    if Duel_A == null or Duel_B == null or Duel_A == Duel_B then
+        call DisplayTextToForce(bj_FORCE_ALL_PLAYERS, "|cffffcc00The duel horn sounds... but a champion is missing. The duel is postponed.|r")
+        set Duel_A = null
+        set Duel_B = null
+        call StartTimerBJ(udg_DUEL, false, 60.00)
+        call CreateTimerDialogBJ(udg_DUEL, "TRIGSTR_3468")
+        set udg_Duel_T = GetLastCreatedTimerDialogBJ()
+        return
+    endif
+    call DisableTrigger(gg_trg_Repick1)
+    call DisableTrigger(gg_trg_Repick_h)
+    call DestroyTimerDialogBJ(udg_Duel_T)
+    set Duel_AX = GetUnitX(Duel_A)
+    set Duel_AY = GetUnitY(Duel_A)
+    set Duel_BX = GetUnitX(Duel_B)
+    set Duel_BY = GetUnitY(Duel_B)
+    set Duel_AHp = GetWidgetLife(Duel_A)
+    set Duel_BHp = GetWidgetLife(Duel_B)
+    call PauseAllUnitsBJ(true)
+    call Duel_MarkAll(true)
+    call UnitAddAbility(Duel_A, 'A076')
+    call UnitAddAbility(Duel_B, 'A076')
+    call SetUnitX(Duel_A, c1x)
+    call SetUnitY(Duel_A, c1y)
+    call SetUnitX(Duel_B, c2x)
+    call SetUnitY(Duel_B, c2y)
+    call SetUnitFacing(Duel_A, Atan2(c2y - c1y, c2x - c1x) * bj_RADTODEG)
+    call SetUnitFacing(Duel_B, Atan2(c1y - c2y, c1x - c2x) * bj_RADTODEG)
+    call SetUnitLifePercentBJ(Duel_A, 100)
+    call SetUnitLifePercentBJ(Duel_B, 100)
+    call SetUnitManaPercentBJ(Duel_A, 100)
+    call SetUnitManaPercentBJ(Duel_B, 100)
+    // Arena dressing: arrival flashes, corner light pillars, first rim ring.
+    call SFX_Point("Abilities\\Spells\\Human\\MassTeleport\\MassTeleportTarget.mdl", c1x, c1y)
+    call SFX_Point("Abilities\\Spells\\Human\\MassTeleport\\MassTeleportTarget.mdl", c2x, c2y)
+    call SFX_Point("Abilities\\Spells\\Human\\HolyBolt\\HolyBoltSpecialArt.mdl", GetRectMinX(gg_rct_Duel_Grounds) + 96.00, GetRectMinY(gg_rct_Duel_Grounds) + 96.00)
+    call SFX_Point("Abilities\\Spells\\Human\\HolyBolt\\HolyBoltSpecialArt.mdl", GetRectMinX(gg_rct_Duel_Grounds) + 96.00, GetRectMaxY(gg_rct_Duel_Grounds) - 96.00)
+    call SFX_Point("Abilities\\Spells\\Human\\HolyBolt\\HolyBoltSpecialArt.mdl", GetRectMaxX(gg_rct_Duel_Grounds) - 96.00, GetRectMinY(gg_rct_Duel_Grounds) + 96.00)
+    call SFX_Point("Abilities\\Spells\\Human\\HolyBolt\\HolyBoltSpecialArt.mdl", GetRectMaxX(gg_rct_Duel_Grounds) - 96.00, GetRectMaxY(gg_rct_Duel_Grounds) - 96.00)
+    call SFX_Point("Abilities\\Spells\\Orc\\WarStomp\\WarStompCaster.mdl", gx, gy)
+    call Duel_RingPulse()
+    call Duel_CameraToArena()
+    call Duel_ShowBoard()
+    call DisplayTimedTextToForce(bj_FORCE_ALL_PLAYERS, 12.00, "|cffffcc00========  D U E L  ========|r")
+    call DisplayTimedTextToForce(bj_FORCE_ALL_PLAYERS, 12.00, udg_PlayerColors[GetConvertedPlayerId(GetOwningPlayer(Duel_A))] + GetPlayerName(GetOwningPlayer(Duel_A)) + "|r  vs  " + udg_PlayerColors[GetConvertedPlayerId(GetOwningPlayer(Duel_B))] + GetPlayerName(GetOwningPlayer(Duel_B)) + "|r")
+    call DisplayTimedTextToForce(bj_FORCE_ALL_PLAYERS, 12.00, "|cffaaaaaaWinner takes gold. 90 seconds or it is a draw.|r")
+    set Duel_State = 1
+    set Duel_Timer = 3.99
+    set Duel_Count = 3
+    set Duel_FxAcc = 0.00
+endfunction
+
+function Duel_End takes unit winner, unit loser, boolean draw returns nothing
+    local integer reward
+    local integer wpid
+    local texttag t
+    if Duel_State != 1 and Duel_State != 2 then
+        return
+    endif
+    if draw or winner == null or GetUnitTypeId(winner) == 0 then
+        call DisplayTimedTextToForce(bj_FORCE_ALL_PLAYERS, 10.00, "|cffaaaaaaThe duel ends in a DRAW. The arena is unimpressed.|r")
+        call Duel_Announce("DRAW", 0.040, 0.00)
+        // Neither champion earned anything - both walk out with the health
+        // they walked in with.
+        if Duel_A != null and GetUnitTypeId(Duel_A) != 0 and GetWidgetLife(Duel_A) > 0.405 then
+            call SetWidgetLife(Duel_A, Duel_AHp)
+        endif
+        if Duel_B != null and GetUnitTypeId(Duel_B) != 0 and GetWidgetLife(Duel_B) > 0.405 then
+            call SetWidgetLife(Duel_B, Duel_BHp)
+        endif
+    else
+        set wpid = GetPlayerId(GetOwningPlayer(winner))
+        set reward = 300
+        if loser != null and GetUnitTypeId(loser) != 0 then
+            set reward = 300 + 40 * GetHeroLevel(loser)
+            set Duel_Losses[GetPlayerId(GetOwningPlayer(loser))] = Duel_Losses[GetPlayerId(GetOwningPlayer(loser))] + 1
+        endif
+        set Duel_Wins[wpid] = Duel_Wins[wpid] + 1
+        set Duel_GoldWon[wpid] = Duel_GoldWon[wpid] + reward
+        call SetPlayerState(Player(wpid), PLAYER_STATE_RESOURCE_GOLD, GetPlayerState(Player(wpid), PLAYER_STATE_RESOURCE_GOLD) + reward)
+        call DisplayTimedTextToForce(bj_FORCE_ALL_PLAYERS, 12.00, udg_PlayerColors[wpid + 1] + GetPlayerName(Player(wpid)) + "|r |cffffcc00WINS THE DUEL|r and claims |cffffcc00" + I2S(reward) + " gold|r!")
+        call Duel_Announce("VICTORY!", 0.045, 60.00)
+        if GetWidgetLife(winner) > 0.405 then
+            call SetWidgetLife(winner, GetUnitState(winner, UNIT_STATE_MAX_LIFE))
+            call SetUnitManaPercentBJ(winner, 100)
+            call SFX_Unit("Abilities\\Spells\\Human\\Resurrect\\ResurrectTarget.mdl", winner, "origin")
+            call SFX_Unit("Abilities\\Spells\\Human\\HolyBolt\\HolyBoltSpecialArt.mdl", winner, "overhead")
+            set t = CreateTextTag()
+            call SetTextTagText(t, "+" + I2S(reward) + " gold", 0.024)
+            call SetTextTagPosUnit(t, winner, 40.00)
+            call SetTextTagColor(t, 255, 220, 0, 255)
+            call SetTextTagVelocity(t, 0.00, 0.028)
+            call SetTextTagPermanent(t, false)
+            call SetTextTagLifespan(t, 2.50)
+            call SetTextTagFadepoint(t, 1.50)
+            set t = null
+        endif
+    endif
+    call Duel_BoardRefresh()
+    call Duel_ReturnAll()
+    set Duel_State = 3
+    set Duel_Timer = 8.00
+endfunction
+
+function Duel_Tick takes nothing returns nothing
+    local boolean aGone
+    local boolean bGone
+    if Duel_State == 0 then
+        return
+    endif
+    if Duel_State == 3 then
+        set Duel_Timer = Duel_Timer - Eng_TickRate
+        if Duel_Timer <= 0.00 then
+            call Duel_HideBoard()
+            set Duel_A = null
+            set Duel_B = null
+            set Duel_State = 0
+        endif
+        return
+    endif
+    set aGone = Duel_A == null or GetUnitTypeId(Duel_A) == 0
+    set bGone = Duel_B == null or GetUnitTypeId(Duel_B) == 0
+    if aGone and bGone then
+        call Duel_End(null, null, true)
+        return
+    elseif aGone then
+        call Duel_End(Duel_B, null, false)
+        return
+    elseif bGone then
+        call Duel_End(Duel_A, null, false)
+        return
+    endif
+    set Duel_FxAcc = Duel_FxAcc + Eng_TickRate
+    if Duel_FxAcc >= 2.00 then
+        set Duel_FxAcc = Duel_FxAcc - 2.00
+        call Duel_RingPulse()
+        call SFX_Point("Abilities\\Weapons\\Bolt\\BoltImpact.mdl", GetRectCenterX(gg_rct_Duel_Grounds) + GetRandomReal(-560.00, 560.00), GetRectCenterY(gg_rct_Duel_Grounds) + GetRandomReal(-560.00, 560.00))
+    endif
+    if Duel_State == 1 then
+        set Duel_Timer = Duel_Timer - Eng_TickRate
+        if Duel_Timer <= I2R(Duel_Count) and Duel_Count > 0 then
+            call Duel_Announce(I2S(Duel_Count), 0.042, 0.00)
+            call SFX_Point("Abilities\\Spells\\Human\\Thunderclap\\ThunderclapCaster.mdl", GetRectCenterX(gg_rct_Duel_Grounds), GetRectCenterY(gg_rct_Duel_Grounds))
+            set Duel_Count = Duel_Count - 1
+        endif
+        if Duel_Timer <= 0.00 then
+            call UnitRemoveAbility(Duel_A, 'Avul')
+            call UnitRemoveAbility(Duel_B, 'Avul')
+            call PauseUnit(Duel_A, false)
+            call PauseUnit(Duel_B, false)
+            call IssueTargetOrder(Duel_A, "attack", Duel_B)
+            call IssueTargetOrder(Duel_B, "attack", Duel_A)
+            call Duel_Announce("F I G H T !", 0.050, 30.00)
+            call SFX_Unit("Abilities\\Spells\\Orc\\WarStomp\\WarStompCaster.mdl", Duel_A, "origin")
+            call SFX_Unit("Abilities\\Spells\\Orc\\WarStomp\\WarStompCaster.mdl", Duel_B, "origin")
+            set Duel_State = 2
+            set Duel_Timer = 90.00
+        endif
+    elseif Duel_State == 2 then
+        set Duel_Timer = Duel_Timer - Eng_TickRate
+        if Duel_Timer <= 0.00 then
+            call Duel_End(null, null, true)
+        endif
+    endif
+endfunction
+
 function Eng_MasterTick takes nothing returns nothing
     set Eng_Now = Eng_Now + Eng_TickRate
     call Rcy_Tick()
@@ -7433,6 +8212,9 @@ function Eng_MasterTick takes nothing returns nothing
     call Mp_DragTick()
     call Tur_ShellTick()
     call Tur_FormTick()
+    call Awq_Tick()
+    call Ncr_Tick()
+    call Duel_Tick()
 endfunction
 
 function WaterClone_ClearState takes nothing returns boolean
@@ -7495,6 +8277,10 @@ function Engine_Init takes nothing returns nothing
     call TriggerAddCondition(Sos_OnTick, Condition(function SoulStrike_OnTick))
     set Eaw_OnHit = CreateTrigger()
     call TriggerAddCondition(Eaw_OnHit, Condition(function EA_OnHit))
+    set Eaw_OnTick = CreateTrigger()
+    call TriggerAddCondition(Eaw_OnTick, Condition(function EA_OnTick))
+    set Eaw_OnEnd = CreateTrigger()
+    call TriggerAddCondition(Eaw_OnEnd, Condition(function EA_OnEnd))
     set Ash_OnTick = CreateTrigger()
     call TriggerAddCondition(Ash_OnTick, Condition(function ArrowShower_OnTick))
     set Tbn_OnTick = CreateTrigger()
@@ -7537,6 +8323,9 @@ function Engine_Init takes nothing returns nothing
         set preload = preload + 1
     endloop
     call Dummy_Recycle(Dummy_Get(Player(PLAYER_NEUTRAL_PASSIVE), 'h00Q', Eng_PoolX, Eng_PoolY, 0.00))
+    // NeutralCore camp scan: CreateAllUnits ran before Engine_Init, so every
+    // placed neutral-aggressive creep already exists at its editor position.
+    call Ncr_Init()
     call TimerStart(Eng_Timer, Eng_TickRate, true, function Eng_MasterTick)
     set waterCloneDeath = null
     set tilesSpell = null
@@ -11307,46 +12096,20 @@ endfunction
 //
 // Default melee game initialization for all players
 //===========================================================================
-function Trig_Respawn_Actions takes nothing returns nothing
-    local unit u = GetDyingUnit()
-    local integer id = GetUnitTypeId(u)
-    local integer lv = GetHeroLevel(u)
-    local integer cv = GetUnitUserData(u)
-    local real x = LoadReal(udg_CreepTable, cv, 1)
-    local real y = LoadReal(udg_CreepTable, cv, 2)
-    local real ang = LoadReal(udg_CreepTable, cv, 3)
-    call TriggerSleepAction( 5.00 )
-    call RemoveUnit( u )
-    set u = CreateUnit(GetTriggerPlayer(),id,x,y,ang)
-    if lv > 1 then
-    call SetHeroLevel(u,lv,false)
-    endif
-    set u = null
-endfunction
-
-//===========================================================================
+// Retired: the old per-unit 5-second TriggerSleepAction respawn (each creep
+// resurrected alone at whatever spot the CreepTable last saw it) is replaced
+// by the engine's NeutralCore - camps are proximity-grouped at boot and only
+// respawn at their ORIGINAL points once the whole group is wiped out.
+// See Ncr_Init / Ncr_Tick in the TIDES ENGINE section.
 function InitTrig_Respawn takes nothing returns nothing
-    set gg_trg_Respawn = CreateTrigger(  )
-    call TriggerRegisterPlayerUnitEventSimple( gg_trg_Respawn, Player(PLAYER_NEUTRAL_AGGRESSIVE), EVENT_PLAYER_UNIT_DEATH )
-    call TriggerAddAction( gg_trg_Respawn, function Trig_Respawn_Actions )
 endfunction
 
 //===========================================================================
 // Trigger: Set the unit coordinate
 //===========================================================================
-function Trig_Set_the_unit_coordinate_Actions takes nothing returns nothing
-    local unit u = udg_UDexUnits[udg_UDex]
-    call SaveReal(udg_CreepTable, udg_UDex, 1, GetUnitX(u))
-    call SaveReal(udg_CreepTable, udg_UDex, 2, GetUnitY(u))
-    call SaveReal(udg_CreepTable, udg_UDex, 3, GetUnitFacing(u))
-    set u = null
-endfunction
-
-//===========================================================================
+// Retired: NeutralCore snapshots original creep positions itself; the
+// per-index CreepTable bookkeeping is gone with the old respawn.
 function InitTrig_Set_the_unit_coordinate takes nothing returns nothing
-    set gg_trg_Set_the_unit_coordinate = CreateTrigger(  )
-    call TriggerRegisterVariableEvent( gg_trg_Set_the_unit_coordinate, "udg_UnitIndexEvent", EQUAL, 1.00 )
-    call TriggerAddAction( gg_trg_Set_the_unit_coordinate, function Trig_Set_the_unit_coordinate_Actions )
 endfunction
 
 //===========================================================================
@@ -17795,145 +18558,11 @@ function Trig_Duel_Conditions takes nothing returns boolean
     return true
 endfunction
 
-function Trig_Duel_Func007001002001 takes nothing returns boolean
-    return ( GetUnitAbilityLevelSwapped('Avul', GetFilterUnit()) < 1 )
-endfunction
-
-function Trig_Duel_Func007001002002 takes nothing returns boolean
-    return ( GetOwningPlayer(GetFilterUnit()) != Player(PLAYER_NEUTRAL_AGGRESSIVE) )
-endfunction
-
-function Trig_Duel_Func007001002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Duel_Func007001002001(), Trig_Duel_Func007001002002() )
-endfunction
-
-function Trig_Duel_Func007A takes nothing returns nothing
-    call UnitAddAbilityBJ( 'Avul', GetEnumUnit() )
-endfunction
-
-function Trig_Duel_Func008002002001 takes nothing returns boolean
-    return ( IsUnitType(GetFilterUnit(), UNIT_TYPE_HERO) == true )
-endfunction
-
-function Trig_Duel_Func008002002002001 takes nothing returns boolean
-    return ( IsUnitAliveBJ(GetFilterUnit()) == true )
-endfunction
-
-function Trig_Duel_Func008002002002002001 takes nothing returns boolean
-    return ( IsUnitAlly(GetFilterUnit(), Player(0)) == true )
-endfunction
-
-function Trig_Duel_Func008002002002002002 takes nothing returns boolean
-    return ( IsUnitHiddenBJ(GetFilterUnit()) == false )
-endfunction
-
-function Trig_Duel_Func008002002002002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Duel_Func008002002002002001(), Trig_Duel_Func008002002002002002() )
-endfunction
-
-function Trig_Duel_Func008002002002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Duel_Func008002002002001(), Trig_Duel_Func008002002002002() )
-endfunction
-
-function Trig_Duel_Func008002002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Duel_Func008002002001(), Trig_Duel_Func008002002002() )
-endfunction
-
-function Trig_Duel_Func013002002001 takes nothing returns boolean
-    return ( IsUnitType(GetFilterUnit(), UNIT_TYPE_HERO) == true )
-endfunction
-
-function Trig_Duel_Func013002002002001 takes nothing returns boolean
-    return ( IsUnitAliveBJ(GetFilterUnit()) == true )
-endfunction
-
-function Trig_Duel_Func013002002002002001 takes nothing returns boolean
-    return ( IsUnitAlly(GetFilterUnit(), Player(5)) == true )
-endfunction
-
-function Trig_Duel_Func013002002002002002 takes nothing returns boolean
-    return ( IsUnitHiddenBJ(GetFilterUnit()) == false )
-endfunction
-
-function Trig_Duel_Func013002002002002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Duel_Func013002002002002001(), Trig_Duel_Func013002002002002002() )
-endfunction
-
-function Trig_Duel_Func013002002002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Duel_Func013002002002001(), Trig_Duel_Func013002002002002() )
-endfunction
-
-function Trig_Duel_Func013002002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Duel_Func013002002001(), Trig_Duel_Func013002002002() )
-endfunction
-
-function Trig_Duel_Func021001001001 takes nothing returns boolean
-    return ( GetFilterPlayer() != GetOwningPlayer(udg_Dueler1) )
-endfunction
-
-function Trig_Duel_Func021001001002 takes nothing returns boolean
-    return ( GetFilterPlayer() != GetOwningPlayer(udg_Dueler2) )
-endfunction
-
-function Trig_Duel_Func021001001 takes nothing returns boolean
-    return GetBooleanOr( Trig_Duel_Func021001001001(), Trig_Duel_Func021001001002() )
-endfunction
-
-function Trig_Duel_Func021A takes nothing returns nothing
-    call CameraSetupApplyForPlayer( true, gg_cam_DUEL, GetEnumPlayer(), 0 )
-    call SetCameraTargetControllerNoZForPlayer( GetEnumPlayer(), gg_unit_h00Y_0027, 0, 0, false )
-    call SetCameraBoundsToRectForPlayerBJ( GetEnumPlayer(), gg_rct_Duel_Grounds )
-endfunction
-
-function Trig_Duel_Func023A takes nothing returns nothing
-    call CreateFogModifierRectBJ( true, GetEnumPlayer(), FOG_OF_WAR_VISIBLE, gg_rct_Duel_Grounds )
-    set udg_DUEL_VISION = GetLastCreatedFogModifier()
-endfunction
-
+// Rebuilt on TIDES ENGINE DuelCore: the timer dispatches straight into the
+// engine state machine - countdown, arena FX, rewards, and the DUEL RECORDS
+// multiboard live in Duel_Begin / Duel_Tick / Duel_End.
 function Trig_Duel_Actions takes nothing returns nothing
-    local force tempForce = null
-    call DisableTrigger( gg_trg_Repick1 )
-    call DisableTrigger( gg_trg_Repick_h )
-    call DestroyTimerDialogBJ( udg_Duel_T )
-    call DisplayTextToForce( bj_FORCE_ALL_PLAYERS, "TRIGSTR_3465" )
-    call PauseAllUnitsBJ( true )
-    set bj_wantDestroyGroup = true
-    call ForGroupBJ( GetUnitsInRectMatching(GetPlayableMapRect(), Condition(function Trig_Duel_Func007001002)), function Trig_Duel_Func007A )
-    set udg_Duel_Group1 = GetUnitsInRectMatching(GetPlayableMapRect(), Condition(function Trig_Duel_Func008002002))
-    set udg_Dueler1 = GroupPickRandomUnit(udg_Duel_Group1)
-    set udg_Dueler1_Pos = GetUnitLoc(udg_Dueler1)
-    set udg_Dueler1_HP = GetUnitStateSwap(UNIT_STATE_LIFE, udg_Dueler1)
-    call SetUnitPosition(udg_Dueler1, GetRectCenterX(gg_rct_Duel1), GetRectCenterY(gg_rct_Duel1))
-    set udg_Duel_Group2 = GetUnitsInRectMatching(GetPlayableMapRect(), Condition(function Trig_Duel_Func013002002))
-    set udg_Dueler2 = GroupPickRandomUnit(udg_Duel_Group2)
-    set udg_Dueler2_Pos = GetUnitLoc(udg_Dueler2)
-    set udg_Dueler2_HP = GetUnitStateSwap(UNIT_STATE_LIFE, udg_Dueler2)
-    call SetUnitPosition(udg_Dueler2, GetRectCenterX(gg_rct_Duel2), GetRectCenterY(gg_rct_Duel2))
-    call UnitAddAbilityBJ( 'A076', udg_Dueler1 )
-    call UnitAddAbilityBJ( 'A076', udg_Dueler2 )
-    set bj_wantDestroyGroup = true
-    set tempForce = GetPlayersMatching(Condition(function Trig_Duel_Func021001001))
-    call ForForce(tempForce, function Trig_Duel_Func021A)
-    call DestroyForce(tempForce)
-    set tempForce = null
-    set bj_wantDestroyGroup = true
-    call ForForce( bj_FORCE_ALL_PLAYERS, function Trig_Duel_Func023A )
-    call TriggerSleepAction( 3.00 )
-    call SetUnitLifePercentBJ( udg_Dueler1, 100 )
-    call SetUnitLifePercentBJ( udg_Dueler2, 100 )
-    call DisplayTimedTextToForce( bj_FORCE_ALL_PLAYERS, 15.00, "TRIGSTR_3469" )
-    call DisplayTimedTextToForce( bj_FORCE_ALL_PLAYERS, 15.00, ( ( udg_PlayerColors[GetConvertedPlayerId(GetOwningPlayer(udg_Dueler1))] + ( GetPlayerName(GetOwningPlayer(udg_Dueler1)) + "|r vs " ) ) + ( ( udg_PlayerColors[GetConvertedPlayerId(GetOwningPlayer(udg_Dueler2))] + ( GetPlayerName(GetOwningPlayer(udg_Dueler2)) + "|r!" ) ) + " " ) ) )
-    call DisplayTimedTextToForce( bj_FORCE_ALL_PLAYERS, 15.00, "TRIGSTR_3471" )
-    call PauseUnitBJ( false, udg_Dueler1 )
-    call PauseUnitBJ( false, udg_Dueler2 )
-    call UnitRemoveAbilityBJ( 'Avul', udg_Dueler1 )
-    call UnitRemoveAbilityBJ( 'Avul', udg_Dueler2 )
-    call IssuePointOrderLocBJ( udg_Dueler1, "attack", GetRectCenter(gg_rct_Duel2) )
-    call IssuePointOrderLocBJ( udg_Dueler2, "attack", GetRectCenter(gg_rct_Duel1) )
-    call DestroyGroup(udg_Duel_Group1)
-    call DestroyGroup(udg_Duel_Group2)
-        call RemoveLocation(udg_Dueler1_Pos)
-            call RemoveLocation(udg_Dueler2_Pos)
+    call Duel_Begin()
 endfunction
 
 //===========================================================================
@@ -17954,96 +18583,20 @@ function Trig_Duel_Finish_Conditions takes nothing returns boolean
     return true
 endfunction
 
-function Trig_Duel_Finish_Func010001001 takes nothing returns boolean
-    return ( GetPlayerSlotState(GetFilterPlayer()) == PLAYER_SLOT_STATE_PLAYING )
-endfunction
-
-function Trig_Duel_Finish_Func010Func003001002001 takes nothing returns boolean
-    return ( IsUnitType(GetFilterUnit(), UNIT_TYPE_HERO) == true )
-endfunction
-
-function Trig_Duel_Finish_Func010Func003001002002 takes nothing returns boolean
-    return ( GetOwningPlayer(GetFilterUnit()) == GetEnumPlayer() )
-endfunction
-
-function Trig_Duel_Finish_Func010Func003001002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Duel_Finish_Func010Func003001002001(), Trig_Duel_Finish_Func010Func003001002002() )
-endfunction
-
-function Trig_Duel_Finish_Func010Func003A takes nothing returns nothing
-    call SelectUnitForPlayerSingle( GetEnumUnit(), GetEnumPlayer() )
-    call PanCameraToTimedForPlayer(GetEnumPlayer(), GetUnitX(GetEnumUnit()), GetUnitY(GetEnumUnit()), 0.00)
-endfunction
-
-function Trig_Duel_Finish_Func010A takes nothing returns nothing
-    call ResetToGameCameraForPlayer( GetEnumPlayer(), 0 )
-    set bj_wantDestroyGroup = true
-    call ForGroupBJ( GetUnitsInRectMatching(GetEntireMapRect(), Condition(function Trig_Duel_Finish_Func010Func003001002)), function Trig_Duel_Finish_Func010Func003A )
-    call DestroyFogModifier( udg_DUEL_VISION )
-endfunction
-
-function Trig_Duel_Finish_Func012001001001 takes nothing returns boolean
-    return ( GetOwningPlayer(udg_Dueler1) != GetFilterPlayer() )
-endfunction
-
-function Trig_Duel_Finish_Func012001001002 takes nothing returns boolean
-    return ( GetOwningPlayer(udg_Dueler2) != GetFilterPlayer() )
-endfunction
-
-function Trig_Duel_Finish_Func012001001 takes nothing returns boolean
-    return GetBooleanOr( Trig_Duel_Finish_Func012001001001(), Trig_Duel_Finish_Func012001001002() )
-endfunction
-
-function Trig_Duel_Finish_Func012A takes nothing returns nothing
-    call SetCameraBoundsToRectForPlayerBJ( GetEnumPlayer(), GetEntireMapRect() )
-endfunction
-
-function Trig_Duel_Finish_Func017001002001 takes nothing returns boolean
-    return ( GetUnitAbilityLevelSwapped('Avul', GetFilterUnit()) == 1 )
-endfunction
-
-function Trig_Duel_Finish_Func017001002002 takes nothing returns boolean
-    return ( GetOwningPlayer(GetFilterUnit()) != Player(PLAYER_NEUTRAL_PASSIVE) )
-endfunction
-
-function Trig_Duel_Finish_Func017001002 takes nothing returns boolean
-    return GetBooleanAnd( Trig_Duel_Finish_Func017001002001(), Trig_Duel_Finish_Func017001002002() )
-endfunction
-
-function Trig_Duel_Finish_Func017A takes nothing returns nothing
-    call UnitRemoveAbilityBJ( 'Avul', GetEnumUnit() )
-endfunction
-
+// Rebuilt on DuelCore: a dueler's death hands the win to the other champion.
+// Rewards, records, camera return and the next duel timer are Duel_End's job.
 function Trig_Duel_Finish_Actions takes nothing returns nothing
-    local force tempForce = null
-    call EnableTrigger( gg_trg_Repick1 )
-    call EnableTrigger( gg_trg_Repick_h )
-    call SetUnitLifeBJ( udg_Dueler1, udg_Dueler1_HP )
-    call SetUnitLifeBJ( udg_Dueler2, udg_Dueler2_HP )
-    call UnitRemoveAbilityBJ( 'A076', udg_Dueler1 )
-    call UnitRemoveAbilityBJ( 'A076', udg_Dueler2 )
-    call DestroyTimerDialogBJ( udg_Duel_T )
-    call DisplayTimedTextToForce( bj_FORCE_ALL_PLAYERS, 15.00, ( udg_Players_Name[GetConvertedPlayerId(GetOwningPlayer(GetKillingUnitBJ()))] + " won the Duel!" ) )
-    set bj_wantDestroyGroup = true
-    set tempForce = GetPlayersMatching(Condition(function Trig_Duel_Finish_Func010001001))
-    call ForForce(tempForce, function Trig_Duel_Finish_Func010A)
-    call DestroyForce(tempForce)
-    set tempForce = null
-    set bj_wantDestroyGroup = true
-    set tempForce = GetPlayersMatching(Condition(function Trig_Duel_Finish_Func012001001))
-    call ForForce(tempForce, function Trig_Duel_Finish_Func012A)
-    call DestroyForce(tempForce)
-    set tempForce = null
-    call SetUnitPositionLoc( udg_Dueler1, udg_Dueler1_Pos )
-    call SetUnitPositionLoc( udg_Dueler2, udg_Dueler2_Pos )
-    call PauseAllUnitsBJ( false )
-    set bj_wantDestroyGroup = true
-    call ForGroupBJ( GetUnitsInRectMatching(GetPlayableMapRect(), Condition(function Trig_Duel_Finish_Func017001002)), function Trig_Duel_Finish_Func017A )
-    call StartTimerBJ( udg_DUEL, false, 180.00 )
-    call CreateTimerDialogBJ( udg_DUEL, "TRIGSTR_3468" )
-    set udg_Duel_T = GetLastCreatedTimerDialogBJ()
-    set udg_Dueler1 = null
-    set udg_Dueler2 = null
+    local unit dead = GetTriggerUnit()
+    if Duel_State != 1 and Duel_State != 2 then
+        set dead = null
+        return
+    endif
+    if dead == Duel_A then
+        call Duel_End(Duel_B, Duel_A, false)
+    elseif dead == Duel_B then
+        call Duel_End(Duel_A, Duel_B, false)
+    endif
+    set dead = null
 endfunction
 
 //===========================================================================
@@ -18065,9 +18618,12 @@ function Trig_Duel_Anti_abuse_Conditions takes nothing returns boolean
 endfunction
 
 function Trig_Duel_Anti_abuse_Actions takes nothing returns nothing
-    set udg_TempLoc = GetRandomLocInRect(gg_rct_Duel_Grounds)
-    call SetUnitPositionLoc( GetTriggerUnit(), OffsetLocation(udg_TempLoc, 0, 0) )
-    call RemoveLocation(udg_TempLoc)
+    local real x = GetRandomReal(GetRectMinX(gg_rct_Duel_Grounds) + 128.00, GetRectMaxX(gg_rct_Duel_Grounds) - 128.00)
+    local real y = GetRandomReal(GetRectMinY(gg_rct_Duel_Grounds) + 128.00, GetRectMaxY(gg_rct_Duel_Grounds) - 128.00)
+    call SetUnitX(GetTriggerUnit(), x)
+    call SetUnitY(GetTriggerUnit(), y)
+    call SFX_Point("Abilities\\Spells\\NightElf\\Blink\\BlinkTarget.mdl", x, y)
+    call DisplayTextToPlayer(GetOwningPlayer(GetTriggerUnit()), 0, 0, "|cffff5050There is no escape from the arena.|r")
 endfunction
 
 //===========================================================================
