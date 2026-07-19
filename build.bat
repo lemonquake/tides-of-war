@@ -43,7 +43,13 @@ if errorlevel 1 (
 )
 
 :: 3. Inject the external script and patched ability presentation data.
+:: Delete GUI trigger files so World Editor / WC3 engine does not override war3map.j
+MPQEditor.exe delete "dist\Tides_of_War_Compiled.w3x" "war3map.wtg"
+MPQEditor.exe delete "dist\Tides_of_War_Compiled.w3x" "war3map.wct"
 MPQEditor.exe add "dist\Tides_of_War_Compiled.w3x" "src\war3map.j" "war3map.j"
+if errorlevel 1 exit /b 1
+timeout /t 1 /nobreak >nul 2>&1
+MPQEditor.exe add "dist\Tides_of_War_Compiled.w3x" "src\war3map.j" "scripts\war3map.j"
 if errorlevel 1 exit /b 1
 timeout /t 1 /nobreak >nul 2>&1
 MPQEditor.exe add "dist\Tides_of_War_Compiled.w3x" "build\patched\war3map.w3a" "war3map.w3a"
